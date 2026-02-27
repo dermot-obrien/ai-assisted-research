@@ -1,17 +1,17 @@
 node_id: H-002
 branch_name: research/H-002-gsl-molecular-refinement
-status: in_progress
+status: awaiting_review
 current_owner:
   id: Agent-Beta
   session_id: S-000
   role: worker
 parent_performance: 0.19
 target_improvement: 0.015
-actual_performance: null
+actual_performance: 0.2
 handoff:
-  next_role: null
-  instructions: null
-  timestamp: '2026-02-28T10:00:00Z'
+  next_role: auditor
+  instructions: 'Simulation H-002 complete. Result: Discarded.'
+  timestamp: '2026-02-28T10:05:00Z'
 milestones:
 - id: baseline
   status: pending
