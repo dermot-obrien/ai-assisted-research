@@ -6,7 +6,7 @@ A standalone framework for tracking the **lineage of ideas** through performance
 
 This system relies on Python for its operation and [AI Assisted Work](https://github.com/dermot-obrien/ai-assisted-work) to manage activities and tasks.
 
-- Install AI Assisted Work in the workspace. See [AI Assisted Work](https://github.com/dermot-obrien/ai-assisted-work)
+- Install AI Assisted Work in the workspace. See [AI Assisted Work](https://github.com/dermot-obrien/ai-assisted-work).
 - **Python 3.10+**: Required to run the tools in `tools/`.
 - **Required Libraries**:
   ```bash
