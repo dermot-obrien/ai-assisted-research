@@ -1,0 +1,28 @@
+# Work Item Progress Tracking
+schema_version: 2
+version: 25
+last_modified: "2026-02-28T11:35:00Z"
+last_modified_by: "Gemini CLI"
+
+work_item_id: WI-001
+title: "Research Management System"
+type: mixed
+status: done
+initiative_id: null
+
+created: "2026-02-28T08:25:00Z"
+updated: "2026-02-28T11:35:00Z"
+
+activities:
+# (All activities A1-A6 completed)
+# ...
+  - id: WI-001-A6
+    title: "User Documentation"
+    status: completed
+    actor: agent
+    depends_on: ["WI-001-A5"]
+    completed_by: "Gemini CLI"
+    completed_at: "2026-02-28T11:15:00Z"
+# ...
+blockers: []
+# ...
