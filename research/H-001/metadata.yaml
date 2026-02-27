@@ -1,0 +1,23 @@
+node_id: H-001
+branch_name: research/H-001-gnn-transformer
+status: in_progress
+current_owner:
+  id: Agent-Alpha
+  session_id: S-000
+  role: worker
+parent_performance: 0.19
+target_improvement: 0.02
+actual_performance: null
+handoff:
+  next_role: null
+  instructions: null
+  timestamp: '2026-02-28T10:00:00Z'
+milestones:
+- id: baseline
+  status: pending
+- id: implementation
+  status: pending
+- id: benchmarking
+  status: pending
+- id: synthesis
+  status: pending
