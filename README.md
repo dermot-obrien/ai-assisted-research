@@ -22,7 +22,7 @@ This system relies on Python and the **AI-Assisted Work (AAW)** system for its o
 To include this system in your project, add it as a Git sub-module with the specific name **`.ai-assisted-research`**:
 
 ```bash
-git submodule add {repository-url} .ai-assisted-research
+git submodule add https://github.com/dermot-obrien/ai-assisted-research .ai-assisted-research
 ```
 
 ## Skill Activation
