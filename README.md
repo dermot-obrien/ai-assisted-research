@@ -4,9 +4,8 @@ A standalone framework for tracking the **lineage of ideas** through performance
 
 ## Prerequisites
 
-This system relies on Python and the **AI-Assisted Work (AAW)** system for its operation.
+This system relies on Python for its operation.
 
-- **AI-Assisted Work (AAW)**: Mandatory sub-module for process management.
 - **Python 3.10+**: Required to run the tools in `tools/`.
 - **Required Libraries**:
   ```bash
