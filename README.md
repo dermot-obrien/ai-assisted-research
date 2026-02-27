@@ -4,9 +4,8 @@ A standalone framework for tracking the **lineage of ideas** through performance
 
 ## Prerequisites
 
-This system relies on Python and the **AI-Assisted Work (AAW)** system for its operation.
+This system relies on Python for its operation.
 
-- **AI-Assisted Work (AAW)**: Mandatory sub-module for process management.
 - **Python 3.10+**: Required to run the tools in `tools/`.
 - **Required Libraries**:
   ```bash
@@ -22,7 +21,7 @@ This system relies on Python and the **AI-Assisted Work (AAW)** system for its o
 To include this system in your project, add it as a Git sub-module with the specific name **`.ai-assisted-research`**:
 
 ```bash
-git submodule add {repository-url} .ai-assisted-research
+git submodule add https://github.com/dermot-obrien/ai-assisted-research .ai-assisted-research
 ```
 
 ## Skill Activation
