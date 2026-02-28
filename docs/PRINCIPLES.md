@@ -28,3 +28,8 @@ The RMS workflows (Initialization, Proposal, Execution, Audit, Synthesis) are ma
 Provided tools are reference implementations, not constraints.
 - **Guardrail**: If a tool is bypassed or replaced, the agent must still produce the required output for that workflow stage (e.g., valid YAML, valid Markdown).
 - **Leeway**: Agents are encouraged to use their advanced reasoning, call newer APIs, or develop their own utility scripts to execute a workflow step if they outperform the provided tools.
+
+## 6. Baseline Anchoring (Standardized Comparison)
+Every research domain MUST have validated baselines before hypothesis execution begins.
+- **Guardrail**: No hypothesis node may be executed (moved to `in_progress`) until its domain has at least one baseline node with `status: validated` and `actual_performance` populated. Baselines use published SOTA models on standardized datasets with reproducible scripts.
+- **Leeway**: Agents may choose any published SOTA model as the baseline, provided it is the current or recent best performer on the chosen benchmark and results are independently reproducible.

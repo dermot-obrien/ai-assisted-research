@@ -10,9 +10,9 @@ def search_openalex(query, limit=10):
     """
     base_url = "https://api.openalex.org/works"
     params = {
-        'search': query,
+        'filter': f'default.search:{query}',
         'per_page': limit,
-        'sort': 'relevance',
+        'sort': 'relevance_score:desc',
         'mailto': 'admin@example.com'  # OpenAlex "Polite Pool" requirement
     }
 
