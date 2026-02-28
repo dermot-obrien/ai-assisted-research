@@ -25,7 +25,7 @@ graph TD
     H01 --> H03[H-003: Hypothesis A.1]
     H02 --> H03
     H01 --> H04[H-004: Hypothesis A.2]
-    
+
     style H00 fill:#f9f,stroke:#333,stroke-width:4px
     style H03 fill:#ccf,stroke:#f66,stroke-width:2px,stroke-dasharray: 5 5
 ```
@@ -60,11 +60,12 @@ sequenceDiagram
 
 | Component | Description |
 | :--- | :--- |
-| **`docs/research/hypothesis-dag.yaml`** | The central map of the research solution space. |
-| **`docs/research/H-{ID}/`** | Dedicated sub-folder for each research node's outputs. |
-| **`docs/research/H-{ID}/metadata.yaml`** | Per-node state tracking and handoff metadata. |
+| **`research.yaml`** (workspace root) | Signpost for O(1) agent discovery — points to initiative, root work item, DAG, and work items directory. |
+| **Initiative** (intent repo `change/initiatives/`) | AAW Initiative grouping all research work items under a strategic goal. |
+| **Root Work Item** (intent repo `change/work-items/`) | Holds foundational artifacts: hypothesis-dag.yaml, RESEARCH_PLAN.md, SOTA documents. |
+| **Per-node Work Items** (intent repo `change/work-items/`) | Individual AAW work items for each research strand, with deliverables (blog, arxiv, benchmarks). |
 | **`tools/`** | Agent-executable tools for discovery, branching, and auditing. |
-| **`templates/`** | Markdown templates for Blog and ARXIV output. |
+| **`templates/`** | Markdown templates for Blog, ARXIV output, and research.yaml signpost. |
 
 ---
 
