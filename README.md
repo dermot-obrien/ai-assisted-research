@@ -9,14 +9,22 @@ This system relies on Python for its operation and [AI Assisted Work](https://gi
 - **AI Assisted Work**: Must be installed as a submodule in the workspace (`.ai-assisted-work/`). See [AI Assisted Work](https://github.com/dermot-obrien/ai-assisted-work).
 - **Intent repository or change directory**: Work items and initiatives are stored in an intent repo (e.g., `.irregular-timeseries-intent/change/work-items/`) or a `change/` directory in the workspace. This location must exist for the RMS to create research work items.
 - **Python 3.10+**: Required to run the tools in `tools/`.
-- **Required Libraries**:
+- **Required Python Libraries**:
   ```bash
-  pip install pyyaml requests
+  pip install pyyaml requests matplotlib networkx pycairo cairosvg
   ```
+  | Package | Purpose |
+  |---------|---------|
+  | `pyyaml` | Parse hypothesis-dag.yaml and research.yaml |
+  | `requests` | SOTA discovery API calls (Semantic Scholar) |
+  | `matplotlib` | Render radial DAG visualization (SVG) |
+  | `networkx` | Graph data structure for DAG layout |
+  | `pycairo` | Native Cairo rendering backend |
+  | `cairosvg` | Convert SVG to PNG raster output |
 - **Setup & Credentials**:
   - **Semantic Scholar API Key**: Required for the Specialist agent to perform SOTA discovery and ranking. Obtain a key from the [Semantic Scholar API Console](https://www.semanticscholar.org/product/api#api-key-form). Set it as an environment variable: `export S2_API_KEY='your_key_here'`.
 - **Git**: Required for lineage tracking and branching.
-- **Mermaid.js Support**: Recommended for viewing interactive dashboards (native in VS Code and GitHub).
+- **Mermaid.js Support**: Recommended for viewing the supplementary Mermaid diagram (native in VS Code and GitHub).
 
 ---
 
@@ -53,7 +61,7 @@ Once the sub-module is installed and skills are activated, follow these steps to
 3.  **Execute**:
     - Claim a node and begin implementation: `/execute-strand {node_id}` — creates AAW work item per node
 4.  **Visualize**:
-    - Update the research dashboard: `/housekeep` — syncs DAG, initiative, and Mermaid visuals
+    - Update the research dashboard: `/housekeep` — syncs DAG statuses, initiative membership, and regenerates visuals (SVG + PNG + Mermaid)
 
 ---
 

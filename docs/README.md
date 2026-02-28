@@ -64,7 +64,7 @@ sequenceDiagram
 | **Initiative** (intent repo `change/initiatives/`) | AAW Initiative grouping all research work items under a strategic goal. |
 | **Root Work Item** (intent repo `change/work-items/`) | Holds foundational artifacts: hypothesis-dag.yaml, RESEARCH_PLAN.md, SOTA documents. |
 | **Per-node Work Items** (intent repo `change/work-items/`) | Individual AAW work items for each research strand, with deliverables (blog, arxiv, benchmarks). |
-| **`tools/`** | Agent-executable tools for discovery, branching, and auditing. |
+| **`tools/`** | Agent-executable tools for discovery, branching, auditing, and DAG visualization (`dag_visual.py` generates SVG + PNG). |
 | **`templates/`** | Markdown templates for Blog, ARXIV output, and research.yaml signpost. |
 
 ---
