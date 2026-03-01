@@ -1,0 +1,32 @@
+# Research Management System - Workspace Signpost
+#
+# Created by /start-research or /init-research
+# Placed at workspace root for O(1) agent discovery
+#
+# This file serves as the single entry point for all RMS agents.
+# Instead of scanning the workspace to find research artifacts,
+# agents read this file to locate the initiative, root work item,
+# hypothesis DAG, and work items directory.
+#
+# USAGE:
+#   1. Discovery agent creates this file during /init-research or /start-research
+#   2. All other agents (Worker, Specialist, Housekeeper) read this file first
+#   3. Housekeeper updates paths if workspace layout changes
+
+# === INITIATIVE ===
+# The AAW Initiative that groups all research work items
+initiative_id: IN-NNN
+initiative_path: "{path-to-intent}/change/initiatives/IN-NNN-{name}/"
+
+# === ROOT WORK ITEM ===
+# The work item that holds foundational research artifacts (DAG, research plan, SOTA docs)
+root_work_item: WI-NNN
+root_work_item_path: "{path-to-intent}/change/work-items/WI-NNN-{name}/"
+
+# === HYPOTHESIS DAG ===
+# Direct path to the hypothesis-dag.yaml — the central map of the research space
+dag_path: "{path-to-intent}/change/work-items/WI-NNN-{name}/deliverables/D01-hypothesis-dag.yaml"
+
+# === WORK ITEMS ===
+# Directory where per-node work items are created
+work_items_path: "{path-to-intent}/change/work-items/"
