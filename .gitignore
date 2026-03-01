@@ -1,1 +1,19 @@
-tools/__pycache__/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Dependencies
+.ai-assisted-work
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local

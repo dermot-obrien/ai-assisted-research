@@ -1,3 +1,4 @@
+import os
 import requests
 import argparse
 import yaml
@@ -10,10 +11,10 @@ def search_openalex(query, limit=10):
     """
     base_url = "https://api.openalex.org/works"
     params = {
-        'search': query,
+        'filter': f'default.search:{query}',
         'per_page': limit,
-        'sort': 'relevance',
-        'mailto': 'admin@example.com'  # OpenAlex "Polite Pool" requirement
+        'sort': 'relevance_score:desc',
+        'mailto': os.environ.get('OPENALEX_EMAIL', 'user@example.com')  # OpenAlex "Polite Pool" - set OPENALEX_EMAIL env var
     }
 
     try:

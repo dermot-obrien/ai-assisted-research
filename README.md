@@ -1,7 +1,9 @@
 # Research Management System (RMS)
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](CHANGELOG.md)
-[![License](https://img.shields.io/badge/license-AGPL--3.0%20%2F%20Commercial-green.svg)](LICENSE)
+[![Version: v1.0.0](https://img.shields.io/badge/Version-v1.0.0-purple.svg)](CHANGELOG.md)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Commercial License Available](https://img.shields.io/badge/Commercial-License%20Available-green.svg)](LICENSE-COMMERCIAL.txt)
+[![Docs License: CC BY 4.0](https://img.shields.io/badge/Docs-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 
 A standalone, performance-driven agentic framework for tracking the **lineage of ideas** through structured research and discovery.
 
