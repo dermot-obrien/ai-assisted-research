@@ -13,19 +13,17 @@
       "--performance": {"type": "float", "description": "Actual performance recorded (Optional for update)."}
     }
   },
-  "branch_manager.py": {
-    "description": "Manage research branches and metadata.",
+  "start-hypothesis": {
+    "description": "Design the scope and plan for a hypothesis node (Experimental Design).",
     "arguments": {
-      "--action": {"type": "string", "enum": ["init", "handoff"], "required": true, "description": "The action to perform."},
-      "--node-id": {"type": "string", "description": "Node ID e.g., H-001 (Required for init/handoff)."},
-      "--topic": {"type": "string", "description": "Research topic for the branch name (Required for init)."},
-      "--agent-id": {"type": "string", "description": "ID of the current agent (Required for init)."},
-      "--role": {"type": "string", "default": "worker", "description": "Role of the agent (Optional for init)."},
-      "--parent-perf": {"type": "float", "default": 0.0, "description": "Parent node performance (Optional for init)."},
-      "--target-imp": {"type": "float", "default": 0.0, "description": "Target improvement (Optional for init)."},
-      "--next-role": {"type": "string", "description": "Next agent role in the sequence (Required for handoff)."},
-      "--instructions": {"type": "string", "description": "Handoff instructions (Required for handoff)."},
-      "--performance": {"type": "float", "description": "Actual performance recorded (Optional for handoff)."}
+      "--node-id": {"type": "string", "required": true, "description": "Node ID e.g., H-001"}
+    }
+  },
+  "progress-hypothesis": {
+    "description": "Activate or continue execution of a framed research item (Experimental Execution).",
+    "arguments": {
+      "--wi-id": {"type": "string", "required": true, "description": "AAW Work Item ID e.g., WI-042"},
+      "--node-id": {"type": "string", "required": true, "description": "Node ID e.g., H-001"}
     }
   },
   "audit_verify.py": {

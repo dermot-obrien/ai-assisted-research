@@ -1,6 +1,6 @@
 # Research Management System (RMS)
 
-[![Version: v1.0.2](https://img.shields.io/badge/Version-v1.0.2-purple.svg)](CHANGELOG.md)
+[![Version: v1.1.0](https://img.shields.io/badge/Version-v1.1.0-purple.svg)](CHANGELOG.md)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Commercial License Available](https://img.shields.io/badge/Commercial-License%20Available-green.svg)](LICENSE-COMMERCIAL.txt)
 [![Docs License: CC BY 4.0](https://img.shields.io/badge/Docs-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
@@ -47,11 +47,18 @@ This workspace provides pre-defined skills for different agent systems. Copy the
 - **New Projects**: Use `/start-research {topic}` to brainstorm the initial Hypothesis DAG.
 
 ### 4. Execute a Strand
-Claim a hypothesis node and begin the research process:
+Claim a hypothesis node and design the experiment:
 ```bash
-/research-hypothesis {node_id}
+/start-hypothesis {node_id}
 ```
-This command creates a properly scoped AAW work item and hands off to the work management agents for execution.
+This command creates a properly scoped AAW work item. Then, activate and implement:
+```bash
+/progress-hypothesis {WI_id} {node_id}
+```
+This activates the implementation branch and hands off to the work management agents for execution. Finally, close the loop:
+```bash
+/sync-research-result {node_id} {WI_id}
+```
 
 ---
 

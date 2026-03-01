@@ -103,7 +103,7 @@ def main():
     
     # Update Node arguments
     parser.add_argument("--node-id", help="Node ID to update for 'update' action")
-    parser.add_argument("--status", choices=['pending', 'in_progress', 'validated', 'ineffective', 'discarded'], help="New status for 'update' action")
+    parser.add_argument("--status", choices=['pending', 'framed', 'in_progress', 'validated', 'ineffective', 'discarded'], help="New status for 'update' action")
     parser.add_argument("--performance", type=float, help="Actual performance for 'update' action")
 
     args = parser.parse_args()

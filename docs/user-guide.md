@@ -42,9 +42,9 @@ Create `hypothesis-dag.yaml` in the repository root.
 
 ---
 
-## 2. Proposing New Avenues
+## 2. Proposing & Framing Avenues
 
-The **Specialist** agent brainstorms new variants to explore.
+The **Specialist** agent brainstorms new variants and creates the blueprint for exploration.
 
 ### Step 2.1: Update the DAG
 Use the `dag_update.py` tool to propose new nodes.
@@ -52,30 +52,31 @@ Use the `dag_update.py` tool to propose new nodes.
 python tools/dag_update.py --action add --parent H-001 --hypothesis "New Variant Description" --target 0.05
 ```
 
+### Step 2.2: Start the Hypothesis (Design Phase)
+Design the scope and plan for a hypothesis without necessarily starting implementation.
+```bash
+/start-hypothesis {node_id}
+```
+- **Action**: Delegates to AAW `/start-work` to create a new research work item.
+- **Action**: Populates `scope.md`, `research.md`, and `plan.md`.
+- **Status Change**: DAG node status moves from `pending` to **`framed`**.
+
 ---
 
-## 3. Executing Research (The Worker Loop)
+## 3. Executing Research (Execution Phase)
 
-Research execution is handled via the AAW bridge.
+The **Worker** agent activates a framed item and performs the implementation.
 
-### Step 3.1: Start the Research Hypothesis
-Invoke the primary bridge command:
+### Step 3.1: Progress the Hypothesis (Activation & Execution)
+Activate a framed item or continue execution of tasks.
 ```bash
-/research-hypothesis {node_id}
+/progress-hypothesis {WI_id} {node_id}
 ```
-This command automatically:
-- Creates a new AAW work item in `change/work-items/WI-{NNN}-research-{topic}/`.
-- Derives scope and intent from the hypothesis node.
-- Initializes the research branch.
+- **First Call**: Creates the Git research branch, initializes `metadata.yaml`, and moves DAG status to **`in_progress`**.
+- **Execution Loop**: Delegates to AAW `/progress-work` to execute tasks and record findings.
 
-### Step 3.2: Implement & Benchmark
-- Use the AAW `/progress-work` command to execute tasks.
-- Perform code changes in the enclosing workspace.
-- Run the project's benchmark suite using the "Clean Room" protocol.
-- Record `actual_performance` and `finding` for each activity in `progress.yaml`.
-
-### Step 3.3: Synthesis
-Use the templates in `templates/` to generate research outputs in the work item's `deliverables/` folder.
+### Step 3.2: Synthesis
+Once implementation is complete, generate outputs in the `deliverables/` folder.
 - `blog_template.md` -> `deliverables/{node_id}-blog.md`
 - `arxiv_template.md` -> `deliverables/{node_id}-arxiv.md`
 - `pivot_template.md` -> `deliverables/{node_id}-pivot.md` (if result is ineffective)
@@ -95,7 +96,7 @@ Once the AAW work item is `done`, synchronize the result back to the master DAG:
 ```bash
 /sync-research-result {node_id} {WI_id}
 ```
-This closes the loop, updating the DAG status and linking the deliverables.
+This closes the loop, updating the DAG status (`validated` or `ineffective`) and linking the deliverables.
 
 ### Step 4.3: Merge to Main
 The research branch is merged into `main`, and the `hypothesis-dag.yaml` is updated on the main branch.
