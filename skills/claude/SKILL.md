@@ -4,5 +4,7 @@ Redirects to common agent protocols.
 
 - **Initialization**: [**Discovery Agent**](.ai-assisted-research/agents/discovery.md)
 - **Scoping**: [**Specialist Agent**](.ai-assisted-research/agents/specialist.md)
-- **Research Hypothesis**: [**Research Hypothesis**](.ai-assisted-research/agents/research-hypothesis.md) — primary command for starting research on a DAG node
+- **Start Hypothesis**: [**Start Hypothesis**](.ai-assisted-research/agents/start-hypothesis.md) — design the scope and plan
+- **Progress Hypothesis**: [**Progress Hypothesis**](.ai-assisted-research/agents/progress-hypothesis.md) — activate and execute implementation
 - **Execution**: [**Worker Agent**](.ai-assisted-research/agents/worker.md)
+- **Synchronization**: [**Sync Research Result**](.ai-assisted-research/skills/gemini/sync-research-result.md)

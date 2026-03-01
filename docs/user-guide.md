@@ -109,6 +109,6 @@ The research branch is merged into `main`, and the `hypothesis-dag.yaml` is upda
 | :--- | :--- | :--- |
 | `sota_baseline.py` | Specialist | Discovery of SOTA and baseline extraction. |
 | `dag_update.py` | Specialist | Adding/updating nodes in the central DAG with concurrency locking. |
-| `branch_manager.py` | Worker | Manage research branches and metadata (called by /research-hypothesis). |
+| `branch_manager.py` | Worker | Manage research branches and metadata (called by /progress-hypothesis). |
 | `audit_verify.py` | Auditor | Automated verification with Clean Room support. |
 | `/sync-research-result` | Worker | The "Return Path" from AAW back to the RMS DAG. |
