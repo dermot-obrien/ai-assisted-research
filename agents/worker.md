@@ -1,35 +1,30 @@
 # Agent: Worker (The "Optimizer")
 
-**Objective**: To execute a research strand using the **AI-Assisted Work (AAW)** system as the underlying process engine, with all artifacts managed through AAW work items within a research initiative.
+**Objective**: To execute a research strand using the **AI-Assisted Work (AAW)** system as the underlying process engine.
 
-**Intellectual Protocol (/execute-strand & /progress-research)**:
+## Primary Command: `/research-hypothesis {node_id}`
 
-1. **Read Signpost**: Read `research.yaml` from workspace root to find:
-   - Initiative ID, root work item, DAG path, work items location
+The detailed protocol for starting research on a hypothesis node is defined in [`research-hypothesis.md`](research-hypothesis.md). This command:
 
-2. **Read DAG**: Load hypothesis-dag.yaml from root work item deliverables. Find the target node (e.g., H-200). Confirm it has `status: pending` and `work_item_id: null`.
+1. Reads the hypothesis node from the DAG/tree
+2. Derives AAW work item scope from the hypothesis context
+3. Creates the work item via AAW conventions
+4. Executes via `/progress-work`
+5. Synchronizes results back to the hypothesis DAG
 
-2b. **Check Baseline Gate**: If the target node's domain has no `validated` baseline node (a node with `baseline: true` and `status: validated`), STOP. The baseline must be established first. Execute the domain's baseline node instead.
+## Execution Protocol (summary)
 
-3. **Create Work Item via AAW**: Invoke `/start-work` with:
-   - Title: "Research {node_id} - {hypothesis_summary}"
-   - Location: The work items path from research.yaml
-   - Set `initiative_id` to the research initiative ID in progress.yaml
-   - Add `research_node: {node_id}` to progress.yaml metadata
-   - **Immediately** update the DAG node's `work_item_id` field with the new work item ID (e.g., WI-033) and set `status: in_progress` in hypothesis-dag.yaml
-
-4. **Execute via AAW**: Use `/progress-work WI-{NNN}` for all execution. Research deliverables (blog, arxiv, benchmark results) are AAW deliverables.
-   - Perform code changes in the enclosing workspace
-   - Run the project's benchmark suite
-   - Record results
-
-5. **Synchronize State**: On completion, update hypothesis-dag.yaml in the root work item deliverables:
-   - Set `status` to `completed`, `validated`, or `ineffective` based on results
-   - Set `actual_performance` with metric→value dict
-   - Set `evidence` with a summary of findings
-   - Update initiative progress.yaml work_items cache (or let Housekeeper handle)
-
-6. **Trigger Visual Update**: After updating the DAG, invoke `/housekeep` to regenerate the DAG visuals (SVG + PNG via `tools/dag_visual.py`, and supplementary Mermaid diagram).
+1.  **Initialize Process (The AAW Bridge)**:
+    - Identify a research node (e.g., `6.2` or `H-001`).
+    - **Invoke `/research-hypothesis {node_id}`** which derives scope from the hypothesis and creates an AAW work item.
+    - The hypothesis text, SOTA targets, datasets, and evidence become the work item's scope, acceptance criteria, and plan.
+2.  **Execute via AAW**:
+    - For every subsequent task, use the **`.ai-assisted-work`** `/progress-work` command.
+    - This ensures that the AAW system's native agents handle the process, locking, and progress tracking.
+3.  **Synchronize State**:
+    - Once the AAW Work Item is complete, update the hypothesis node status and `actual_performance` in the DAG/tree.
+    - Update `metadata.yaml` if using per-node metadata.
+4.  **Synthesis**: Generate Blog, ARXIV, and Changes log within the Work Item's deliverables.
 
 ## Model Leeway Clause
 

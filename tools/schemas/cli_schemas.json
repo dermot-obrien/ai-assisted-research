@@ -1,0 +1,38 @@
+{
+  "dag_update.py": {
+    "description": "Safely update the Hypothesis DAG with a cross-platform file lock.",
+    "arguments": {
+      "--dag": {"type": "string", "default": "hypothesis-dag.yaml", "description": "Path to the DAG file."},
+      "--action": {"type": "string", "enum": ["add", "update"], "required": true, "description": "The action to perform."},
+      "--parent": {"type": "string", "description": "Parent Node ID (Required if action=add)."},
+      "--hypothesis": {"type": "string", "description": "Description of the new hypothesis (Required if action=add)."},
+      "--target": {"type": "float", "description": "Target improvement metric (Required if action=add)."},
+      "--metric": {"type": "string", "description": "The evaluation metric. Must align with DAG primary metric (Optional)."},
+      "--node-id": {"type": "string", "description": "Node ID to update (Required if action=update)."},
+      "--status": {"type": "string", "enum": ["pending", "in_progress", "validated", "ineffective", "discarded"], "description": "New status (Required if action=update)."},
+      "--performance": {"type": "float", "description": "Actual performance recorded (Optional for update)."}
+    }
+  },
+  "branch_manager.py": {
+    "description": "Manage research branches and metadata.",
+    "arguments": {
+      "--action": {"type": "string", "enum": ["init", "handoff"], "required": true, "description": "The action to perform."},
+      "--node-id": {"type": "string", "description": "Node ID e.g., H-001 (Required for init/handoff)."},
+      "--topic": {"type": "string", "description": "Research topic for the branch name (Required for init)."},
+      "--agent-id": {"type": "string", "description": "ID of the current agent (Required for init)."},
+      "--role": {"type": "string", "default": "worker", "description": "Role of the agent (Optional for init)."},
+      "--parent-perf": {"type": "float", "default": 0.0, "description": "Parent node performance (Optional for init)."},
+      "--target-imp": {"type": "float", "default": 0.0, "description": "Target improvement (Optional for init)."},
+      "--next-role": {"type": "string", "description": "Next agent role in the sequence (Required for handoff)."},
+      "--instructions": {"type": "string", "description": "Handoff instructions (Required for handoff)."},
+      "--performance": {"type": "float", "description": "Actual performance recorded (Optional for handoff)."}
+    }
+  },
+  "audit_verify.py": {
+    "description": "Audit and verify research results.",
+    "arguments": {
+      "--action": {"type": "string", "enum": ["verify", "report"], "required": true, "description": "The action to perform."},
+      "--clean-room": {"type": "boolean", "action": "store_true", "description": "Enforce Clean Room verification against main branch to prevent worker bias."}
+    }
+  }
+}
