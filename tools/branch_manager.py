@@ -3,6 +3,7 @@ import subprocess
 import yaml
 import argparse
 import sys
+from datetime import datetime
 
 def run_command(command):
     try:
@@ -50,7 +51,7 @@ def init_metadata(node_id, branch_name, agent_id, role, parent_perf, target_imp,
         'handoff': {
             'next_role': None,
             'instructions': None,
-            'timestamp': "2026-03-01T10:00:00Z"
+            'timestamp': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
         },
         'milestones': [
             {'id': 'baseline', 'status': 'pending'},

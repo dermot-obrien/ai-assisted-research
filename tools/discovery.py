@@ -81,12 +81,20 @@ def main():
     print("\n--- Proposed DAG Reconstruction ---")
     print(yaml.dump(dag, sort_keys=False))
     
-    confirm = input("\nDoes this reconstruction look accurate? (yes/no): ")
-    if confirm.lower() == 'yes':
-        os.makedirs('docs/research', exist_ok=True)
-        with open('docs/research/hypothesis-dag.yaml', 'w') as f:
+    if '--confirm' in sys.argv:
+        confirmed = True
+    else:
+        try:
+            confirm = input("\nDoes this reconstruction look accurate? (yes/no): ")
+            confirmed = confirm.lower() == 'yes'
+        except EOFError:
+            print("Non-interactive mode detected. Use --confirm to auto-accept.")
+            confirmed = False
+
+    if confirmed:
+        with open('hypothesis-dag.yaml', 'w') as f:
             yaml.dump(dag, f, sort_keys=False)
-        print("RMS Initialized in docs/research/hypothesis-dag.yaml")
+        print("RMS Initialized in hypothesis-dag.yaml")
     else:
         print("Initialization aborted. Please refine the analysis parameters.")
 

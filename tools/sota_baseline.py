@@ -2,6 +2,7 @@ import argparse
 import yaml
 import sys
 import os
+from datetime import datetime
 from openalex_discovery import search_openalex
 from s2_ranking import search_semantic_scholar
 
@@ -30,7 +31,7 @@ def generate_sota_baseline(query, limit=10, s2_api_key=None):
     baseline = {
         'project_baseline': {
             'topic': query,
-            'established_at': "2026-02-28T09:35:00Z",
+            'established_at': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
             'top_paper': {
                 'title': top_paper['title'],
                 'authors': top_paper['authors'],

@@ -39,11 +39,14 @@ def verify_performance(metadata):
 
 def check_deliverables(metadata):
     """
-    Check if blog, arxiv, or pivot deliverables exist in the current directory.
+    Check if blog, arxiv, or pivot deliverables exist in the deliverables directory.
     """
-    blog_found = any(f.endswith('-blog.md') for f in os.listdir('.'))
-    arxiv_found = any(f.endswith('-arxiv.md') for f in os.listdir('.'))
-    pivot_found = any(f.endswith('-pivot.md') for f in os.listdir('.'))
+    deliverables_dir = 'deliverables'
+    if not os.path.isdir(deliverables_dir):
+        deliverables_dir = '.'
+    blog_found = any(f.endswith('-blog.md') for f in os.listdir(deliverables_dir))
+    arxiv_found = any(f.endswith('-arxiv.md') for f in os.listdir(deliverables_dir))
+    pivot_found = any(f.endswith('-pivot.md') for f in os.listdir(deliverables_dir))
     
     if blog_found and arxiv_found:
         return True, "Deliverables (Blog and ARXIV) found."
@@ -106,6 +109,14 @@ def main():
         else:
             print("\nRecommendation: Audit FAILED. Further investigation required. Do not merge.")
             sys.exit(1)
+
+    elif args.action == 'report':
+        print(f"Audit Report for {metadata.get('node_id', 'Unknown')}:")
+        print(f"  Status:             {metadata.get('status', 'Unknown')}")
+        print(f"  Parent Performance: {metadata.get('parent_performance', 'N/A')}")
+        print(f"  Target Improvement: {metadata.get('target_improvement', 'N/A')}")
+        print(f"  Actual Performance: {metadata.get('actual_performance', 'Not recorded')}")
+        print(f"  Branch:             {metadata.get('branch_name', 'Unknown')}")
 
 if __name__ == "__main__":
     main()

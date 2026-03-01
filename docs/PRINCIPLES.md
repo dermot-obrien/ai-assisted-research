@@ -36,7 +36,7 @@ The research base grows; it does not shrink.
 
 ## 6. Workflow Supremacy (Process Integrity)
 The RMS workflows (Initialization, Proposal, Framing, Execution, Audit, Synthesis) are mandatory and immutable.
-- **Guardrail**: Agents MUST use the `/frame-hypothesis` command to design research and the `/progress-hypothesis` command to execute it. The loop is finalized with `/sync-research-result`.
+- **Guardrail**: Agents MUST use the `/start-hypothesis` command to design research and the `/progress-hypothesis` command to execute it. The loop is finalized with `/sync-research-result`.
 - **Unified Hierarchy**: All research execution occurs within the standard AAW `change/work-items/` directory. Research work items MUST be identified by a `-research-` suffix in their title (e.g., `WI-NNN-research-topic`).
 - **Process Sequence**: Agents must follow the defined process sequence and hit all Review Gates.
 - **Leeway**: None for the core process loop (RMS -> AAW -> RMS). Agents must stick to the workflow to ensure cross-agent and cross-session compatibility.

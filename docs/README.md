@@ -36,22 +36,31 @@ How agents interact with the DAG and the repository.
 ```mermaid
 sequenceDiagram
     participant H as Human (Reviewer)
-    participant S as Specialist (Planner)
+    participant D as Discovery (Detective)
+    participant S as Specialist (Strategist)
     participant W as Worker (Optimizer)
     participant A as Auditor (Validator)
+    participant K as Housekeeper (Curator)
     participant G as Git (Main Branch)
 
+    H->>D: /init-research
+    D->>D: Scan repo history for Kernel Idea
+    D->>G: Initialize hypothesis-dag.yaml
+    D->>H: Present discovered lineage (Review Gate 1)
     H->>S: Define Objective
-    S->>G: Initialize hypothesis-dag.yaml
+    S->>S: SOTA baseline & gap analysis
     S->>S: Propose New Nodes
     S->>H: Submit Proposal (Review Gate 2)
     H->>W: Approve Avenue
-    W->>W: Create Research Item (WI-NNN-research-*)
+    W->>W: /start-hypothesis (Design Phase)
+    W->>W: /progress-hypothesis (Execution Phase)
     W->>W: Benchmarking & Synthesis
     W->>A: Handoff to Auditor
+    A->>A: Clean Room Verification
     A->>A: Verify Results & Code
     A->>H: Ready for Review (Review Gate 3)
     H->>G: Sync Result & Merge to Main
+    K->>K: Update Dashboard & Visuals
 ```
 
 ---

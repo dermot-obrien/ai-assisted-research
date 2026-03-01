@@ -52,7 +52,7 @@ The recorded data suggests that {Analysis: e.g., the hypothesis is validated}. T
 
 ## 4. Conclusion and Future Work
 
-Our exploration of research node {Node ID} has resulted in a {Significant/Marginal/Insignificant} improvement in {Metric}. This node is now marked as {Status: completed/discarded} in the project's Hypothesis DAG. Future exploration will build upon this by {Next Step}.
+Our exploration of research node {Node ID} has resulted in a {Significant/Marginal/Insignificant} improvement in {Metric}. This node is now marked as {Status: validated/ineffective/discarded} in the project's Hypothesis DAG. Future exploration will build upon this by {Next Step}.
 
 ---
 

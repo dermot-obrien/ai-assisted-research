@@ -43,7 +43,7 @@ After running our benchmark suite against {Dataset}, we recorded the following p
 
 ## The Next Frontier
 
-While this specific node is now {Status: completed/discarded}, the lineage continues. This result opens up new avenues for exploration:
+While this specific node is now {Status: validated/ineffective/discarded}, the lineage continues. This result opens up new avenues for exploration:
 - **Avenue A**: {Description}
 - **Avenue B**: {Description}
 

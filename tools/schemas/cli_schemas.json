@@ -9,7 +9,7 @@
       "--target": {"type": "float", "description": "Target improvement metric (Required if action=add)."},
       "--metric": {"type": "string", "description": "The evaluation metric. Must align with DAG primary metric (Optional)."},
       "--node-id": {"type": "string", "description": "Node ID to update (Required if action=update)."},
-      "--status": {"type": "string", "enum": ["pending", "in_progress", "validated", "ineffective", "discarded"], "description": "New status (Required if action=update)."},
+      "--status": {"type": "string", "enum": ["pending", "framed", "in_progress", "validated", "ineffective", "discarded"], "description": "New status (Required if action=update)."},
       "--performance": {"type": "float", "description": "Actual performance recorded (Optional for update)."}
     }
   },
