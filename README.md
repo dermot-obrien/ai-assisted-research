@@ -11,7 +11,7 @@ The Research Management System (RMS) enables multiple AI agents to collaborative
 
 ---
 
-## 🛠 Prerequisites
+## Prerequisites
 
 This system is built for researchers and developers who are already using high-end AI agentic tools like **Anthropic Claude Code**, **Google Gemini CLI**, or **OpenAI Codex**.
 
@@ -28,7 +28,7 @@ The RMS uses the **AI-Assisted Work (AAW)** framework as its process management 
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Sub-module Installation
 To include this system in your project, add it as a Git sub-module with the specific name **`.ai-assisted-research`**:
@@ -55,7 +55,7 @@ This command creates a properly scoped AAW work item and hands off to the work m
 
 ---
 
-## 🧠 Core Features
+## Core Features
 
 - **Metric-Driven Lineage**: Tracks the evolution of ideas through quantifiable performance gains against State-of-the-Art (SOTA) baselines.
 - **Multi-Agent Ecosystem**: Specialized roles (Discovery, Specialist, Worker, Auditor, Housekeeper) working together.
@@ -64,7 +64,7 @@ This command creates a properly scoped AAW work item and hands off to the work m
 
 ---
 
-## 📜 Documentation
+## Documentation
 
 - [**System Overview**](docs/README.md)
 - [**User Guide**](docs/user-guide.md)
@@ -73,7 +73,7 @@ This command creates a properly scoped AAW work item and hands off to the work m
 
 ---
 
-## ⚖️ Licensing
+## Licensing
 
 The Research Management System is **dual-licensed**:
 - **AGPL-3.0**: For open-source projects and non-commercial use.
