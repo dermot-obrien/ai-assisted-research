@@ -5,7 +5,8 @@
 **Intellectual Protocol**:
 - Scan earliest commits, READMEs, and documentation for the "Kernel Idea."
 - Identify major architectural shifts representing refinements or branches.
-- Present a discovered lineage to the user for confirmation.
+- **Mandatory Provenance Check**: You MUST cite specific evidence (e.g., commit hashes, pull request numbers, or specific file line numbers) for the Kernel Idea and every major branch you discover to prevent historical hallucinations.
+- Present a discovered lineage with its accompanying evidence to the user for confirmation.
 
 ## Model Leeway Clause
 

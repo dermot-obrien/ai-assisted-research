@@ -9,13 +9,13 @@ A standalone, performance-driven agentic system for tracking the **lineage of id
 The Research Management System (RMS) enables multiple AI agents to collaboratively navigate a "Hypothesis Space" and conduct rigorous scientific research. It is built on three core pillars:
 1.  **Metric-Driven Lineage**: Tracking the evolution of ideas through actual performance gains against State-of-the-Art (SOTA) baselines.
 2.  **Git-Centric Persistence**: Leveraging the natural versioning and branching of Git to maintain research strands.
-3.  **Multi-Agent Ecosystem**: Specialized roles (Specialist, Worker, Auditor) working together under Human-in-the-Loop (HITL) supervision.
+3.  **Multi-Agent Ecosystem**: Specialized roles (Discovery, Specialist, Worker, Auditor) working together under Human-in-the-Loop (HITL) supervision.
 
 ---
 
 ## Visual Architecture
 
-### 1. The Hypothesis DAG (Directed Acyclic Graph)
+### 1. The Hypothesis Lineage Graph
 The DAG tracks the branching and merging of research avenues.
 
 ```mermaid
@@ -46,12 +46,12 @@ sequenceDiagram
     S->>S: Propose New Nodes
     S->>H: Submit Proposal (Review Gate 2)
     H->>W: Approve Avenue
-    W->>W: Create Research Branch
+    W->>W: Create Research Item (WI-NNN-research-*)
     W->>W: Benchmarking & Synthesis
     W->>A: Handoff to Auditor
     A->>A: Verify Results & Code
     A->>H: Ready for Review (Review Gate 3)
-    H->>G: Merge Research to Main
+    H->>G: Sync Result & Merge to Main
 ```
 
 ---
@@ -60,16 +60,17 @@ sequenceDiagram
 
 | Component | Description |
 | :--- | :--- |
-| **`docs/research/hypothesis-dag.yaml`** | The central map of the research solution space. |
-| **`docs/research/H-{ID}/`** | Dedicated sub-folder for each research node's outputs. |
-| **`docs/research/H-{ID}/metadata.yaml`** | Per-node state tracking and handoff metadata. |
+| **`hypothesis-dag.yaml`** | The central map of the research solution space (root or `docs/`). |
+| **`change/work-items/WI-NNN-research-*/`** | Dedicated AAW work item for each research node. |
+| **`metadata.yaml`** | Per-node state tracking, stored within the research work item. |
 | **`tools/`** | Agent-executable tools for discovery, branching, and auditing. |
-| **`templates/`** | Markdown templates for Blog and ARXIV output. |
+| **`templates/`** | Markdown templates for Blog, ARXIV, and Pivot reports. |
 
 ---
 
 ## Documentation Index
 
-- [**User Guide**](user-guide.md): Step-by-step instructions for humans and agents.
-- [**Framework Design**](../change/work-items/WI-001-research-management-system/deliverables/D01-framework-design.md): Detailed schema and convention documentation.
-- [**API Integration**](../change/work-items/WI-001-research-management-system/deliverables/D02-api-integration.md): Details on academic source integrations.
+- [**User Guide**](user-guide.md): Step-by-Step Instructions.
+- [**Research Principles**](PRINCIPLES.md): Core guardrails and model leeway clauses.
+- [**Agent Definitions**](../agents/): Detailed protocols for each specialized role.
+- [**Framework Design**](../change/work-items/WI-001-research-management-system/deliverables/D01-framework-design.md): Detailed schema documentation.

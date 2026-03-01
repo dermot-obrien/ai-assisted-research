@@ -1,6 +1,6 @@
 # RMS User Guide: Step-by-Step Instructions
 
-This guide provides instructions for both human researchers and AI agents using the Research Management System.
+This guide provides instructions for both human researchers and AI agents using the Research Management System. All research execution follows the unified hierarchy within the **AI-Assisted Work (AAW)** framework.
 
 ---
 
@@ -15,7 +15,7 @@ python tools/discovery.py
 ```
 
 ### Step 0.2: Confirmation Dialogue
-The agent will propose a root node (H-000) and a current implementing node (H-001). Confirm the reconstruction to initialize the `docs/research/hypothesis-dag.yaml`.
+The agent will propose a root node (H-000) and a current implementing node (H-001). Confirm the reconstruction to initialize the `hypothesis-dag.yaml` (typically in the root or `docs/`).
 
 ---
 
@@ -36,9 +36,9 @@ Before initializing the DAG, the **Specialist** (or Human) MUST establish the st
 3.  **Validate Baseline**: Run the benchmark script against the root code to ensure it matches the reported SOTA performance (Node H-000).
 
 ### Step 1.3: Initialize the DAG
-Create `docs/research/hypothesis-dag.yaml` in the root of your research sub-module.
-- **Node H-000**: represent the external SOTA.
-- **Setup Metadata**: Include the `standardized_setup` paths for data and benchmarks in the project metadata.
+Create `hypothesis-dag.yaml` in the repository root.
+- **Node H-000**: Represents the external SOTA.
+- **Setup Metadata**: Include the `primary_metric` and `standardized_setup` paths.
 
 ---
 
@@ -56,47 +56,49 @@ python tools/dag_update.py --action add --parent H-001 --hypothesis "New Variant
 
 ## 3. Executing Research (The Worker Loop)
 
-The **Worker** agent performs the actual research, implementation, and benchmarking.
+Research execution is handled via the AAW bridge.
 
-### Step 3.1: Claim a Node
-Find a `pending` node in the DAG and initialize the research branch.
+### Step 3.1: Start the Research Hypothesis
+Invoke the primary bridge command:
 ```bash
-python tools/branch_manager.py --action init --node-id H-001 --topic "Topic-Name" --agent-id "Agent-Name" --parent-perf 0.90 --target-imp 0.05
+/research-hypothesis {node_id}
 ```
+This command automatically:
+- Creates a new AAW work item in `change/work-items/WI-{NNN}-research-{topic}/`.
+- Derives scope and intent from the hypothesis node.
+- Initializes the research branch.
 
 ### Step 3.2: Implement & Benchmark
+- Use the AAW `/progress-work` command to execute tasks.
 - Perform code changes in the enclosing workspace.
-- Run your project's benchmark suite.
-- Record the `actual_performance` in `docs/research/H-{ID}/metadata.yaml`.
+- Run the project's benchmark suite using the "Clean Room" protocol.
+- Record `actual_performance` and `finding` for each activity in `progress.yaml`.
 
 ### Step 3.3: Synthesis
-Use the templates in `templates/` to generate your research outputs in `docs/research/H-{ID}/`.
-- `blog_template.md` -> `docs/research/H-{ID}/{node_id}-blog.md`
-- `arxiv_template.md` -> `docs/research/H-{ID}/{node_id}-arxiv.md`
-
-### Step 3.4: Handoff
-Hand off the strand to the Auditor.
-```bash
-python tools/branch_manager.py --action handoff --node-id H-001 --next-role auditor --instructions "Ready for verification." --performance 0.95
-```
+Use the templates in `templates/` to generate research outputs in the work item's `deliverables/` folder.
+- `blog_template.md` -> `deliverables/{node_id}-blog.md`
+- `arxiv_template.md` -> `deliverables/{node_id}-arxiv.md`
+- `pivot_template.md` -> `deliverables/{node_id}-pivot.md` (if result is ineffective)
 
 ---
 
-## 4. Verification and Integration
-
-The **Auditor** agent and **Human Reviewer** finalize the research.
+## 4. Verification and Synchronization
 
 ### Step 4.1: Run Audit
-The Auditor verifies the results.
+The Auditor verifies the results using the Clean Room check.
 ```bash
-python tools/audit_verify.py --action verify
+python tools/audit_verify.py --action verify --clean-room
 ```
 
-### Step 4.2: Human Review (Gate 3)
-The Human reviewer checks the Blog, ARXIV paper, and code changes.
+### Step 4.2: Synchronize to RMS
+Once the AAW work item is `done`, synchronize the result back to the master DAG:
+```bash
+/sync-research-result {node_id} {WI_id}
+```
+This closes the loop, updating the DAG status and linking the deliverables.
 
 ### Step 4.3: Merge to Main
-Once approved, the research branch is merged into `main`, and the `hypothesis-dag.yaml` is updated to `completed`.
+The research branch is merged into `main`, and the `hypothesis-dag.yaml` is updated on the main branch.
 
 ---
 
@@ -105,6 +107,7 @@ Once approved, the research branch is merged into `main`, and the `hypothesis-da
 | Tool | Role | Purpose |
 | :--- | :--- | :--- |
 | `sota_baseline.py` | Specialist | Discovery of SOTA and baseline extraction. |
-| `dag_update.py` | Specialist | Adding/updating nodes in the central DAG. |
-| `branch_manager.py` | Worker | Branch creation and metadata-driven handoffs. |
-| `audit_verify.py` | Auditor | Automated verification of performance and deliverables. |
+| `dag_update.py` | Specialist | Adding/updating nodes in the central DAG with concurrency locking. |
+| `branch_manager.py` | Worker | Manage research branches and metadata (called by /research-hypothesis). |
+| `audit_verify.py` | Auditor | Automated verification with Clean Room support. |
+| `/sync-research-result` | Worker | The "Return Path" from AAW back to the RMS DAG. |

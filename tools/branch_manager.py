@@ -28,13 +28,12 @@ def create_research_branch(node_id, topic):
     
     return branch_name
 
-def init_metadata(node_id, branch_name, agent_id, role, parent_perf, target_imp):
+def init_metadata(node_id, branch_name, agent_id, role, parent_perf, target_imp, target_dir='.'):
     """
-    Initialize metadata.yaml for the current branch in docs/research/H-{ID}/.
+    Initialize metadata.yaml for the current branch.
     """
-    node_dir = os.path.join('docs', 'research', node_id)
-    if not os.path.exists(node_dir):
-        os.makedirs(node_dir)
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
 
     metadata = {
         'node_id': node_id,
@@ -51,7 +50,7 @@ def init_metadata(node_id, branch_name, agent_id, role, parent_perf, target_imp)
         'handoff': {
             'next_role': None,
             'instructions': None,
-            'timestamp': "2026-02-28T10:00:00Z"
+            'timestamp': "2026-03-01T10:00:00Z"
         },
         'milestones': [
             {'id': 'baseline', 'status': 'pending'},
@@ -61,11 +60,11 @@ def init_metadata(node_id, branch_name, agent_id, role, parent_perf, target_imp)
         ]
     }
     
-    metadata_path = os.path.join(node_dir, 'metadata.yaml')
+    metadata_path = os.path.join(target_dir, 'metadata.yaml')
     with open(metadata_path, 'w') as f:
         yaml.dump(metadata, f, sort_keys=False)
     
-    print(f"Initialized metadata.yaml for {node_id} in {node_dir}")
+    print(f"Initialized metadata.yaml for {node_id} in {target_dir}")
 
 def main():
     parser = argparse.ArgumentParser(description="Manage research branches and metadata.")
@@ -78,6 +77,7 @@ def main():
     parser.add_argument("--role", default='worker', help="Role of the current agent")
     parser.add_argument("--parent-perf", type=float, default=0.0)
     parser.add_argument("--target-imp", type=float, default=0.0)
+    parser.add_argument("--target-dir", default='.', help="Directory to store metadata.yaml")
 
     # Handoff arguments
     parser.add_argument("--next-role", help="Next agent role in the sequence")
@@ -92,14 +92,13 @@ def main():
             sys.exit(1)
         
         branch_name = create_research_branch(args.node_id, args.topic)
-        init_metadata(args.node_id, branch_name, args.agent_id, args.role, args.parent_perf, args.target_imp)
+        init_metadata(args.node_id, branch_name, args.agent_id, args.role, args.parent_perf, args.target_imp, args.target_dir)
         
         # Initial commit
-        node_dir = os.path.join('docs', 'research', args.node_id)
-        metadata_path = os.path.join(node_dir, 'metadata.yaml')
+        metadata_path = os.path.join(args.target_dir, 'metadata.yaml')
         run_command(f"git add {metadata_path}")
         run_command(f'git commit -m "[INIT: {args.role}] Starting work on {args.node_id}"')
-        print(f"Branch {branch_name} initialized and pushed.")
+        print(f"Branch {branch_name} initialized and metadata tracked.")
 
     elif args.action == 'handoff':
         node_id = args.node_id
@@ -107,8 +106,7 @@ def main():
             print("Error: --node-id is required for 'handoff' action.")
             sys.exit(1)
             
-        node_dir = os.path.join('docs', 'research', node_id)
-        metadata_path = os.path.join(node_dir, 'metadata.yaml')
+        metadata_path = os.path.join(args.target_dir, 'metadata.yaml')
         
         if not os.path.exists(metadata_path):
             print(f"Error: metadata.yaml not found at {metadata_path}")
@@ -120,7 +118,7 @@ def main():
         metadata['status'] = 'awaiting_review' if args.next_role == 'auditor' else 'in_progress'
         metadata['handoff']['next_role'] = args.next_role
         metadata['handoff']['instructions'] = args.instructions
-        metadata['handoff']['timestamp'] = "2026-02-28T10:05:00Z"
+        metadata['handoff']['timestamp'] = "2026-03-01T10:05:00Z"
         if args.performance is not None:
             metadata['actual_performance'] = args.performance
             
