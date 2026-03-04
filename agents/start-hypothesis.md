@@ -11,8 +11,12 @@ This command is the **Research Design** phase. It maps directly to the AAW **`/s
 ## Protocol
 
 ### Phase 1: Research Context Extraction
-1. **Load Node**: Locate the node in `hypothesis-dag.yaml` (or `hypothesis-tree.md`) matching `{node_id}`.
-2. **Extract Metadata**: Gather the hypothesis text, SOTA targets, datasets, and parent evidence.
+1. **Verify Readiness (Index-First)**: Read `node-index.yaml` (path from `research.yaml` → `node_index_path`).
+   - If `{node_id}` appears in `ready`: proceed — the node's parents are all resolved.
+   - If `{node_id}` appears in `blocked`: **warn the user** about unresolved parent dependencies (listed in `blocked_by`) and confirm before proceeding.
+   - If `{node_id}` is not found in the index: the index may be stale — fall back to reading the full DAG.
+2. **Load Node**: Locate the node in `hypothesis-dag.yaml` (or `hypothesis-tree.md`) matching `{node_id}`.
+3. **Extract Metadata**: Gather the hypothesis text, SOTA targets, datasets, and parent evidence.
 
 ### Phase 2: Delegate to AAW `/start-work`
 Invoke the standard AAW `/start-work` protocol with the following parameters:

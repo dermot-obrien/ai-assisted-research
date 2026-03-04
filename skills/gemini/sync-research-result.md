@@ -33,8 +33,9 @@ This command is the "Return Path" from AAW execution to RMS lineage tracking. It
 
 ### Phase 4: Finalize & Housekeep
 1. **Commit Changes**: Commit the updated DAG and any synthesized articles to the `main` branch.
-2. **Update Visualization**: Run `/housekeep` to refresh the Mermaid/SVG dashboards.
-3. **Archive Work Item**: (Optional) Mark the AAW work item as archived to reduce clutter in `change/work-items/`.
+2. **Refresh Node Index**: Regenerate `node-index.yaml` (path from `research.yaml` → `node_index_path`) to reflect the new DAG state. A node completing may unblock its children, moving them from `blocked` to `ready`. Follow the classification rules defined in the [Housekeeper Agent](.ai-assisted-research/agents/housekeeper.md).
+3. **Update Visualization**: Run `/housekeep` to refresh the Mermaid/SVG dashboards.
+4. **Archive Work Item**: (Optional) Mark the AAW work item as archived to reduce clutter in `change/work-items/`.
 
 ---
 
