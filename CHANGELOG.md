@@ -19,7 +19,7 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `docs/articles/the-research-fog-and-ai-lineage.md`: Strategy guide for AI-assisted research.
 
 ### Changed
-- Refactored monolithic `/research-hypothesis` into split design/execution flow.
+- Refactored monolithic strand execution into split design/execution flow (`/start-hypothesis` + `/progress-hypothesis`).
 - Updated `tools/dag_update.py` with cross-platform concurrency locking (`DAGLock`).
 - Hardened `agents/discovery.md` with mandatory provenance requirements.
 - Hardened `agents/auditor.md` with "Clean Room" verification logic.
@@ -27,7 +27,7 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Updated `docs/PRINCIPLES.md` to reflect unified hierarchy and agent leeway.
 
 ### Removed
-- Deprecated `/research-hypothesis` and `/execute-strand` commands.
+- Removed legacy strand execution commands (replaced by `/start-hypothesis` + `/progress-hypothesis`).
 
 ## [1.0.0] - 2026-03-01
 

@@ -5,6 +5,7 @@ __pycache__/
 
 # Dependencies
 .ai-assisted-work
+.gitmodules
 
 # IDE
 .vscode/
@@ -17,3 +18,10 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Skills (while developing)
+.claude/
+.codex/
+.cursor/
+.gemini/
+.github/
