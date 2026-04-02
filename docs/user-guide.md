@@ -103,6 +103,60 @@ The research branch is merged into `main`, and the `hypothesis-dag.yaml` is upda
 
 ---
 
+## 5. Experiment Logging (v1.2.0)
+
+After each experiment, record the result in one step:
+```bash
+/log-experiment {node_id} {metric_name}={value} "{hypothesis}"
+```
+
+This automatically:
+- Appends to `experiment-log.jsonl`
+- Updates the DAG node's `actual_performance`
+- Regenerates `node-index.yaml` and the dashboard
+- Git commits all changes
+
+For breakthroughs (results that change research direction):
+```bash
+/log-experiment {node_id} metric=value "hypothesis" --breakthrough "Title"
+```
+This triggers automatic cascade analysis.
+
+See [`agents/log-experiment.md`](../agents/log-experiment.md) for the full protocol.
+
+---
+
+## 6. Breakthrough Cascade (v1.2.0)
+
+When a breakthrough occurs, analyse its impact on other nodes:
+```bash
+/cascade {node_id}
+```
+
+This is triggered automatically by `/log-experiment --breakthrough` and `/sync-research-result`. It identifies nodes whose assumptions changed and updates priorities.
+
+See [`agents/cascade.md`](../agents/cascade.md) for the full protocol.
+
+---
+
+## 7. Session Management (v1.2.0)
+
+### Starting a Session
+```bash
+/session-start
+```
+Shows the dashboard, golden path priorities, recent breakthroughs, and pending cascades. **This should be the first command in every session.**
+
+### Ending a Session
+```bash
+/session-end
+```
+Generates a session report YAML, commits it, and provides a handoff summary. **This should be the last command.**
+
+See [`agents/session.md`](../agents/session.md) for the full protocol.
+
+---
+
 ## Summary of Agent Tools
 
 | Tool | Role | Purpose |
@@ -112,3 +166,7 @@ The research branch is merged into `main`, and the `hypothesis-dag.yaml` is upda
 | `branch_manager.py` | Worker | Manage research branches and metadata (called by /progress-hypothesis). |
 | `audit_verify.py` | Auditor | Automated verification with Clean Room support. |
 | `/sync-research-result` | Worker | The "Return Path" from AAW back to the RMS DAG. |
+| `/log-experiment` | Experiment Logger | One-step experiment recording and DAG sync (v1.2.0). |
+| `/cascade` | Cascade Analyst | Breakthrough impact propagation through DAG (v1.2.0). |
+| `/session-start` | Session Manager | Research session briefing (v1.2.0). |
+| `/session-end` | Session Manager | Session report and handoff (v1.2.0). |

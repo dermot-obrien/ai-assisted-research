@@ -65,4 +65,4 @@ Experiment #{experiment_id}
 
 ## Model Leeway
 
-The agent MAY use the `tools/log_experiment.py` script if available, or implement the steps directly. The output must match the experiment schema and DAG must be consistently updated.
+The agent implements the steps directly using file reads/writes and git commands. The output must match the `schemas/experiment.yaml` schema and the DAG must be consistently updated. A `tools/log_experiment.py` script may be added in a future version for automation.

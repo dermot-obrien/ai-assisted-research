@@ -1,0 +1,61 @@
+# Node Status Lifecycle — RMS v1.2.0
+#
+# CANONICAL definition of all valid hypothesis node statuses.
+# This is the single source of truth for status values and transitions.
+#
+# All agents, tools, and schemas MUST use only these statuses.
+
+statuses:
+  pending:
+    description: "Not yet started. Waiting for parent resolution or agent selection."
+    transitions_to: [framed, in_progress]
+    color: "#94a3b8"
+
+  framed:
+    description: "Design phase complete. Scope, plan, and research context documented via /start-hypothesis. Ready for execution."
+    transitions_to: [in_progress]
+    color: "#a855f7"
+
+  in_progress:
+    description: "Execution phase active. Agent is running experiments and collecting results."
+    transitions_to: [partially_tested, validated, ineffective, discarded]
+    color: "#f59e0b"
+
+  partially_tested:
+    description: "Some experiments run with partial results. Not yet conclusive. More experiments needed to validate or reject."
+    transitions_to: [validated, ineffective, discarded, in_progress]
+    color: "#f97316"
+
+  completed:
+    description: "All planned experiments run with clear results. Used for non-hypothesis nodes (infrastructure, tooling) or when the result is neither clearly positive nor negative. For hypothesis nodes, prefer validated or ineffective."
+    transitions_to: []
+    color: "#3b82f6"
+
+  validated:
+    description: "Hypothesis confirmed. Actual performance meets or exceeds target. Evidence recorded."
+    transitions_to: []
+    color: "#22c55e"
+
+  ineffective:
+    description: "Hypothesis rejected. Experiments show the approach does not work or does not improve on baseline."
+    transitions_to: []
+    color: "#ef4444"
+
+  discarded:
+    description: "Research stopped early. May be due to external factors, pivots, or superseded by another hypothesis."
+    transitions_to: []
+    color: "#64748b"
+
+# Lifecycle diagram:
+#
+#   pending --> framed --> in_progress --> partially_tested --> validated
+#                |              |                |           --> ineffective
+#                |              |                |           --> discarded
+#                |              +--> validated
+#                |              +--> ineffective
+#                |              +--> discarded
+#                +--> in_progress (skip framing for quick experiments)
+#
+# Node readiness for child nodes:
+#   A child node is READY when ALL parents are in a terminal status:
+#   validated, ineffective, completed, or discarded.

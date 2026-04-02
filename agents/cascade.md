@@ -26,14 +26,14 @@ For each node in the hypothesis DAG, check if it might be affected:
 ### Step 3: Classify Effects
 For each affected node, classify the effect:
 
-| Effect | Meaning | Action |
-|--------|---------|--------|
-| **strengthened** | Breakthrough increases confidence this node will succeed | Elevate priority in ready queue |
-| **weakened** | Breakthrough decreases confidence | Lower priority |
-| **contradicted** | Breakthrough contradicts this node's premise | Add caveat to evidence, consider marking as `ineffective` |
-| **unblocked** | Breakthrough removes a blocker | Move to `ready` queue |
-| **elevated** | Breakthrough makes this node more valuable to pursue | Mark as golden path |
-| **superseded** | Breakthrough makes this node's approach obsolete | Mark as `discarded` |
+| Effect | Meaning | Findings Graph Edge | Action |
+|--------|---------|--------------------| --------|
+| **strengthens** | Breakthrough increases confidence this node will succeed | `strengthens` | Elevate priority in ready queue |
+| **weakens** | Breakthrough decreases confidence | (no edge — note in DAG) | Lower priority |
+| **contradicts** | Breakthrough contradicts this node's premise | `contradicts` | Add caveat to evidence, consider `ineffective` |
+| **unblocks** | Breakthrough removes a blocker | `unblocks` | Move to `ready` queue |
+| **elevates** | Breakthrough makes this node more valuable to pursue | `strengthens` | Mark as golden path |
+| **supersedes** | Breakthrough makes this node's approach obsolete | `supersedes` | Mark as `discarded` |
 
 ### Step 4: Update Artifacts
 1. **Add cascade effects** to `breakthroughs.yaml` under the triggering breakthrough.

@@ -6,4 +6,4 @@ Synchronize findings and metrics from a completed work item back to the Hypothes
 
 **Read and follow exactly the full agent instructions at:**
 
-`.ai-assisted-research/skills/gemini/sync-research-result.md`
+`.ai-assisted-research/agents/sync-research-result.md`

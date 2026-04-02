@@ -76,6 +76,13 @@ fields:
     default: "dashboard.html"
     description: "Path to generated dashboard HTML"
 
+  # === SESSIONS (v1.2.0) ===
+  sessions_path:
+    type: string
+    required: false
+    default: "sessions/"
+    description: "Directory for session report YAML files"
+
   # === WORK ITEMS ===
   work_items_path:
     type: string

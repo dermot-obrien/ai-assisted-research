@@ -52,7 +52,7 @@ fields:
       node_id:
         type: string
       effect:
-        type: string  # strengthened, weakened, contradicted, unblocked, elevated
+        type: string  # strengthened, weakened, contradicted, unblocked, elevated, superseded
       explanation:
         type: string
 

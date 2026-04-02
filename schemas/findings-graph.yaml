@@ -24,6 +24,10 @@ edge_types:
   prompted:
     description: "Finding A directly motivated the creation of Node B"
     color: "#f59e0b"
+  elevates:
+    description: "Finding A makes Node B more valuable to pursue (priority increase)"
+    color: "#fbbf24"
+    alias_for: strengthens
   supersedes:
     description: "Finding A makes Finding B obsolete"
     color: "#a855f7"
