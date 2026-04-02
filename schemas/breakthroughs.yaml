@@ -1,0 +1,73 @@
+# Breakthroughs Schema — RMS v1.2.0
+#
+# A breakthrough is an experiment result that changes the direction of research.
+# Breakthroughs trigger cascade analysis: re-evaluating other nodes whose
+# assumptions may have changed.
+#
+# Storage: project-level file `breakthroughs.yaml` (path from research.yaml)
+
+schema_version: "1.0"
+
+fields:
+  id:
+    type: string
+    required: true
+    description: "Unique breakthrough ID (B1, B2, ...)"
+
+  experiment_id:
+    type: integer
+    required: true
+    description: "The experiment that produced this breakthrough"
+
+  node_id:
+    type: string
+    required: true
+    description: "The hypothesis node where the breakthrough occurred"
+
+  title:
+    type: string
+    required: true
+    description: "Short title (displayed on dashboard, max 60 chars)"
+
+  description:
+    type: string
+    required: true
+    description: "What was discovered"
+
+  impact:
+    type: string
+    required: true
+    description: "What downstream effect this had on the research"
+
+  date:
+    type: string
+    required: true
+    description: "Date of breakthrough (ISO 8601 date)"
+
+  cascade_effects:
+    type: array
+    required: false
+    description: "List of nodes affected by this breakthrough"
+    items:
+      node_id:
+        type: string
+      effect:
+        type: string  # strengthened, weakened, contradicted, unblocked, elevated
+      explanation:
+        type: string
+
+# Example:
+# - id: B2
+#   experiment_id: 9
+#   node_id: H-204.1
+#   title: "Parent bounds fix — first WIN"
+#   description: "Storing correct parent node bounds converts shard-space wins to close-value wins"
+#   impact: "Tree topology is load-bearing for forecasting"
+#   date: "2026-04-02"
+#   cascade_effects:
+#     - node_id: H-103
+#       effect: contradicted
+#       explanation: "Flat pipeline finding only applies to wavelet anomaly detection, not forecasting"
+#     - node_id: H-504
+#       effect: elevated
+#       explanation: "Directed GNN with parent bounds context may work for forecasting"

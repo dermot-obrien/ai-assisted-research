@@ -1,0 +1,59 @@
+# Findings Graph Schema — RMS v1.2.0
+#
+# The "adjacent directed graph" that tracks how findings relate to each other.
+# This is SEPARATE from the hypothesis DAG (which tracks what was tried).
+# The findings graph tracks how RESULTS connect, reinforce, or contradict.
+#
+# Storage: project-level file `findings-graph.yaml` (path from research.yaml)
+
+schema_version: "1.0"
+
+edge_types:
+  contradicts:
+    description: "Finding A contradicts or limits Finding B"
+    color: "#ef4444"
+  reinforces:
+    description: "Finding A provides additional evidence for Finding B"
+    color: "#22c55e"
+  unblocks:
+    description: "Finding A removes a blocker for Node B"
+    color: "#3b82f6"
+  strengthens:
+    description: "Finding A increases confidence in the viability of Node B"
+    color: "#22c55e"
+  prompted:
+    description: "Finding A directly motivated the creation of Node B"
+    color: "#f59e0b"
+  supersedes:
+    description: "Finding A makes Finding B obsolete"
+    color: "#a855f7"
+
+edge_fields:
+  from_node:
+    type: string
+    required: true
+    description: "Source node ID (where the finding originated)"
+  to_node:
+    type: string
+    required: true
+    description: "Target node ID (what was affected)"
+  relation:
+    type: string
+    required: true
+    enum: [contradicts, reinforces, unblocks, strengthens, prompted, supersedes]
+  note:
+    type: string
+    required: true
+    description: "Explanation of the relationship"
+  experiment_id:
+    type: integer
+    required: false
+    description: "The experiment that established this relationship"
+
+# Example:
+# edges:
+#   - from_node: H-204.1
+#     to_node: H-103
+#     relation: contradicts
+#     note: "Tree essential for forecasting, unnecessary for wavelet anomaly detection"
+#     experiment_id: 9

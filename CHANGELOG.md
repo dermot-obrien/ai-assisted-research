@@ -7,6 +7,27 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-02
+
+### Added
+- **Experiments as first-class concept**: `schemas/experiment.yaml` schema, `/log-experiment` command (`agents/log-experiment.md`). One-step experiment-to-DAG sync replacing 6 manual steps.
+- **Breakthrough cascade mechanism**: `schemas/breakthroughs.yaml` schema, `/cascade` command (`agents/cascade.md`). When a breakthrough occurs, automatically identifies affected nodes and updates priorities.
+- **Session continuity protocol**: `agents/session.md`, `/session-start` and `/session-end` commands. Briefing at start, report at end. Session reports stored in `sessions/` directory.
+- **Publication tracking**: `schemas/publications.yaml` schema. Links DAG nodes to papers, tracks draft/submitted/published lifecycle.
+- **Findings graph**: `schemas/findings-graph.yaml` schema. Adjacent directed graph tracking how findings relate (contradicts, reinforces, unblocks, strengthens, prompted, supersedes).
+- **research.yaml schema**: `schemas/research-yaml.yaml` documenting all required and optional fields for the project signpost file.
+- **New principles**: #8 Experiments are First-Class, #9 Breakthroughs Cascade, #10 Session Continuity.
+- **New agent roles**: Log-Experiment, Cascade Analysis, Session Protocol.
+- **New slash commands**: `/log-experiment`, `/cascade`, `/session-start`, `/session-end`.
+
+### Changed
+- Updated README to v1.2.0 with new Quick Start flow (session-first workflow).
+- Updated PRINCIPLES.md with 3 new principles (8, 9, 10).
+- Expanded Core Features in README to highlight experiment tracking, cascades, and session continuity.
+
+### Motivation
+Based on D09 framework evaluation (WI-037) after a 23-experiment research session that identified 8 framework gaps. The session demonstrated that experiments, breakthroughs, cascade effects, and session continuity are essential for productive research but were not supported by the framework.
+
 ## [1.1.0] - 2026-03-01
 
 ### Added

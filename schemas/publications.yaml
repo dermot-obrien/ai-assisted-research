@@ -1,0 +1,62 @@
+# Publications Schema — RMS v1.2.0
+#
+# Tracks papers produced from research findings.
+# Links DAG nodes to publications and tracks submission status.
+#
+# Storage: project-level file `publications.yaml` (path from research.yaml)
+
+schema_version: "1.0"
+
+fields:
+  id:
+    type: string
+    required: true
+    description: "Paper ID (P-001, P-002, ...)"
+
+  title:
+    type: string
+    required: true
+    description: "Paper title"
+
+  status:
+    type: string
+    required: true
+    enum: [idea, draft, review, submitted, accepted, published]
+    description: "Publication lifecycle status"
+
+  path:
+    type: string
+    required: false
+    description: "Relative path to paper draft from repo root"
+
+  nodes:
+    type: array
+    items: string
+    required: true
+    description: "Hypothesis DAG nodes that contribute to this paper"
+
+  breakthroughs:
+    type: array
+    items: string
+    required: false
+    description: "Breakthrough IDs used in this paper"
+
+  venue_target:
+    type: string
+    required: false
+    description: "Target venue(s) for submission"
+
+  key_result:
+    type: string
+    required: false
+    description: "One-line summary of the paper's key result"
+
+  submitted_date:
+    type: string
+    required: false
+    description: "Date submitted (ISO 8601)"
+
+  accepted_date:
+    type: string
+    required: false
+    description: "Date accepted (ISO 8601)"

@@ -1,0 +1,83 @@
+# research.yaml Schema — RMS v1.2.0
+#
+# The research.yaml file sits at the project root and serves as
+# the single entry point for all RMS agents. It provides O(1)
+# discovery of all research artifacts.
+#
+# Every project using the RMS framework MUST have this file at root.
+
+schema_version: "1.0"
+
+fields:
+  # === INITIATIVE ===
+  initiative_id:
+    type: string
+    required: true
+    description: "The AAW Initiative ID grouping research work items"
+
+  initiative_path:
+    type: string
+    required: true
+    description: "Relative path to the initiative directory"
+
+  # === ROOT WORK ITEM ===
+  root_work_item:
+    type: string
+    required: true
+    description: "The work item ID holding the hypothesis DAG and research plan"
+
+  root_work_item_path:
+    type: string
+    required: true
+    description: "Relative path to the root work item directory"
+
+  # === CORE ARTIFACTS ===
+  dag_path:
+    type: string
+    required: true
+    description: "Path to hypothesis-dag.yaml (the central research map)"
+
+  node_index_path:
+    type: string
+    required: true
+    description: "Path to node-index.yaml (precomputed actionable view)"
+
+  # === EXPERIMENT TRACKING (v1.2.0) ===
+  experiment_log_path:
+    type: string
+    required: true
+    description: "Path to experiment-log.jsonl (append-only experiment records)"
+
+  # === BREAKTHROUGH TRACKING (v1.2.0) ===
+  breakthroughs_path:
+    type: string
+    required: false
+    default: "breakthroughs.yaml"
+    description: "Path to breakthroughs.yaml (curated milestones)"
+
+  # === PUBLICATIONS (v1.2.0) ===
+  publications_path:
+    type: string
+    required: false
+    default: "publications.yaml"
+    description: "Path to publications.yaml (paper tracking)"
+
+  # === FINDINGS GRAPH (v1.2.0) ===
+  findings_graph_path:
+    type: string
+    required: false
+    default: "findings-graph.yaml"
+    description: "Path to findings-graph.yaml (adjacent directed graph)"
+
+  # === DASHBOARD (v1.2.0) ===
+  dashboard_path:
+    type: string
+    required: false
+    default: "dashboard.html"
+    description: "Path to generated dashboard HTML"
+
+  # === WORK ITEMS ===
+  work_items_path:
+    type: string
+    required: true
+    description: "Directory where per-node work items are created"

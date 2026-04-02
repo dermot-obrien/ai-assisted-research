@@ -1,6 +1,6 @@
 # Research Management System (RMS)
 
-[![Version: v1.1.0](https://img.shields.io/badge/Version-v1.1.0-purple.svg)](CHANGELOG.md)
+[![Version: v1.2.0](https://img.shields.io/badge/Version-v1.2.0-purple.svg)](CHANGELOG.md)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Commercial License Available](https://img.shields.io/badge/Commercial-License%20Available-green.svg)](LICENSE-COMMERCIAL.txt)
 [![Docs License: CC BY 4.0](https://img.shields.io/badge/Docs-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
@@ -46,16 +46,39 @@ This workspace provides pre-defined skills for different agent systems. Copy the
 - **Existing Projects**: Use `/init-research` to reconstruct the lineage from your history.
 - **New Projects**: Use `/start-research {topic}` to brainstorm the initial Hypothesis DAG.
 
-### 4. Execute a Strand
-Claim a hypothesis node and design the experiment:
+### 4. Start a Session
 ```bash
-/start-hypothesis {node_id}
+/session-start
 ```
-This command creates a properly scoped AAW work item. Then, activate and implement:
+Shows the dashboard, lists the golden path (highest-priority nodes), and briefs you on recent breakthroughs and pending cascades.
+
+### 5. Execute Research
+Claim a hypothesis node, design the experiment, and execute:
 ```bash
-/progress-hypothesis {WI_id} {node_id}
+/start-hypothesis {node_id}           # Design phase: scope and plan
+/progress-hypothesis {WI_id} {node_id} # Execution phase: implement and run
 ```
-This activates the implementation branch and hands off to the work management agents for execution. Finally, close the loop:
+
+### 6. Log Experiments (NEW in v1.2.0)
+After each experiment, record the result in one step:
+```bash
+/log-experiment {node_id} metric=value "hypothesis description"
+```
+This updates the experiment log, DAG, node index, and dashboard automatically.
+
+For breakthroughs (results that change research direction):
+```bash
+/log-experiment {node_id} metric=value "hypothesis" --breakthrough "Title"
+```
+This triggers automatic cascade analysis.
+
+### 7. End a Session
+```bash
+/session-end
+```
+Generates a session report, commits it, and provides a handoff summary for the next session.
+
+### 8. Close the Loop
 ```bash
 /sync-research-result {node_id} {WI_id}
 ```
@@ -64,10 +87,16 @@ This activates the implementation branch and hands off to the work management ag
 
 ## Core Features
 
-- **Metric-Driven Lineage**: Tracks the evolution of ideas through quantifiable performance gains against State-of-the-Art (SOTA) baselines.
-- **Multi-Agent Ecosystem**: Specialized roles (Discovery, Specialist, Worker, Auditor, Housekeeper) working together.
-- **Integrated Dashboards**: Interactive Mermaid and SVG visuals of the Hypothesis Graph.
-- **Automated Synthesis**: Generates Blog posts, arXiv drafts, and Research Changes logs directly from experiment findings.
+- **Hypothesis DAG**: Directed acyclic graph tracking the full research search space — what's been tried, what works, what's next.
+- **Experiment Tracking** (v1.2.0): Experiments are first-class. `/log-experiment` records results and syncs to the DAG in one step.
+- **Breakthrough Cascade** (v1.2.0): When a finding changes assumptions, `/cascade` propagates effects through the DAG automatically.
+- **Session Continuity** (v1.2.0): `/session-start` briefing and `/session-end` handoff ensure no knowledge is lost between sessions.
+- **Interactive Dashboard**: D3.js force-directed graph with breakthrough diamonds, golden paths, paper tracking, and findings graph.
+- **Publication Tracking** (v1.2.0): Link DAG nodes to papers, track draft/submitted/published status.
+- **Findings Graph** (v1.2.0): Adjacent directed graph showing how findings relate (contradicts, reinforces, unblocks).
+- **Multi-Agent Ecosystem**: Specialized roles (Discovery, Specialist, Worker, Auditor, Housekeeper, Session, Cascade).
+- **Metric-Driven Lineage**: Every hypothesis has quantifiable targets; every experiment records a metric.
+- **Automated Synthesis**: Blog posts, arXiv drafts, and Research Changes from experiment findings.
 
 ---
 

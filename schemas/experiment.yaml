@@ -1,0 +1,94 @@
+# Experiment Schema — RMS v1.2.0
+#
+# An experiment is the atomic unit of empirical research.
+# One hypothesis node may have many experiments.
+# Each experiment tests one specific change and records one metric.
+#
+# Storage: project-level file `experiment-log.jsonl` (path from research.yaml)
+# One JSON object per line. Append-only.
+
+schema_version: "1.0"
+
+fields:
+  experiment_id:
+    type: integer
+    required: true
+    description: "Sequential experiment number (auto-incremented)"
+
+  timestamp:
+    type: string  # ISO 8601
+    required: true
+    description: "When the experiment was run"
+
+  node_id:
+    type: string
+    required: true
+    description: "Hypothesis DAG node this experiment tests (e.g. H-204.1)"
+
+  hypothesis:
+    type: string
+    required: true
+    description: "One sentence: what is being tested and why"
+
+  metric_name:
+    type: string
+    required: false
+    default: "val_mse_ratio"
+    description: "Name of the primary metric (from DAG primary_metric)"
+
+  metric_value:
+    type: number
+    required: false
+    nullable: true
+    description: "Primary metric result (null if experiment failed or was diagnostic)"
+
+  improved:
+    type: boolean
+    required: true
+    description: "Did this experiment improve on the previous best for this node?"
+
+  success:
+    type: boolean
+    required: true
+    description: "Did the experiment complete without errors?"
+
+  is_breakthrough:
+    type: boolean
+    required: false
+    default: false
+    description: "Flag for breakthroughs — experiments that changed research direction"
+
+  breakthrough_title:
+    type: string
+    required: false
+    description: "Short title for breakthrough (displayed on dashboard)"
+
+  breakthrough_impact:
+    type: string
+    required: false
+    description: "What downstream effect did this breakthrough have?"
+
+  notes:
+    type: string
+    required: false
+    description: "Free-text notes, evidence, observations"
+
+  instruments:
+    type: array
+    items: string
+    required: false
+    description: "Datasets/instruments tested"
+
+  duration_seconds:
+    type: number
+    required: false
+    description: "Wall-clock time for the experiment"
+
+# Example:
+# {"experiment_id": 9, "timestamp": "2026-04-02T01:45:00Z",
+#  "node_id": "H-204.1", "hypothesis": "Correct parent bounds for inverse transform",
+#  "metric_name": "val_mse_ratio", "metric_value": 0.7123,
+#  "improved": true, "success": true, "is_breakthrough": true,
+#  "breakthrough_title": "Parent bounds fix — first WIN",
+#  "breakthrough_impact": "Tree topology is load-bearing for forecasting",
+#  "notes": "...", "instruments": ["EURUSD"]}

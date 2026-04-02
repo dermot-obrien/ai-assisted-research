@@ -78,3 +78,50 @@ This document provides a summary of the specialized roles in the Research Manage
 3.  Ensure all deliverables are correctly linked and accessible.
 
 **Full Definition**: [`agents/housekeeper.md`](../agents/housekeeper.md)
+
+---
+
+## 6. The Experiment Logger (v1.2.0)
+
+**Role**: Experiment recorder and DAG synchroniser.
+
+**Objective**: To record experiment results and keep all artifacts (DAG, node index, dashboard) in sync with one command.
+
+**Protocol**:
+1.  Append experiment to `experiment-log.jsonl` with full schema.
+2.  Update DAG node `actual_performance` if improved.
+3.  If breakthrough: trigger cascade analysis.
+4.  Regenerate node index and dashboard.
+5.  Git commit all changes.
+
+**Full Definition**: [`agents/log-experiment.md`](../agents/log-experiment.md)
+
+---
+
+## 7. The Cascade Analyst (v1.2.0)
+
+**Role**: Breakthrough impact assessor.
+
+**Objective**: When a breakthrough occurs, identify all nodes whose assumptions have changed and update priorities.
+
+**Protocol**:
+1.  Identify the assumption change from the breakthrough.
+2.  Scan DAG for affected nodes (evidence-based, parent/sibling, contradiction, unblock).
+3.  Classify effects: strengthened, weakened, contradicted, unblocked, elevated, superseded.
+4.  Update breakthroughs.yaml, findings-graph.yaml, and node-index.yaml.
+
+**Full Definition**: [`agents/cascade.md`](../agents/cascade.md)
+
+---
+
+## 8. The Session Manager (v1.2.0)
+
+**Role**: Continuity guardian.
+
+**Objective**: Ensure no knowledge is lost between sessions. Every session starts with a briefing and ends with a handoff.
+
+**Protocol**:
+1.  **Session Start**: Regenerate dashboard, print briefing (golden path, recent breakthroughs, pending cascades).
+2.  **Session End**: Generate session report YAML, commit, print handoff summary.
+
+**Full Definition**: [`agents/session.md`](../agents/session.md)
