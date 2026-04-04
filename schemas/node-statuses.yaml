@@ -33,8 +33,14 @@ statuses:
 
   validated:
     description: "Hypothesis confirmed. Actual performance meets or exceeds target. Evidence recorded."
-    transitions_to: []
+    transitions_to: [contested]
     color: "#22c55e"
+
+  contested:
+    description: "Previously validated or partially_tested, but later observations during experimentation raised concerns about the validity of the results. The methodology, data handling, or evaluation approach may have been flawed. The hypothesis is not necessarily wrong — the evidence supporting it is unreliable and needs re-evaluation with corrected methodology. Nodes transition here when audit findings emerge naturally during the research process (not from a separate audit activity). A contested node should document: (1) what was originally claimed, (2) what concern was raised, (3) what remediation is needed, (4) the experiment where the concern was identified. Contested nodes may transition back to validated after re-evaluation with corrected methodology, or to ineffective if re-evaluation shows no effect."
+    transitions_to: [validated, ineffective, in_progress]
+    color: "#f59e0b"
+    icon: "⚠"
 
   ineffective:
     description: "Hypothesis rejected. Experiments show the approach does not work or does not improve on baseline."
@@ -51,11 +57,29 @@ statuses:
 #   pending --> framed --> in_progress --> partially_tested --> validated
 #                |              |                |           --> ineffective
 #                |              |                |           --> discarded
-#                |              +--> validated
-#                |              +--> ineffective
-#                |              +--> discarded
-#                +--> in_progress (skip framing for quick experiments)
+#                |              +--> validated -----> contested
+#                |              +--> ineffective         |
+#                |              +--> discarded           +--> validated (re-validated)
+#                +--> in_progress (skip framing)         +--> ineffective
+#                                                        +--> in_progress (re-evaluation)
 #
 # Node readiness for child nodes:
 #   A child node is READY when ALL parents are in a terminal status:
 #   validated, ineffective, completed, or discarded.
+#   contested is NOT terminal — children should treat it as blocking
+#   until the contest is resolved.
+
+# Audit findings field (added to hypothesis node schema):
+#
+# audit_findings:
+#   type: array
+#   required: false
+#   description: "Observations made during experimentation that call into question
+#     the validity of this node's results. Not from a separate audit activity,
+#     but concerns noted as part of the normal experimental process."
+#   items:
+#     noted_in_experiment: integer  # Experiment where the concern was observed
+#     severity: string              # critical | major | medium
+#     finding: string               # What was observed
+#     resolution: string            # How resolved, or null if open
+#     resolved_by_experiment: integer  # Experiment that resolved it, or null
