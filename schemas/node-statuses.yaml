@@ -74,12 +74,16 @@ statuses:
 # audit_findings:
 #   type: array
 #   required: false
-#   description: "Observations made during experimentation that call into question
-#     the validity of this node's results. Not from a separate audit activity,
-#     but concerns noted as part of the normal experimental process."
+#   description: "Observations that call into question the validity of this node's
+#     results. May originate from: (a) the experimenting agent noticing issues
+#     during normal work, (b) an auditor reviewing the hypothesis/experiment,
+#     (c) a later experiment whose results contradict this node's claims.
+#     The source is recorded in 'source' and 'auditor_notes'."
 #   items:
-#     noted_in_experiment: integer  # Experiment where the concern was observed
+#     noted_in_experiment: integer  # Experiment where the concern was first observed
 #     severity: string              # critical | major | medium
+#     source: string                # "self" (agent noticed) | "auditor" (external review) | "experiment" (later result contradicts)
 #     finding: string               # What was observed
+#     auditor_notes: string         # Verbatim feedback from the auditor (null if self-identified). Placeholder for auditor to fill in.
 #     resolution: string            # How resolved, or null if open
 #     resolved_by_experiment: integer  # Experiment that resolved it, or null
