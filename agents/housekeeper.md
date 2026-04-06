@@ -10,6 +10,8 @@
   - **framed**: nodes with status `framed`.
   - **blocked**: `pending` nodes whose parent is still `pending`, `in_progress`, `partially_tested`, or `framed`. Include the `blocked_by` chain (all unresolved ancestors).
   - Update `generated_at` to the current ISO-8601 timestamp and `total_nodes` to the node count.
+- **Validate DAG References**: Run `python .ai-assisted-research/tools/validate_dag_references.py` to detect hypothesis IDs referenced in code, docs, or experiment logs that are missing from the DAG. If orphans are found, add them to the DAG before proceeding. This prevents agents from creating research branches that are invisible to the dashboard and other agents.
+- **Regenerate Dashboard**: Run `python autoresearch/generate_dashboard.py` to rebuild the interactive HTML dashboard from the DAG and all experiment logs.
 - Update the interactive Mermaid visual in the README.
 - Ensure all deliverables are correctly linked and accessible.
 
