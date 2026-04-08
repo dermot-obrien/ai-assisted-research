@@ -51,6 +51,9 @@ LEGACY_IDS = {
     "H-4.5c",     # WI-035: Multi-horizon forecasting (→ now covered by H-500 branch)
     "H-1.6",      # WI-035: Tick embedding geometry (→ now H-413 in the DAG)
     "H-204.3.5b", # Informal variant label (conf 0.70 variant of H-204.3.5)
+    "H-504.1",    # Proposed in D08 (directed GNN for forecasting, low priority, not yet added to DAG)
+    "H-705",      # Proposed in WI-034 D02 (tick-level microstructure, pending)
+    "H-706",      # Proposed in WI-034 D02 (temporal point processes, pending)
 }
 
 
