@@ -1,6 +1,6 @@
 # /housekeep
 
-Sync the hypothesis DAG, initiative membership, and update Mermaid dashboard visuals.
+Sync the hypothesis DAG, regenerate the node index, and rebuild the interactive dashboard (`dashboard.html`).
 
 ## Instructions
 

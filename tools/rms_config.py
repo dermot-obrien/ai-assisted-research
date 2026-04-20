@@ -16,8 +16,9 @@ Expected research.yaml schema (excerpt):
       title: "Project Research Hypothesis Dashboard"
       experiments_dir: "autoresearch/experiments"
       breakthroughs: "autoresearch/breakthroughs.yaml"
+      papers: "research/papers.yaml"
+      findings_edges: "research/findings-edges.yaml"
       output_html: "autoresearch/dashboard.html"
-      output_mermaid: "RESEARCH_DASHBOARD.md"
 
 All string path values are resolved relative to the directory containing
 research.yaml. Project-specific keys (e.g. a trading dashboard) can be
@@ -94,10 +95,6 @@ class Config:
     @property
     def dashboard_html(self) -> Path:
         return self.path("dashboard.output_html")
-
-    @property
-    def dashboard_mermaid(self) -> Path:
-        return self.path("dashboard.output_mermaid")
 
     @property
     def papers_path(self) -> Path:
