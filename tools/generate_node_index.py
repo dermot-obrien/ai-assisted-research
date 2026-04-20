@@ -22,8 +22,7 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DAG_PATH = REPO_ROOT / ".irregular-timeseries-intent" / "change" / "work-items" / \
-    "WI-032-irregular-timeseries-analysis" / "deliverables" / "D01-hypothesis-dag.yaml"
+DAG_PATH = REPO_ROOT / "research" / "hypothesis-dag.yaml"
 OUTPUT_PATH = REPO_ROOT / "node-index.yaml"
 
 RESOLVED_STATUSES = {"completed", "validated", "ineffective"}

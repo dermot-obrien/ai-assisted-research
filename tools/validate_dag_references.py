@@ -2,7 +2,7 @@
 # Copyright 2026 Dermot O'Brien -- GPLv3
 """
 Validate that all hypothesis IDs referenced in code, docs, and experiment logs
-exist in the hypothesis DAG (D01-hypothesis-dag.yaml).
+exist in the hypothesis DAG (research/hypothesis-dag.yaml).
 
 Catches the case where an agent creates hypothesis IDs in code/docs/experiments
 without registering them in the central DAG.
@@ -24,8 +24,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DAG_PATH = REPO_ROOT / ".irregular-timeseries-intent" / "change" / "work-items" / \
-    "WI-032-irregular-timeseries-analysis" / "deliverables" / "D01-hypothesis-dag.yaml"
+DAG_PATH = REPO_ROOT / "research" / "hypothesis-dag.yaml"
 EXPERIMENTS_DIR = REPO_ROOT / "autoresearch" / "experiments"
 
 # Directories to scan for hypothesis ID references
@@ -121,7 +120,7 @@ def main():
     for hid in sorted(orphaned):
         external_refs = [
             (f, lines) for f, lines in all_refs[hid]
-            if "D01-hypothesis-dag" not in f
+            if "hypothesis-dag" not in f
         ]
         if external_refs:
             orphaned_with_refs[hid] = external_refs
@@ -143,7 +142,7 @@ def main():
             print(f"    {filepath}:{line_str}")
 
     if fix_mode:
-        print("\nTo fix, add these nodes to D01-hypothesis-dag.yaml:")
+        print("\nTo fix, add these nodes to research/hypothesis-dag.yaml:")
         print("(You must fill in parent, hypothesis, and other fields)\n")
         for hid in sorted(orphaned_with_refs.keys()):
             print(f"""  - id: {hid}
