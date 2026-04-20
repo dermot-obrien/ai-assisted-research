@@ -15,22 +15,22 @@ Usage:
 
 from __future__ import annotations
 
-import sys
 from datetime import datetime, timezone
-from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DAG_PATH = REPO_ROOT / "research" / "hypothesis-dag.yaml"
-OUTPUT_PATH = REPO_ROOT / "node-index.yaml"
+import rms_config
 
 RESOLVED_STATUSES = {"completed", "validated", "ineffective"}
 ACTIVE_STATUSES = {"in_progress", "partially_tested", "contested"}
 
 
 def main():
-    with open(DAG_PATH, encoding="utf-8") as f:
+    cfg = rms_config.load()
+    dag_path = cfg.dag_path
+    output_path = cfg.node_index_path
+
+    with open(dag_path, encoding="utf-8") as f:
         dag = yaml.safe_load(f)
 
     nodes = dag.get("nodes", [])
@@ -105,7 +105,7 @@ def main():
             blocked.append(entry)
 
     index = {
-        "source_dag": "hypothesis-dag.yaml",
+        "source_dag": str(dag_path.relative_to(cfg.repo_root)),
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "total_nodes": len(nodes),
         "ready": ready,
@@ -116,11 +116,12 @@ def main():
     if blocked:
         index["blocked"] = blocked
 
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write("# Node Index\n\n")
         yaml.dump(index, f, sort_keys=False, default_flow_style=False, allow_unicode=True)
 
-    print(f"Node index generated: {OUTPUT_PATH}")
+    print(f"Node index generated: {output_path}")
     print(f"  Total nodes: {len(nodes)}")
     print(f"  Ready: {len(ready)}")
     print(f"  Active: {len(active)}")

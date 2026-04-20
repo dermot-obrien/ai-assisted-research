@@ -23,11 +23,15 @@ import re
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DAG_PATH = REPO_ROOT / "research" / "hypothesis-dag.yaml"
-EXPERIMENTS_DIR = REPO_ROOT / "autoresearch" / "experiments"
+import rms_config
 
-# Directories to scan for hypothesis ID references
+_cfg = rms_config.load()
+REPO_ROOT = _cfg.repo_root
+DAG_PATH = _cfg.dag_path
+EXPERIMENTS_DIR = _cfg.experiments_dir
+
+# Directories to scan for hypothesis ID references. Includes common project
+# locations; missing ones are silently skipped at scan time.
 SCAN_DIRS = [
     REPO_ROOT / "autoresearch",
     REPO_ROOT / "docs",

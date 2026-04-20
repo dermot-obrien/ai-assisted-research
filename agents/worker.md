@@ -6,8 +6,8 @@
 
 Before starting any research work, use the **node index** for O(1) lookup of actionable nodes:
 
-1. **Read `research.yaml`** to locate the `node_index_path` (default: `node-index.yaml`).
-2. **Read `node-index.yaml`** and inspect the `ready` list.
+1. **Read `research.yaml`** to locate the `node_index_path` (convention: `research/node-index.yaml`).
+2. **Read the node index** (at `node_index_path`) and inspect the `ready` list.
 3. If the `ready` list is non-empty, pick the first node (or let the user choose from the list).
 4. If the index is **missing** or `generated_at` is older than 7 days, **fall back** to scanning the full `hypothesis-dag.yaml` and regenerate the index afterward.
 
