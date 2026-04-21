@@ -33,7 +33,7 @@ EXPERIMENTS_DIR = _cfg.experiments_dir
 # Directories to scan for hypothesis ID references. Includes common project
 # locations; missing ones are silently skipped at scan time.
 SCAN_DIRS = [
-    REPO_ROOT / "autoresearch",
+    REPO_ROOT / "ml_pipeline",
     REPO_ROOT / "docs",
     REPO_ROOT / ".irregular-timeseries-intent",
     REPO_ROOT / "python",
