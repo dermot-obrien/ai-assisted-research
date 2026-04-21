@@ -14,11 +14,11 @@ Expected research.yaml schema (excerpt):
     work_items_path: ".irregular-timeseries-intent/change/work-items/"
     dashboard:
       title: "Project Research Hypothesis Dashboard"
-      experiments_dir: "autoresearch/experiments"
-      breakthroughs: "autoresearch/breakthroughs.yaml"
+      experiments_dir: "ml_pipeline/experiments"
+      breakthroughs: "ml_pipeline/breakthroughs.yaml"
       papers: "research/papers.yaml"
       findings_edges: "research/findings-edges.yaml"
-      output_html: "autoresearch/dashboard.html"
+      output_html: "ml_pipeline/dashboard.html"
 
 All string path values are resolved relative to the directory containing
 research.yaml. Project-specific keys (e.g. a trading dashboard) can be
