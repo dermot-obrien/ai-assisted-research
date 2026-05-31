@@ -14,6 +14,7 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -40,6 +41,25 @@ function findWorkspaceRoot(start) {
   }
 }
 
+/** Locate the AAW install engine across: npm dependency, hoisted node_modules, then submodule. */
+function resolveAawBin(workspaceRoot) {
+  // 1. AAW installed as an npm dependency (resolvable from this launcher).
+  try {
+    const pkg = createRequire(import.meta.url).resolve("aaw-monorepo/package.json");
+    const bin = path.join(path.dirname(pkg), "bin", "aaw.js");
+    if (existsSync(bin)) return bin;
+  } catch {
+    /* not an npm dep — try other layouts */
+  }
+  // 2. Hoisted into the workspace's node_modules.
+  const hoisted = path.join(workspaceRoot, "node_modules", "aaw-monorepo", "bin", "aaw.js");
+  if (existsSync(hoisted)) return hoisted;
+  // 3. Sibling git submodule (back-compat).
+  const submodule = path.join(workspaceRoot, ".ai-assisted-work", "bin", "aaw.js");
+  if (existsSync(submodule)) return submodule;
+  return undefined;
+}
+
 function main(argv) {
   const command = argv[0];
   if (command === "--help" || command === "-h" || command === "help") {
@@ -53,11 +73,12 @@ function main(argv) {
 
   const frameworkRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const workspaceRoot = findWorkspaceRoot(process.cwd());
-  const aawBin = path.join(workspaceRoot, ".ai-assisted-work", "bin", "aaw.js");
-  if (!existsSync(aawBin)) {
+  const aawBin = resolveAawBin(workspaceRoot);
+  if (!aawBin) {
     process.stderr.write(
-      "AAR requires AAW. Add the .ai-assisted-work submodule (it provides the\n" +
-        "shared install engine), then re-run `aar install`.\n",
+      "AAR requires AAW (it provides the shared install engine). Install it as an\n" +
+        "npm dependency (npm i github:dermot-obrien/ai-assisted-work) or add the\n" +
+        ".ai-assisted-work submodule, then re-run `aar install`.\n",
     );
     return 1;
   }

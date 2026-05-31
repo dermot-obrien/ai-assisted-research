@@ -1,0 +1,23 @@
+{
+  "name": "ai-assisted-research",
+  "version": "1.1.0",
+  "description": "Research Management System (RMS) — hypothesis-DAG research lineage. Installs via the shared AAW engine; tooling is Python.",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "aar": "./bin/aar.js"
+  },
+  "files": [
+    "bin/",
+    "skills/",
+    "agents/",
+    "templates/",
+    "tools/",
+    "docs/",
+    "requirements.txt",
+    "framework.manifest.yaml"
+  ],
+  "dependencies": {
+    "aaw-monorepo": "github:dermot-obrien/ai-assisted-work"
+  }
+}

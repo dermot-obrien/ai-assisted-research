@@ -13,6 +13,7 @@ name: AI-Assisted Research (RMS)
 version: 1.1.0
 depends: [aaw]
 runtime: python
+source_token: .ai-assisted-research
 
 # Python tooling deps (PyYAML, requests). Installed via `python -m pip install -r`.
 tool_setup:
