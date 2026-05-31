@@ -30,27 +30,36 @@ The RMS uses the **AI-Assisted Work (AAW)** framework as its process management 
 
 ## Quick Start
 
-### 1. Sub-module Installation
-Add this system **and** its required AAW peer as Git sub-modules:
+AAR installs through the shared AAW engine (it depends on AAW). Both models below work
+**without npm-registry access**. The installer wires skill shims for every detected tool
+(Claude/Cursor/Gemini), seeds a `research.yaml`, creates the `research/` data dir, and
+`pip install`s AAR's Python deps.
+
+### Option A — npm git-dependency (recommended)
+
+Installing AAR auto-pulls AAW (declared as its dependency):
+
+```bash
+npm i github:dermot-obrien/ai-assisted-research
+npx aar install            # add --no-python to skip pip
+```
+
+### Option B — git submodules
 
 ```bash
 git submodule add https://github.com/dermot-obrien/ai-assisted-work .ai-assisted-work
 git submodule add https://github.com/dermot-obrien/ai-assisted-research .ai-assisted-research
+node .ai-assisted-research/bin/aar.js install       # add --no-python to skip pip
 ```
 
-AAW is a mandatory dependency — it provides the shared install engine AAR uses.
-
-### 2. Install (one command)
-Run the AAR installer. It uses the shared AAW install engine (`framework.manifest.yaml`)
-to wire skill shims for every detected tool (Claude/Cursor/Gemini), seed a `research.yaml`,
-create the `research/` data dir, and `pip install` AAR's Python deps:
-
-```bash
-node .ai-assisted-research/bin/aar.js install      # add --no-python to skip pip
-```
-
-This replaces the old manual "copy the `skills/` folder" step. Re-run any time to
+Either way replaces the old manual "copy the `skills/` folder" step. Re-run any time to
 refresh shims; your `research.yaml` and `research/` data are left untouched.
+
+> **Developers:** AAR's tooling is Python (`tools/*.py`) — there is nothing to build.
+> The `aar` launcher is a zero-dependency Node script that delegates to AAW's engine
+> (found via npm dependency, `node_modules`, or the `.ai-assisted-work` submodule).
+> Runtime requirements: **Python 3.10+** and `pip install -r requirements.txt`
+> (PyYAML, requests) — the installer runs this for you unless you pass `--no-python`.
 
 ### 3. Initialize Research
 - **Existing Projects**: Use `/init-research` to reconstruct the lineage from your history.
