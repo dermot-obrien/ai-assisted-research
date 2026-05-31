@@ -45,14 +45,14 @@ function findWorkspaceRoot(start) {
 function resolveAawBin(workspaceRoot) {
   // 1. AAW installed as an npm dependency (resolvable from this launcher).
   try {
-    const pkg = createRequire(import.meta.url).resolve("aaw-monorepo/package.json");
+    const pkg = createRequire(import.meta.url).resolve("ai-assisted-work/package.json");
     const bin = path.join(path.dirname(pkg), "bin", "aaw.js");
     if (existsSync(bin)) return bin;
   } catch {
     /* not an npm dep — try other layouts */
   }
   // 2. Hoisted into the workspace's node_modules.
-  const hoisted = path.join(workspaceRoot, "node_modules", "aaw-monorepo", "bin", "aaw.js");
+  const hoisted = path.join(workspaceRoot, "node_modules", "ai-assisted-work", "bin", "aaw.js");
   if (existsSync(hoisted)) return hoisted;
   // 3. Sibling git submodule (back-compat).
   const submodule = path.join(workspaceRoot, ".ai-assisted-work", "bin", "aaw.js");

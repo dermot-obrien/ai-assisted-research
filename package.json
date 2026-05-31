@@ -18,6 +18,6 @@
     "framework.manifest.yaml"
   ],
   "dependencies": {
-    "aaw-monorepo": "github:dermot-obrien/ai-assisted-work"
+    "ai-assisted-work": "github:dermot-obrien/ai-assisted-work"
   }
 }
