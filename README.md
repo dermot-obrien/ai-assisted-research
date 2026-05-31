@@ -94,6 +94,7 @@ This activates the implementation branch and hands off to the work management ag
 - [**System Overview**](docs/README.md)
 - [**User Guide**](docs/user-guide.md)
 - [**Research Principles**](docs/PRINCIPLES.md): The core guardrails for autonomous research.
+- [**AAW Inquiry Seam**](docs/aaw-inquiry-seam.md): How an AAW `inquiry` becomes a hypothesis, and how a conclusion re-triages into delivery.
 - [**Agent Definitions**](agents/): Detailed protocols for each specialized role.
 
 ---

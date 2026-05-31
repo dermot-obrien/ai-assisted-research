@@ -7,6 +7,9 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **AAW inquiry seam** (`docs/aaw-inquiry-seam.md`): defines the contract between RMS and the AI-Assisted Work work-classification standard — an AAW `inquiry` *is* an AAR hypothesis. Inbound: a triaged inquiry → `/start-hypothesis`. Outbound: a node conclusion **re-triages** into AAW delivery (`validated` → intervention/change; `ineffective` → close as a lesson; `contested`/`partially_tested` → keep researching). Aligns the vocabularies so one classification flows across both frameworks without drift.
+
 ### Changed
 - **Relicensed for wide adoption.** Replaced the AGPL-3.0 + Commercial dual licence with a permissive split: **CC BY 4.0** for content (documentation, agent specifications, skills, templates) and **Apache-2.0** for executable code (`tools/*.py`, `bin/*.js`). Commercial use is now explicitly permitted under both licences; attribution is required. This brings RMS in line with the permissive licensing of AI-Assisted Work and AI-Assisted Architecture.
 - Adopted [REUSE Specification 3.3](https://reuse.software/spec-3.3/) with `REUSE.toml` and `SPDX-License-Identifier` headers for per-file licensing metadata.
