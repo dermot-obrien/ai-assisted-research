@@ -1,0 +1,64 @@
+version = 1
+
+# AI-Assisted Research (RMS) is dual-licensed:
+#   - Documentation, agent specifications, skills, and templates are licensed
+#     under CC BY 4.0.
+#   - Executable code (Python tools, Node.js launcher) is licensed under Apache-2.0.
+#
+# This file follows the REUSE Specification 3.3 (https://reuse.software/).
+# It applies bulk licensing rules to files where adding an SPDX header in the
+# file itself is impractical (Markdown, YAML, JSON, text). Source code files
+# SHOULD declare an SPDX-License-Identifier header inline; the rules below act
+# as a safety net.
+
+# --- Documentation, agent specs, skills, templates ---
+[[annotations]]
+path = [
+  "**.md",
+  "**.yaml",
+  "**.yml",
+  "**.json",
+  "**.txt",
+  "agents/**",
+  "skills/**",
+  "templates/**",
+  "docs/**",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Dermot O'Brien"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# --- Executable code (override the broad rule above) ---
+[[annotations]]
+path = [
+  "tools/**.py",
+  "bin/**.js",
+  "bin/**.mjs",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Dermot O'Brien"
+SPDX-License-Identifier = "Apache-2.0"
+
+# --- Repository metadata files (no creative content; CC BY 4.0) ---
+[[annotations]]
+path = [
+  ".gitignore",
+  ".gitattributes",
+  "REUSE.toml",
+  "LICENSE",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Dermot O'Brien"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# --- Node tooling metadata (override the broad **.json/**.yaml rule) ---
+[[annotations]]
+path = [
+  "package.json",
+  "package-lock.json",
+  "framework.manifest.yaml",
+  "requirements.txt",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Dermot O'Brien"
+SPDX-License-Identifier = "Apache-2.0"

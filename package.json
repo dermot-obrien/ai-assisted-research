@@ -4,6 +4,13 @@
   "description": "Research Management System (RMS) — hypothesis-DAG research lineage. Installs via the shared AAW engine; tooling is Python.",
   "private": true,
   "type": "module",
+  "license": "Apache-2.0",
+  "author": "Dermot O'Brien",
+  "homepage": "https://github.com/dermot-obrien/ai-assisted-research",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dermot-obrien/ai-assisted-research.git"
+  },
   "bin": {
     "aar": "./bin/aar.js"
   },

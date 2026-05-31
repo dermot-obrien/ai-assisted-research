@@ -1,9 +1,8 @@
 # Research Management System (RMS)
 
 [![Version: v1.1.0](https://img.shields.io/badge/Version-v1.1.0-purple.svg)](CHANGELOG.md)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Commercial License Available](https://img.shields.io/badge/Commercial-License%20Available-green.svg)](LICENSE-COMMERCIAL.txt)
-[![Docs License: CC BY 4.0](https://img.shields.io/badge/Docs-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
+[![Licence: CC BY 4.0](https://img.shields.io/badge/content-CC%20BY%204.0-blue.svg)](LICENSES/CC-BY-4.0.txt)
+[![Licence: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue.svg)](LICENSES/Apache-2.0.txt)
 
 A standalone, performance-driven agentic framework for tracking the **lineage of ideas** through structured research and discovery.
 
@@ -101,11 +100,12 @@ This activates the implementation branch and hands off to the work management ag
 
 ## Licensing
 
-The Research Management System is **dual-licensed**:
-- **AGPL-3.0**: For open-source projects and non-commercial use.
-- **Commercial License**: For proprietary, closed-source, or SaaS use.
+This framework is permissively licensed to encourage the widest possible adoption — private, public, academic, and commercial. Attribution is the primary expectation.
 
-Documentation is licensed under **CC BY 4.0**. See [LICENSE](LICENSE) for full details.
+- **Documentation, agent specifications, skills, templates** ([`CC BY 4.0`](LICENSES/CC-BY-4.0.txt)) — use, share, modify, and redistribute, including commercially, with attribution.
+- **Executable code** (`tools/*.py`, `bin/*.js`) ([`Apache-2.0`](LICENSES/Apache-2.0.txt)) — same permissions, with an explicit patent grant.
+
+Per-file licensing is declared via SPDX identifiers and the [`REUSE.toml`](REUSE.toml) manifest, following the [REUSE Specification 3.3](https://reuse.software/spec-3.3/). See [`LICENSE`](LICENSE) for the full overview, including the trademark notice and attribution expectations.
 
 ---
 
