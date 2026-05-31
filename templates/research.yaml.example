@@ -1,0 +1,19 @@
+# Research Management System (RMS) workspace config.
+# Seeded by `aar install` if no research.yaml exists. Edit paths to match your repo.
+# All paths are relative to this file's directory (the repo root). Read by
+# .ai-assisted-research/tools/rms_config.py.
+
+# The hypothesis DAG (lineage of ideas) and its computed index.
+dag_path: "research/hypothesis-dag.yaml"
+node_index_path: "research/node-index.yaml"
+
+# Where AAW work items for research nodes live (your .aaw-config.yaml work_items_path).
+work_items_path: ".aaw/work-items/"
+
+dashboard:
+  title: "Research Hypothesis Dashboard"
+  experiments_dir: "research/experiments"
+  breakthroughs: "research/breakthroughs.yaml"
+  papers: "research/papers.yaml"
+  findings_edges: "research/findings-edges.yaml"
+  output_html: "research/dashboard.html"

@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Dermot O'Brien
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Framework manifest — the shared install contract (see @aaw/installer in the
+# AI-Assisted Work repo). AAR (Research Management System) depends on AAW as its
+# process engine; its tooling stays in Python (richer research/AI ecosystem).
+#
+# Install with:  aar install        (delegates to the AAW install engine)
+# or directly:   node .ai-assisted-work/bin/aaw.js install --framework .ai-assisted-research
+
+id: aar
+name: AI-Assisted Research (RMS)
+version: 1.1.0
+depends: [aaw]
+runtime: python
+
+# Python tooling deps (PyYAML, requests). Installed via `python -m pip install -r`.
+tool_setup:
+  python: { requirements: requirements.txt }
+
+shims:
+  claude: { src: skills/claude/commands/rms, dest: .claude/commands/aar }
+  cursor: { src: skills/cursor,              dest: .cursor/rules/aar }
+  gemini: { src: skills/gemini,              dest: .gemini/skills/aar }
+
+# Idempotent: only seeded if the host has no research.yaml yet.
+config:
+  - { file: research.yaml, template: templates/research.yaml.example }
+
+# Committed home for the hypothesis DAG + lineage artefacts.
+data_dirs: [research/]

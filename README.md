@@ -31,16 +31,26 @@ The RMS uses the **AI-Assisted Work (AAW)** framework as its process management 
 ## Quick Start
 
 ### 1. Sub-module Installation
-To include this system in your project, add it as a Git sub-module with the specific name **`.ai-assisted-research`**:
+Add this system **and** its required AAW peer as Git sub-modules:
 
 ```bash
+git submodule add https://github.com/dermot-obrien/ai-assisted-work .ai-assisted-work
 git submodule add https://github.com/dermot-obrien/ai-assisted-research .ai-assisted-research
 ```
 
-*Note: Ensure `.ai-assisted-work` is also available in your repository.*
+AAW is a mandatory dependency — it provides the shared install engine AAR uses.
 
-### 2. Skill Activation
-This workspace provides pre-defined skills for different agent systems. Copy the relevant folder from `skills/` to your project's agent configuration directory (e.g., `.gemini/skills/rms/`).
+### 2. Install (one command)
+Run the AAR installer. It uses the shared AAW install engine (`framework.manifest.yaml`)
+to wire skill shims for every detected tool (Claude/Cursor/Gemini), seed a `research.yaml`,
+create the `research/` data dir, and `pip install` AAR's Python deps:
+
+```bash
+node .ai-assisted-research/bin/aar.js install      # add --no-python to skip pip
+```
+
+This replaces the old manual "copy the `skills/` folder" step. Re-run any time to
+refresh shims; your `research.yaml` and `research/` data are left untouched.
 
 ### 3. Initialize Research
 - **Existing Projects**: Use `/init-research` to reconstruct the lineage from your history.
