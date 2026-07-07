@@ -53,13 +53,25 @@ def load_node_index():
 
 
 def load_papers():
-    """Load publication tracking data from the configured file."""
+    """Load publication tracking data from the configured file.
+
+    Normalises each paper so the list-valued fields the dashboard renders
+    (`nodes`, `breakthroughs`) are always present as lists. A paper missing
+    one of these would otherwise make the embedded JS throw on `.join()` /
+    `.includes()`, and because the whole dashboard is a single inline script,
+    that one bad record blanks the ENTIRE graph (not just the papers panel).
+    """
     path = _cfg.papers_path
     if not path.exists():
         return []
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
-    return data.get("papers", [])
+    papers = data.get("papers", []) or []
+    for p in papers:
+        for field in ("nodes", "breakthroughs"):
+            if not isinstance(p.get(field), list):
+                p[field] = []
+    return papers
 
 
 def load_findings_edges():
@@ -465,7 +477,7 @@ function showNodeDetail(n) {{
   if (n.notes) html += '<p style="margin-top:8px;color:#64748b"><em>' + n.notes.substring(0,200) + '</em></p>';
   if (readyIds.has(n.id)) html += '<p style="margin-top:8px;color:#f59e0b;font-weight:600">READY TO START</p>';
   // Show papers this node contributes to
-  const nodePapers = papers.filter(p => p.nodes.includes(n.id));
+  const nodePapers = papers.filter(p => (p.nodes || []).includes(n.id));
   if (nodePapers.length > 0) {{
     html += '<div style="margin-top:8px;padding:6px 10px;background:#f59e0b15;border-radius:6px;border:1px solid #f59e0b33">';
     html += '<p style="color:#f59e0b;font-size:11px;font-weight:600">&#128196; CONTRIBUTES TO PAPER</p>';
@@ -554,8 +566,8 @@ papers.forEach(p => {{
     '<div style="margin:4px 0"><span class="status-badge" style="background:' + (statusColors[p.status]||'#334155') + '33;color:' + (statusColors[p.status]||'#e2e8f0') + '">' + p.status.toUpperCase() + '</span>' +
     ' <span style="font-size:10px;color:#64748b">Target: ' + p.venue_target + '</span></div>' +
     '<div class="bt-desc">Key result: ' + p.key_result + '</div>' +
-    '<div style="font-size:10px;color:#94a3b8;margin-top:4px">Nodes: ' + p.nodes.join(', ') + '</div>' +
-    '<div style="font-size:10px;color:#94a3b8">Breakthroughs: ' + p.breakthroughs.join(', ') + '</div>' +
+    '<div style="font-size:10px;color:#94a3b8;margin-top:4px">Nodes: ' + (p.nodes || []).join(', ') + '</div>' +
+    '<div style="font-size:10px;color:#94a3b8">Breakthroughs: ' + (p.breakthroughs || []).join(', ') + '</div>' +
     linkHtml;
   papersList.appendChild(card);
 }});
