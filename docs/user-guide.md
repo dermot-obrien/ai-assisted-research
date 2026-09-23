@@ -91,6 +91,12 @@ The Auditor verifies the results using the Clean Room check.
 python tools/audit_verify.py --action verify --clean-room
 ```
 
+Check whether the research is actually live, as opposed to merely true:
+
+```bash
+python tools/reconcile.py --dag research/hypothesis-dag.yaml --cwd .
+```
+
 ### Step 4.2: Synchronize to RMS
 Once the AAW work item is `done`, synchronize the result back to the master DAG:
 ```bash
@@ -111,4 +117,5 @@ The research branch is merged into `main`, and the `hypothesis-dag.yaml` is upda
 | `dag_update.py` | Specialist | Adding/updating nodes in the central DAG with concurrency locking. |
 | `branch_manager.py` | Worker | Manage research branches and metadata (called by /progress-hypothesis). |
 | `audit_verify.py` | Auditor | Automated verification with Clean Room support. |
+| `reconcile.py` | Reconciler | Check the DAG against the running system; reports drift, proposes nothing. |
 | `/sync-research-result` | Worker | The "Return Path" from AAW back to the RMS DAG. |

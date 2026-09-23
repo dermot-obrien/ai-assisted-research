@@ -2,35 +2,155 @@
   "dag_update.py": {
     "description": "Safely update the Hypothesis DAG with a cross-platform file lock.",
     "arguments": {
-      "--dag": {"type": "string", "default": "hypothesis-dag.yaml", "description": "Path to the DAG file."},
-      "--action": {"type": "string", "enum": ["add", "update"], "required": true, "description": "The action to perform."},
-      "--parent": {"type": "string", "description": "Parent Node ID (Required if action=add)."},
-      "--hypothesis": {"type": "string", "description": "Description of the new hypothesis (Required if action=add)."},
-      "--target": {"type": "float", "description": "Target improvement metric (Required if action=add)."},
-      "--metric": {"type": "string", "description": "The evaluation metric. Must align with DAG primary metric (Optional)."},
-      "--node-id": {"type": "string", "description": "Node ID to update (Required if action=update)."},
-      "--status": {"type": "string", "enum": ["pending", "framed", "in_progress", "validated", "ineffective", "discarded"], "description": "New status (Required if action=update)."},
-      "--performance": {"type": "float", "description": "Actual performance recorded (Optional for update)."}
+      "--dag": {
+        "type": "string",
+        "default": "hypothesis-dag.yaml",
+        "description": "Path to the DAG file."
+      },
+      "--action": {
+        "type": "string",
+        "enum": [
+          "add",
+          "update",
+          "adopt"
+        ],
+        "required": true,
+        "description": "The action to perform."
+      },
+      "--parent": {
+        "type": "string",
+        "description": "Parent Node ID (Required if action=add)."
+      },
+      "--hypothesis": {
+        "type": "string",
+        "description": "Description of the new hypothesis (Required if action=add)."
+      },
+      "--target": {
+        "type": "float",
+        "description": "Target improvement metric (Required if action=add)."
+      },
+      "--metric": {
+        "type": "string",
+        "description": "The evaluation metric. Must align with DAG primary metric (Optional)."
+      },
+      "--node-id": {
+        "type": "string",
+        "description": "Node ID to update (Required if action=update)."
+      },
+      "--status": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "framed",
+          "in_progress",
+          "validated",
+          "contested",
+          "ineffective",
+          "discarded"
+        ],
+        "description": "New status (Required if action=update)."
+      },
+      "--performance": {
+        "type": "float",
+        "description": "Actual performance recorded (Optional for update)."
+      },
+      "--adoption": {
+        "type": "string",
+        "enum": [
+          "not_assessed",
+          "not_applicable",
+          "not_adopted",
+          "partial",
+          "adopted",
+          "contradicted"
+        ],
+        "description": "Adoption state: is the finding live? Required if action=adopt."
+      },
+      "--artefact": {
+        "type": "string",
+        "description": "Path or symbol in the running system that would carry this finding (Optional)."
+      },
+      "--verification": {
+        "type": "string",
+        "description": "Shell predicate that exits 0 while the claim still holds (Optional, but required for adopted/partial/contradicted to count as verified)."
+      },
+      "--adoption-note": {
+        "type": "string",
+        "description": "Why the node sits at this adoption state (Optional)."
+      }
     }
   },
   "start-hypothesis": {
     "description": "Design the scope and plan for a hypothesis node (Experimental Design).",
     "arguments": {
-      "--node-id": {"type": "string", "required": true, "description": "Node ID e.g., H-001"}
+      "--node-id": {
+        "type": "string",
+        "required": true,
+        "description": "Node ID e.g., H-001"
+      }
     }
   },
   "progress-hypothesis": {
     "description": "Activate or continue execution of a framed research item (Experimental Execution).",
     "arguments": {
-      "--wi-id": {"type": "string", "required": true, "description": "AAW Work Item ID e.g., WI-042"},
-      "--node-id": {"type": "string", "required": true, "description": "Node ID e.g., H-001"}
+      "--wi-id": {
+        "type": "string",
+        "required": true,
+        "description": "AAW Work Item ID e.g., WI-042"
+      },
+      "--node-id": {
+        "type": "string",
+        "required": true,
+        "description": "Node ID e.g., H-001"
+      }
     }
   },
   "audit_verify.py": {
     "description": "Audit and verify research results.",
     "arguments": {
-      "--action": {"type": "string", "enum": ["verify", "report"], "required": true, "description": "The action to perform."},
-      "--clean-room": {"type": "boolean", "action": "store_true", "description": "Enforce Clean Room verification against main branch to prevent worker bias."}
+      "--action": {
+        "type": "string",
+        "enum": [
+          "verify",
+          "report"
+        ],
+        "required": true,
+        "description": "The action to perform."
+      },
+      "--clean-room": {
+        "type": "boolean",
+        "action": "store_true",
+        "description": "Enforce Clean Room verification against main branch to prevent worker bias."
+      }
+    }
+  },
+  "reconcile.py": {
+    "description": "Reconcile the hypothesis DAG against the running system. Reports the gap, proposes nothing.",
+    "args": {
+      "--dag": {
+        "type": "string",
+        "description": "Path to hypothesis-dag.yaml."
+      },
+      "--cwd": {
+        "type": "string",
+        "description": "Working directory adoption predicates run in."
+      },
+      "--timeout": {
+        "type": "integer",
+        "description": "Per-predicate timeout in seconds (default 60)."
+      },
+      "--migrate": {
+        "type": "boolean",
+        "description": "Seed a default adoption block on nodes that lack one, then exit."
+      },
+      "--strict": {
+        "type": "boolean",
+        "description": "Also fail when a node claims adoption without a predicate."
+      },
+      "--json": {
+        "type": "boolean",
+        "description": "Machine-readable output."
+      }
     }
   }
 }

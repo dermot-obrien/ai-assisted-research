@@ -1,7 +1,7 @@
 {
   "name": "ai-assisted-research",
-  "version": "1.1.0",
-  "description": "Research Management System (RMS) — hypothesis-DAG research lineage. Installs via the shared AAW engine; tooling is Python.",
+  "version": "1.2.0",
+  "description": "Research Management System (RMS) \u2014 hypothesis-DAG research lineage. Installs via the shared AAW engine; tooling is Python.",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",

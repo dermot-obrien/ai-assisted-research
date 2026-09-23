@@ -1,0 +1,267 @@
+# SPDX-FileCopyrightText: 2026 Dermot O'Brien
+# SPDX-License-Identifier: Apache-2.0
+"""
+Reconcile the hypothesis DAG against the running system.
+
+A hypothesis has two independent states: whether it is true (`status`) and
+whether it is live (`adoption.state`). This tool checks the second. See
+docs/adoption-and-drift.md.
+
+It reports the gap and proposes nothing. A reconciliation that proposes fixes
+invites arguing about the fixes instead of accepting the gap.
+
+Usage:
+    python tools/reconcile.py --dag research/hypothesis-dag.yaml
+    python tools/reconcile.py --dag ... --migrate      # seed missing adoption blocks
+    python tools/reconcile.py --dag ... --json         # machine-readable
+    python tools/reconcile.py --dag ... --strict       # also fail on unverified claims
+
+Exit codes:
+    0  no drift
+    1  drift found, or a claim that cannot be verified under --strict
+    2  usage or file error
+"""
+
+import argparse
+import datetime
+import json
+import subprocess
+import sys
+
+try:
+    import yaml
+except ImportError:
+    print("PyYAML is required: python -m pip install -r requirements.txt", file=sys.stderr)
+    sys.exit(2)
+
+
+ADOPTION_STATES = [
+    "not_assessed",
+    "not_applicable",
+    "not_adopted",
+    "partial",
+    "adopted",
+    "contradicted",
+]
+
+# States that assert something about the running system, so they owe a predicate.
+CLAIMS_REALITY = {"adopted", "partial", "contradicted"}
+
+DEFAULT_ADOPTION = {
+    "state": "not_assessed",
+    "artefact": None,
+    "verification": None,
+    "verified_on": None,
+    "note": None,
+}
+
+
+def iter_nodes(dag):
+    """Yield every hypothesis node, wherever it sits in the document."""
+    seen = set()
+
+    def walk(o):
+        if isinstance(o, dict):
+            nid = o.get("id")
+            if isinstance(nid, str) and nid.startswith("H-") and "status" in o:
+                if nid not in seen:
+                    seen.add(nid)
+                    yield o
+            for v in o.values():
+                yield from walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                yield from walk(v)
+
+    yield from walk(dag)
+
+
+def run_predicate(cmd, cwd, timeout):
+    """Run an adoption predicate. Zero exit means the claim still holds."""
+    try:
+        r = subprocess.run(
+            cmd, shell=True, cwd=cwd, timeout=timeout,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        )
+        return r.returncode == 0, (r.stdout or b"").decode("utf-8", "replace").strip()[:300]
+    except subprocess.TimeoutExpired:
+        return False, "predicate timed out after %ss" % timeout
+    except Exception as e:  # noqa: BLE001 - a broken predicate is a finding, not a crash
+        return False, "predicate failed to run: %s" % e
+
+
+def migrate(path):
+    """Add a default adoption block to every node that lacks one. Infers nothing."""
+    raw = open(path, encoding="utf-8").read()
+    dag = yaml.safe_load(raw)
+    touched = 0
+    for node in iter_nodes(dag):
+        if "adoption" not in node:
+            node["adoption"] = dict(DEFAULT_ADOPTION)
+            touched += 1
+    if touched:
+        with open(path, "w", encoding="utf-8") as fh:
+            yaml.safe_dump(dag, fh, sort_keys=False, allow_unicode=True, width=100)
+    print("migrate: %d node(s) given a default adoption block" % touched)
+    print("         all at state 'not_assessed' — nothing was inferred")
+    return 0
+
+
+def reconcile(path, cwd, timeout, strict, as_json):
+    dag = yaml.safe_load(open(path, encoding="utf-8"))
+    nodes = list(iter_nodes(dag))
+
+    findings = []
+    counts = {s: 0 for s in ADOPTION_STATES}
+    counts["missing_block"] = 0
+    checked = passed = 0
+
+    ids = {n["id"] for n in nodes}
+
+    for node in nodes:
+        nid = node["id"]
+        ad = node.get("adoption")
+
+        if not isinstance(ad, dict):
+            counts["missing_block"] += 1
+            findings.append({
+                "node": nid, "kind": "no_adoption_block",
+                "detail": "node has no adoption block; run --migrate",
+            })
+            continue
+
+        state = ad.get("state", "not_assessed")
+        counts[state] = counts.get(state, 0) + 1
+
+        # A blocked_by pointing at an unknown node is a broken reference.
+        for dep in node.get("blocked_by") or []:
+            if dep not in ids:
+                findings.append({
+                    "node": nid, "kind": "unknown_blocker",
+                    "detail": "blocked_by references unknown node %s" % dep,
+                })
+
+        for dep in node.get("contested_by") or []:
+            if dep not in ids:
+                findings.append({
+                    "node": nid, "kind": "unknown_contester",
+                    "detail": "contested_by references unknown node %s" % dep,
+                })
+
+        # A validated node that is absent with nothing blocking it is the gap
+        # this tool exists to surface.
+        if node.get("status") == "validated" and state == "not_adopted" and not (node.get("blocked_by") or []):
+            findings.append({
+                "node": nid, "kind": "validated_not_adopted",
+                "detail": "validated, nothing in blocked_by, and not adopted",
+            })
+
+        if node.get("status") == "validated" and state == "contradicted":
+            findings.append({
+                "node": nid, "kind": "validated_contradicted",
+                "detail": "the system does what this validated node warns against",
+            })
+
+        pred = ad.get("verification")
+
+        if state in CLAIMS_REALITY and not pred:
+            findings.append({
+                "node": nid, "kind": "unverified_claim",
+                "detail": "state '%s' asserts something about the running system "
+                          "but carries no verification predicate" % state,
+            })
+            continue
+
+        if not pred:
+            continue
+
+        checked += 1
+        ok, out = run_predicate(pred, cwd, timeout)
+        if ok:
+            passed += 1
+        else:
+            findings.append({
+                "node": nid, "kind": "drift",
+                "detail": "adoption predicate no longer holds",
+                "predicate": pred,
+                "output": out,
+            })
+
+    report = {
+        "dag": path,
+        "generated": datetime.date.today().isoformat(),
+        "nodes": len(nodes),
+        "counts": counts,
+        "predicates_run": checked,
+        "predicates_passed": passed,
+        "findings": findings,
+    }
+
+    if as_json:
+        print(json.dumps(report, indent=2))
+    else:
+        emit(report)
+
+    hard = [f for f in findings if f["kind"] != "unverified_claim"]
+    if hard:
+        return 1
+    if strict and findings:
+        return 1
+    return 0
+
+
+def emit(r):
+    print("Reconciliation of %s" % r["dag"])
+    print("%d node(s); %d predicate(s) run, %d passed" % (r["nodes"], r["predicates_run"], r["predicates_passed"]))
+    print()
+    print("Adoption states")
+    for k in ADOPTION_STATES:
+        n = r["counts"].get(k, 0)
+        if n:
+            print("  %-16s %d" % (k, n))
+    if r["counts"].get("missing_block"):
+        print("  %-16s %d" % ("(no block)", r["counts"]["missing_block"]))
+    print()
+
+    if not r["findings"]:
+        print("No drift.")
+        return
+
+    order = ["drift", "validated_contradicted", "validated_not_adopted",
+             "unverified_claim", "unknown_blocker", "unknown_contester", "no_adoption_block"]
+    print("Findings: %d" % len(r["findings"]))
+    for kind in order:
+        group = [f for f in r["findings"] if f["kind"] == kind]
+        if not group:
+            continue
+        print()
+        print("  %s (%d)" % (kind, len(group)))
+        for f in group:
+            print("    %-14s %s" % (f["node"], f["detail"]))
+            if f.get("predicate"):
+                print("      $ %s" % f["predicate"])
+            if f.get("output"):
+                print("      %s" % f["output"])
+
+
+def main():
+    p = argparse.ArgumentParser(description="Reconcile the hypothesis DAG against the running system.")
+    p.add_argument("--dag", default="research/hypothesis-dag.yaml", help="Path to hypothesis-dag.yaml")
+    p.add_argument("--cwd", default=".", help="Working directory predicates run in")
+    p.add_argument("--timeout", type=int, default=60, help="Per-predicate timeout in seconds")
+    p.add_argument("--migrate", action="store_true", help="Seed missing adoption blocks, then exit")
+    p.add_argument("--strict", action="store_true", help="Also fail when a claim carries no predicate")
+    p.add_argument("--json", action="store_true", dest="as_json", help="Machine-readable output")
+    a = p.parse_args()
+
+    try:
+        if a.migrate:
+            sys.exit(migrate(a.dag))
+        sys.exit(reconcile(a.dag, a.cwd, a.timeout, a.strict, a.as_json))
+    except FileNotFoundError:
+        print("DAG not found: %s" % a.dag, file=sys.stderr)
+        sys.exit(2)
+
+
+if __name__ == "__main__":
+    main()

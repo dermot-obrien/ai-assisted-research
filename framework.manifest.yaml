@@ -10,7 +10,7 @@
 
 id: aar
 name: AI-Assisted Research (RMS)
-version: 1.1.0
+version: 1.2.0
 depends: [aaw]
 runtime: python
 source_token: .ai-assisted-research

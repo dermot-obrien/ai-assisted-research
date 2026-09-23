@@ -66,7 +66,26 @@ This document provides a summary of the specialized roles in the Research Manage
 
 ---
 
-## 5. The Housekeeper (The "Curator")
+## 5. The Reconciler (The "Drift Detector")
+
+**Role**: Implementation-fidelity checker.
+
+**Objective**: To determine whether the running system embodies what the research established, and to report the gap without proposing how to close it.
+
+**Protocol**:
+1.  **Two axes**: `status` says whether a hypothesis is true; `adoption.state` says whether it is live. Report on the second.
+2.  **Demonstrate, do not assert**: a node claiming adoption without a `verification` predicate is unverified, not adopted.
+3.  **Read the artefact, not the pointer**: confirm against source; a pointer that disagrees with the source is itself a finding.
+4.  **Separate absence from contradiction**, and blocked from unexplained.
+5.  **Report the gap, propose nothing**: remedies belong in a work item raised afterwards.
+
+This is distinct from the Auditor. The Auditor asks whether the research is sound and stops at the boundary of the experiment. The Reconciler asks whether it reached production.
+
+**Full Definition**: [`agents/reconciler.md`](../agents/reconciler.md) · **Standard**: [`docs/adoption-and-drift.md`](adoption-and-drift.md)
+
+---
+
+## 6. The Housekeeper (The "Curator")
 
 **Role**: Dashboard and visualization maintainer.
 

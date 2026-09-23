@@ -62,7 +62,18 @@ def add_node(dag, parent_id, hypothesis, target_improvement, metric=None):
         'assigned_agent': None,
         'branch': None,
         'deliverables': {'blog': None, 'arxiv': None, 'pivot': None},
-        'notes': []
+        'notes': [],
+        # Second axis: status says whether it is true, adoption says whether it
+        # is live. See docs/adoption-and-drift.md.
+        'adoption': {
+            'state': 'not_assessed',
+            'artefact': None,
+            'verification': None,
+            'verified_on': None,
+            'note': None,
+        },
+        'blocked_by': [],
+        'contested_by': [],
     }
 
     dag['nodes'].append(new_node)
@@ -90,10 +101,44 @@ def update_node_status(dag, node_id, status, actual_performance=None):
             return True
     return False
 
+ADOPTION_STATES = ['not_assessed', 'not_applicable', 'not_adopted',
+                   'partial', 'adopted', 'contradicted']
+
+# States that assert something about the running system, so they owe a predicate.
+CLAIMS_REALITY = {'adopted', 'partial', 'contradicted'}
+
+
+def update_node_adoption(dag, node_id, state, artefact=None, verification=None, note=None):
+    """
+    Set a node's adoption state: whether the finding is live, as distinct from
+    whether it is true. See docs/adoption-and-drift.md.
+    """
+    import datetime
+    for node in dag['nodes']:
+        if node['id'] == node_id:
+            ad = node.get('adoption') or {}
+            ad['state'] = state
+            if artefact is not None:
+                ad['artefact'] = artefact
+            if verification is not None:
+                ad['verification'] = verification
+            if note is not None:
+                ad['note'] = note
+            ad['verified_on'] = datetime.date.today().isoformat()
+            node['adoption'] = ad
+
+            if state in CLAIMS_REALITY and not ad.get('verification'):
+                print(f"Warning: {node_id} claims '{state}' with no --verification predicate. "
+                      f"Claiming adoption is not demonstrating it; reconcile.py will report it "
+                      f"as unverified.")
+            return True
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Safely update the Hypothesis DAG.")
     parser.add_argument("--dag", default="hypothesis-dag.yaml", help="Path to hypothesis-dag.yaml")
-    parser.add_argument("--action", choices=['add', 'update'], required=True)
+    parser.add_argument("--action", choices=['add', 'update', 'adopt'], required=True)
     
     # Add Node arguments
     parser.add_argument("--parent", help="Parent Node ID for 'add' action")
@@ -103,8 +148,14 @@ def main():
     
     # Update Node arguments
     parser.add_argument("--node-id", help="Node ID to update for 'update' action")
-    parser.add_argument("--status", choices=['pending', 'framed', 'in_progress', 'validated', 'ineffective', 'discarded'], help="New status for 'update' action")
+    parser.add_argument("--status", choices=['pending', 'framed', 'in_progress', 'validated', 'contested', 'ineffective', 'discarded'], help="New status for 'update' action")
     parser.add_argument("--performance", type=float, help="Actual performance for 'update' action")
+
+    # Adoption arguments — the second axis (is it live?), see docs/adoption-and-drift.md
+    parser.add_argument("--adoption", choices=ADOPTION_STATES, help="Adoption state for 'adopt' action")
+    parser.add_argument("--artefact", help="Path or symbol in the running system that would carry this finding")
+    parser.add_argument("--verification", help="Shell predicate that exits 0 while the claim still holds")
+    parser.add_argument("--adoption-note", help="Why the node sits at this adoption state")
 
     args = parser.parse_args()
     
@@ -118,6 +169,17 @@ def main():
             new_id = add_node(dag, args.parent, args.hypothesis, args.target or 0.0, args.metric)
             print(f"Added new node: {new_id}")
         
+        elif args.action == 'adopt':
+            if not args.node_id or not args.adoption:
+                print("Error: --node-id and --adoption are required for 'adopt' action.")
+                sys.exit(1)
+            if update_node_adoption(dag, args.node_id, args.adoption, args.artefact,
+                                    args.verification, args.adoption_note):
+                print(f"Set adoption of {args.node_id} to '{args.adoption}'")
+            else:
+                print(f"Error: Node {args.node_id} not found.")
+                sys.exit(1)
+
         elif args.action == 'update':
             if not args.node_id or not args.status:
                 print("Error: --node-id and --status are required for 'update' action.")

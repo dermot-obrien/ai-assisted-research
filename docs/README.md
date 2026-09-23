@@ -83,3 +83,4 @@ sequenceDiagram
 - [**Research Principles**](PRINCIPLES.md): Core guardrails and model leeway clauses.
 - [**Agent Definitions**](../agents/): Detailed protocols for each specialized role.
 - [**Framework Design**](../change/work-items/WI-001-research-management-system/deliverables/D01-framework-design.md): Detailed schema documentation.
+- [Adoption and Drift](adoption-and-drift.md) — the second axis: whether a validated finding is live, and how drift is detected.
