@@ -24,6 +24,8 @@ Exit codes:
 
 import argparse
 import datetime
+import io
+import re
 import json
 import subprocess
 import sys
@@ -90,20 +92,70 @@ def run_predicate(cmd, cwd, timeout):
         return False, "predicate failed to run: %s" % e
 
 
+NODE_LINE = re.compile(r"^(\s*)-\s+id:\s*(H-[\w.]+)\s*$")
+
+
 def migrate(path):
-    """Add a default adoption block to every node that lacks one. Infers nothing."""
-    raw = open(path, encoding="utf-8").read()
+    """Add a default adoption block to every node that lacks one. Infers nothing.
+
+    This edits the file textually rather than round-tripping through the YAML
+    parser. A DAG is a research record: its comments carry the status key, the
+    conventions and the standing findings, and safe_dump would silently drop all
+    of them and reflow every block scalar. The diff must show the blocks being
+    added and nothing else.
+    """
+    # newline="" so the file's own line endings survive verbatim. Without it
+    # Python's universal-newline translation rewrites CRLF to LF and the diff
+    # covers every line in the file instead of just the added blocks.
+    raw = io.open(path, encoding="utf-8", newline="").read()
     dag = yaml.safe_load(raw)
+
+    # Which node ids already have a block, decided by the parser rather than by
+    # guessing from the text.
+    have = {n["id"] for n in iter_nodes(dag) if isinstance(n.get("adoption"), dict)}
+
+    lines = raw.splitlines(keepends=True)
+    out = []
     touched = 0
-    for node in iter_nodes(dag):
-        if "adoption" not in node:
-            node["adoption"] = dict(DEFAULT_ADOPTION)
-            touched += 1
+
+    for line in lines:
+        out.append(line)
+        m = NODE_LINE.match(line.rstrip("\n").rstrip("\r"))
+        if not m:
+            continue
+        indent, nid = m.group(1), m.group(2)
+        if nid in have:
+            continue
+        # Keys sit two columns right of the dash that opens the list item.
+        k = indent + "  "
+        nl = "\r\n" if line.endswith("\r\n") else "\n"
+        for extra in (
+            "adoption:",
+            "  state: not_assessed",
+            "  artefact: null",
+            "  verification: null",
+            "  verified_on: null",
+            "  note: null",
+        ):
+            out.append(k + extra + nl)
+        touched += 1
+
     if touched:
-        with open(path, "w", encoding="utf-8") as fh:
-            yaml.safe_dump(dag, fh, sort_keys=False, allow_unicode=True, width=100)
+        io.open(path, "w", encoding="utf-8", newline="").write("".join(out))
+
+        # The file must still parse, and must still hold the same nodes.
+        after = yaml.safe_load(io.open(path, encoding="utf-8").read())
+        before_ids = [n["id"] for n in iter_nodes(dag)]
+        after_ids = [n["id"] for n in iter_nodes(after)]
+        if before_ids != after_ids:
+            raise SystemExit("migrate: node set changed; file left as written, inspect the diff")
+        missing = [n["id"] for n in iter_nodes(after) if not isinstance(n.get("adoption"), dict)]
+        if missing:
+            raise SystemExit("migrate: %d node(s) still lack a block: %s" % (len(missing), missing[:5]))
+
     print("migrate: %d node(s) given a default adoption block" % touched)
     print("         all at state 'not_assessed' — nothing was inferred")
+    print("         comments and formatting preserved; re-parsed and node set verified")
     return 0
 
 
