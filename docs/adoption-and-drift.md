@@ -74,7 +74,11 @@ unverified. Claiming adoption is not the same as demonstrating it, and the
 framework should not let the two look alike.
 
 Predicates run through the platform shell, so keep them portable or put the
-logic in a script the predicate calls. A predicate that cannot execute is
+logic in a script the predicate calls. On Windows that shell is `cmd.exe`,
+where single quotes are ordinary characters rather than quoting: prefer double
+quotes for the outer quoting and avoid embedding them. Predicates run with
+stdin closed, so a command left hanging by a quoting mistake fails immediately
+instead of blocking for the timeout. A predicate that cannot execute is
 reported as drift, deliberately: a check you cannot run is not a check that
 passed.
 

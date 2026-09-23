@@ -34,14 +34,47 @@ import yaml
 
 
 def find_repo_root(start: Path | None = None) -> Path:
-    """Walk up from `start` (or this file) to find the nearest research.yaml."""
-    start = (start or Path(__file__)).resolve()
-    for parent in [start, *start.parents]:
-        if (parent / "research.yaml").is_file():
-            return parent
+    """Locate the project root, the directory holding research.yaml.
+
+    Tried in order:
+
+    1. ``$RMS_ROOT``, for explicit control.
+    2. The current working directory and its parents, so the tools can be run
+       from a framework clone against a consuming project.
+    3. This file and its parents, the installed-in-project case.
+
+    Without (1) and (2) a tool only works from a copy installed inside the
+    project it operates on, which makes running the framework from its own
+    clone impossible.
+    """
+    import os
+
+    env = os.environ.get("RMS_ROOT")
+    if env:
+        root = Path(env).expanduser().resolve()
+        if (root / "research.yaml").is_file():
+            return root
+        raise FileNotFoundError(f"RMS_ROOT={env} has no research.yaml")
+
+    candidates = []
+    if start is not None:
+        candidates.append(Path(start).resolve())
+    else:
+        candidates.append(Path.cwd().resolve())
+        candidates.append(Path(__file__).resolve())
+
+    tried = []
+    for candidate in candidates:
+        for parent in [candidate, *candidate.parents]:
+            if (parent / "research.yaml").is_file():
+                return parent
+        tried.append(str(candidate))
+
     raise FileNotFoundError(
-        "research.yaml not found in any ancestor directory of "
-        f"{start}. Create one at the repo root — see rms_config.py docstring."
+        "research.yaml not found. Looked upward from: "
+        + ", ".join(tried)
+        + ". Run from inside the project, or set RMS_ROOT — see the "
+        "rms_config.py docstring."
     )
 
 

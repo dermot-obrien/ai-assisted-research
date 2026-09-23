@@ -144,6 +144,62 @@ def load_breakthroughs():
     return bts
 
 
+def compute_issues(nodes):
+    """Classify each node as carrying an issue directly, inheriting one, or neither.
+
+    A direct issue is a node whose record and reality disagree, or whose own
+    evidence is under challenge:
+
+      - adoption `contradicted`: the system does what the node warns against
+      - adoption `not_adopted` on a validated node with nothing in blocked_by
+      - status `contested`: the finding is challenged and unresolved
+
+    An inherited issue is a node with no direct issue, but with an ancestor that
+    has one. This matters because a hypothesis built on a contested or
+    unimplemented parent inherits that doubt whether or not anyone restated it,
+    and a DAG that shows only direct issues makes a compromised branch look
+    healthy below the first bad node.
+    """
+    by_id = {n.get("id"): n for n in nodes}
+
+    direct = {}
+    for nid, n in by_id.items():
+        ad = (n.get("adoption") or {}).get("state", "not_assessed")
+        status = n.get("status")
+        if ad == "contradicted":
+            direct[nid] = "the system does what this validated node warns against"
+        elif status == "validated" and ad == "not_adopted" and not (n.get("blocked_by") or []):
+            direct[nid] = "validated, nothing blocking it, and not in the system"
+        elif status == "contested":
+            direct[nid] = "the finding is contested and unresolved"
+
+    def ancestors(nid):
+        seen, out, cur = set(), [], by_id.get(nid, {}).get("parent")
+        while cur and cur in by_id and cur not in seen:
+            seen.add(cur)
+            out.append(cur)
+            cur = by_id[cur].get("parent")
+        return out
+
+    issues = {}
+    for nid in by_id:
+        if nid in direct:
+            issues[nid] = {"kind": "direct", "reason": direct[nid], "source": nid}
+            continue
+        tainted = [a for a in ancestors(nid) if a in direct]
+        if tainted:
+            # Nearest tainted ancestor is the one to name.
+            src = tainted[0]
+            issues[nid] = {
+                "kind": "inherited",
+                "reason": "inherited from %s: %s" % (src, direct[src]),
+                "source": src,
+            }
+        else:
+            issues[nid] = {"kind": "none", "reason": "", "source": None}
+    return issues
+
+
 def generate_html(nodes, node_index, experiments, breakthroughs, papers, findings_edges):
     """Generate the self-contained HTML dashboard."""
 
@@ -160,6 +216,8 @@ def generate_html(nodes, node_index, experiments, breakthroughs, papers, finding
         "framed": "#a855f7",
         "contested": "#fb923c",
     }
+
+    issues = compute_issues(nodes)
 
     # Build node lookup
     node_map = {}
@@ -178,6 +236,10 @@ def generate_html(nodes, node_index, experiments, breakthroughs, papers, finding
             "color": status_colors.get(n.get("status", "pending"), "#94a3b8"),
             "contested": n.get("status") == "contested",
             "audit_findings": n.get("audit_findings", []),
+            "adoption": (n.get("adoption") or {}).get("state", "not_assessed"),
+            "issue": issues[nid]["kind"],
+            "issue_reason": issues[nid]["reason"],
+            "issue_from": issues[nid]["source"],
         })
         if n.get("parent"):
             d3_links.append({
@@ -281,6 +343,12 @@ svg {{ width: 100%; height: 100%; }}
 .link {{ stroke: #334155; stroke-width: 1.5px; fill: none; }}
 .node.ready circle {{ stroke: #f59e0b; stroke-width: 3px; stroke-dasharray: 4,2; animation: pulse 2s infinite; }}
 .node.golden circle {{ stroke: #fbbf24; stroke-width: 4px; animation: goldpulse 1.5s infinite; }}
+/* Adoption issues. Direct is a solid ring; inherited is dashed, because the
+   node itself is sound and the doubt comes from upstream. */
+.issue-ring {{ fill: none; pointer-events: none; }}
+.issue-ring.direct {{ stroke: #ef4444; stroke-width: 2.5px; }}
+.issue-ring.inherited {{ stroke: #f59e0b; stroke-width: 2px; stroke-dasharray: 3,3; opacity: 0.85; }}
+.link.tainted {{ stroke: #ef4444; stroke-opacity: 0.55; stroke-dasharray: 4,3; }}
 @keyframes goldpulse {{ 0%,100% {{ filter: drop-shadow(0 0 4px #fbbf24); }} 50% {{ filter: drop-shadow(0 0 12px #fbbf24); }} }}
 @keyframes pulse {{ 0%,100% {{ opacity: 1; }} 50% {{ opacity: 0.5; }} }}
 .tab-bar {{ display: flex; gap: 0; margin-bottom: 12px; }}
@@ -344,6 +412,8 @@ svg {{ width: 100%; height: 100%; }}
         <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div> Partially Tested</div>
         <div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div> Pending</div>
         <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Ineffective</div>
+        <div class="legend-item"><div style="width:12px;height:12px;border-radius:50%;border:2.5px solid #ef4444"></div> Adoption issue</div>
+        <div class="legend-item"><div style="width:12px;height:12px;border-radius:50%;border:2px dashed #f59e0b"></div> Inherited from an ancestor</div>
       </div>
       <h2 style="margin-top:12px">Path Indicators</h2>
       <div class="legend">
@@ -457,6 +527,19 @@ function showNodeDetail(n) {{
   let html = '<div class="node-detail">';
   var contestedMarker = n.contested ? ' <span title="Contested: audit findings raised concerns about these results" style="color:#fb923c;font-size:16px;cursor:help">&#9888;</span>' : '';  // eslint-disable-line
   html += '<h3>' + n.id + contestedMarker + ' <span class="status-badge" style="background:' + n.color + '33;color:' + n.color + '">' + n.status + '</span></h3>';
+  if (n.adoption) {{
+    const adColors = {{ adopted: '#22c55e', partial: '#f59e0b', not_adopted: '#ef4444',
+                       contradicted: '#dc2626', not_applicable: '#64748b', not_assessed: '#475569' }};
+    const c = adColors[n.adoption] || '#475569';
+    html += '<p style="margin:2px 0 6px"><span style="font-size:10px;color:#94a3b8">adoption</span> ' +
+            '<span class="status-badge" style="background:' + c + '33;color:' + c + '">' + n.adoption.replace(/_/g,' ') + '</span></p>';
+  }}
+  if (n.issue && n.issue !== 'none') {{
+    const ic = n.issue === 'direct' ? '#ef4444' : '#f59e0b';
+    html += '<p style="margin:6px 0;padding:6px 8px;border-left:3px solid ' + ic + ';background:' + ic + '1a;font-size:11px;color:#e2e8f0">' +
+            '<strong style="color:' + ic + '">' + (n.issue === 'direct' ? 'Issue' : 'Inherited issue') + '</strong><br>' +
+            n.issue_reason + '</p>';
+  }}
   html += '<p style="color:#e2e8f0">' + n.hypothesis + '</p>';
   if (n.work_item) html += '<p>Work Item: <strong>' + n.work_item + '</strong></p>';
   if (n.actual_performance) html += '<div class="perf">' + n.actual_performance + '</div>';
@@ -636,7 +719,13 @@ const link = g.append('g').selectAll('line')
   .attr('class', 'link')
   .attr('stroke', d => linkColors[getLinkClass(d)] || '#334155')
   .attr('stroke-width', d => getLinkClass(d) === 'promising' ? 2.5 : (getLinkClass(d) === 'cold' ? 1 : 1.5))
-  .attr('stroke-opacity', d => getLinkClass(d) === 'cold' ? 0.4 : 0.8);
+  .attr('stroke-opacity', d => getLinkClass(d) === 'cold' ? 0.4 : 0.8)
+  .classed('tainted', d => {{
+    // Mark the edge if the child is carrying doubt down from an ancestor, so a
+    // compromised branch reads as compromised along its whole length.
+    const t = typeof d.target === 'object' ? d.target : nodeById.get(d.target);
+    return !!t && t.issue === 'inherited';
+  }});
 
 let dragMoved = false;
 const node = g.append('g').selectAll('g')
@@ -663,6 +752,16 @@ node.filter(d => !breakthroughNodeIds.has(d.id))
   .attr('stroke', d => d.contested ? '#fb923c' : readyIds.has(d.id) ? '#f59e0b' : d.color)
   .attr('stroke-width', d => d.contested ? 3 : 1.5)
   .attr('stroke-dasharray', d => d.contested ? '4,2' : 'none');
+
+// Adoption-issue ring. Drawn outside the node so status colour still reads.
+node.filter(d => d.issue && d.issue !== 'none')
+  .append('circle')
+  .attr('class', d => 'issue-ring ' + d.issue)
+  .attr('r', d => {{
+    const base = d.id === 'H-000' ? 16 : d.status === 'validated' ? 12
+               : (d.status === 'in_progress' || d.status === 'partially_tested') ? 10 : 8;
+    return base + 5;
+  }});
 
 // Add warning icon on contested nodes
 node.filter(d => d.contested)

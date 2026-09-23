@@ -84,6 +84,10 @@ def run_predicate(cmd, cwd, timeout):
         r = subprocess.run(
             cmd, shell=True, cwd=cwd, timeout=timeout,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            # A predicate must never wait on input. Without this a command left
+            # hanging by a quoting mistake blocks for the whole timeout, and a
+            # run of twenty of them takes twenty timeouts to finish.
+            stdin=subprocess.DEVNULL,
         )
         return r.returncode == 0, (r.stdout or b"").decode("utf-8", "replace").strip()[:300]
     except subprocess.TimeoutExpired:
