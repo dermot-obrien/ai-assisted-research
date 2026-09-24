@@ -17,7 +17,6 @@
   "files": [
     "bin/",
     "skills/",
-    "agents/",
     "templates/",
     "tools/",
     "docs/",

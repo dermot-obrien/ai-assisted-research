@@ -1,6 +1,12 @@
 # RMS Agent Protocols & Personalities
 
-This document provides a summary of the specialized roles in the Research Management System. For full protocols, see the individual [agent definitions](../agents/).
+This document summarises the specialised roles in the Research Management System. Each role is
+now a standalone [Agent Skill](https://agentskills.io) under [`skills/`](../skills/), carrying
+its own protocol; this page is the overview of how they relate.
+
+The `agents/` directory this page used to point at was retired when the per-tool command shims
+were: a skill is self-contained, so the role definition and the command are one artefact rather
+than two.
 
 ---
 
@@ -16,7 +22,7 @@ This document provides a summary of the specialized roles in the Research Manage
 3.  **Mandatory Provenance Check**: Cite specific evidence (commit hashes, PR numbers, file line numbers) for every discovery.
 4.  **Verification Dialogue**: Present the discovered lineage to the user for confirmation.
 
-**Full Definition**: [`agents/discovery.md`](../agents/discovery.md)
+**Full definition**: [`skills/aar-init-research/SKILL.md`](../skills/aar-init-research/SKILL.md), invoked as `/aar-init-research`
 
 ---
 
@@ -31,7 +37,7 @@ This document provides a summary of the specialized roles in the Research Manage
 2.  **Hypothesis Formulation**: Formulate specific, measurable variants and avenues for exploration.
 3.  **DAG Expansion**: Propose new nodes to the Hypothesis DAG.
 
-**Full Definition**: [`agents/specialist.md`](../agents/specialist.md)
+**Full definition**: [`skills/aar-start-research/SKILL.md`](../skills/aar-start-research/SKILL.md), invoked as `/aar-start-research`
 
 ---
 
@@ -46,7 +52,7 @@ This document provides a summary of the specialized roles in the Research Manage
 2.  **Execution Phase**: Invoke `/progress-hypothesis {WI_id} {node_id}` to create the Git research branch and execute implementation.
 3.  **Homecoming Phase**: Invoke `/sync-research-result` to pull metrics and findings back to the DAG.
 
-**Full Definition**: [`agents/worker.md`](../agents/worker.md)
+**Full definition**: [`skills/aar-progress-research/SKILL.md`](../skills/aar-progress-research/SKILL.md), invoked as `/aar-progress-research`
 
 ---
 
@@ -62,7 +68,7 @@ This document provides a summary of the specialized roles in the Research Manage
 3.  **Code Review**: Verify changes are non-destructive and artifact-free.
 4.  **Consistency Check**: Confirm data, actual performance, and article claims are aligned.
 
-**Full Definition**: [`agents/auditor.md`](../agents/auditor.md)
+**Full definition**: [`skills/aar-run-audit/SKILL.md`](../skills/aar-run-audit/SKILL.md), invoked as `/aar-run-audit`
 
 ---
 
@@ -81,7 +87,7 @@ This document provides a summary of the specialized roles in the Research Manage
 
 This is distinct from the Auditor. The Auditor asks whether the research is sound and stops at the boundary of the experiment. The Reconciler asks whether it reached production.
 
-**Full Definition**: [`agents/reconciler.md`](../agents/reconciler.md) · **Standard**: [`docs/adoption-and-drift.md`](adoption-and-drift.md)
+**Full definition**: [`skills/aar-reconcile/SKILL.md`](../skills/aar-reconcile/SKILL.md), invoked as `/aar-reconcile` · **Standard**: [`docs/adoption-and-drift.md`](adoption-and-drift.md)
 
 ---
 
@@ -96,4 +102,4 @@ This is distinct from the Auditor. The Auditor asks whether the research is soun
 2.  Update the interactive Mermaid visual in the dashboard.
 3.  Ensure all deliverables are correctly linked and accessible.
 
-**Full Definition**: [`agents/housekeeper.md`](../agents/housekeeper.md)
+**Full definition**: [`skills/aar-housekeep/SKILL.md`](../skills/aar-housekeep/SKILL.md), invoked as `/aar-housekeep`

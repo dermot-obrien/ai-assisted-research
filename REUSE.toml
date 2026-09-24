@@ -1,7 +1,7 @@
 version = 1
 
 # AI-Assisted Research (RMS) is dual-licensed:
-#   - Documentation, agent specifications, skills, and templates are licensed
+#   - Documentation, Agent Skills, and templates are licensed
 #     under CC BY 4.0.
 #   - Executable code (Python tools, Node.js launcher) is licensed under Apache-2.0.
 #
@@ -11,7 +11,7 @@ version = 1
 # SHOULD declare an SPDX-License-Identifier header inline; the rules below act
 # as a safety net.
 
-# --- Documentation, agent specs, skills, templates ---
+# --- Documentation, Agent Skills, templates ---
 [[annotations]]
 path = [
   "**.md",
@@ -19,7 +19,6 @@ path = [
   "**.yml",
   "**.json",
   "**.txt",
-  "agents/**",
   "skills/**",
   "templates/**",
   "docs/**",
@@ -32,6 +31,7 @@ SPDX-License-Identifier = "CC-BY-4.0"
 [[annotations]]
 path = [
   "tools/**.py",
+  "tools/**.mjs",
   "bin/**.js",
   "bin/**.mjs",
 ]

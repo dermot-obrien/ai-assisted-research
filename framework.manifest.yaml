@@ -6,6 +6,7 @@
 # process engine; its tooling stays in Python (richer research/AI ecosystem).
 #
 # Install with:  aar install        (delegates to the AAW install engine)
+# Requires AAW 3.0.0 or later for the `skills` manifest key.
 # or directly:   node .ai-assisted-work/bin/aaw.js install --framework .ai-assisted-research
 
 id: aar
@@ -13,16 +14,17 @@ name: AI-Assisted Research (RMS)
 version: 1.2.0
 depends: [aaw]
 runtime: python
-source_token: .ai-assisted-research
-
 # Python tooling deps (PyYAML, requests). Installed via `python -m pip install -r`.
 tool_setup:
   python: { requirements: requirements.txt }
 
-shims:
-  claude: { src: skills/claude/commands/rms, dest: .claude/commands/aar }
-  cursor: { src: skills/cursor,              dest: .cursor/rules/aar }
-  gemini: { src: skills/gemini,              dest: .gemini/skills/aar }
+# Standalone Agent Skills (agentskills.io). Installed to .agents/skills/<name>,
+# with .claude/skills/<name> linked at it for Claude Code.
+#
+# There is no `shims` key and no `source_token`. Both existed only for the per-tool
+# command shims, retired alongside AAW 3.0.0. A skill is self-contained and holds no
+# path back into the framework, so nothing needs rewriting at install time.
+skills: { src: skills }
 
 # Idempotent: only seeded if the host has no research.yaml yet.
 config:
