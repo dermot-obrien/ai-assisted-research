@@ -67,7 +67,7 @@ refresh shims; your `research.yaml` and `research/` data are left untouched.
 ### 4. Execute a Strand
 Claim a hypothesis node and design the experiment:
 ```bash
-/start-hypothesis {node_id}
+/aar-start-hypothesis {node_id}
 ```
 This command creates a properly scoped AAW work item. Then, activate and implement:
 ```bash
@@ -95,7 +95,7 @@ This activates the implementation branch and hands off to the work management ag
 - [**User Guide**](docs/user-guide.md)
 - [**Research Principles**](docs/PRINCIPLES.md): The core guardrails for autonomous research.
 - [**AAW Inquiry Seam**](docs/aaw-inquiry-seam.md): How an AAW `inquiry` becomes a hypothesis, and how a conclusion re-triages into delivery.
-- [**Agent Definitions**](agents/): Detailed protocols for each specialized role.
+- [**Agent Skills**](skills/): the ten workflows, each a self-contained `SKILL.md` that every skills-compatible tool reads.
 
 ---
 
