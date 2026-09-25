@@ -37,6 +37,18 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `docs/AGENTS.md` remains as the overview of how the roles relate, repointed at the skills.
 - **BREAKING: the `shims` and `source_token` manifest keys.** Both existed only for the shims.
 
+### Fixed
+
+- `aar install` could not find AAW in the layout the README recommends. The launcher
+  resolved AAW only as an npm dependency, in the workspace's `node_modules`, or as a clone
+  inside the workspace, so one AAW clone serving several workspaces failed with "AAR requires
+  AAW". It now also reads `modules.aaw.source_root` from the target workspace's
+  `.aaw-config.yaml`, which `aaw install` writes for exactly this purpose. AAA's launcher
+  already did this; AAR's had not kept up.
+- `aar install --workspace PATH` ignored the flag and resolved the workspace from the current
+  directory, so installing into anywhere other than the current tree silently targeted the
+  wrong place.
+
 ### Changed
 
 - Content was preserved through the move rather than rewritten: the index-first node selection
