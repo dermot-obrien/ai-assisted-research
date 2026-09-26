@@ -6,7 +6,7 @@ compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assist
 metadata:
   author: dermot-obrien
   framework: aar
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Start Hypothesis
@@ -34,11 +34,16 @@ Invoke `/aaw-start-work` with:
 
 | Parameter | Value |
 |-----------|-------|
+| Class | `intervention`, or `change` if the experiment touches one unit only |
 | Work item title | `{node_id}-research-{short-topic}` |
 | Source of truth | The hypothesis node text, verbatim |
 | Intent | "Investigate {hypothesis}. Baseline SOTA, implement change, and quantify improvement." |
 | Acceptance criteria | Derived from the node's SOTA targets and metric requirements |
 | Research phase | Populate `research.md` from the node's evidence and key competitors |
+
+State the class, and that the request comes from AAR. AAW triage would otherwise read an
+uncertain hypothesis as an `inquiry` and route it straight back here. The inquiry is the
+hypothesis; the experiment that tests it is known work.
 
 Do not create work item folders or documents by hand. AAW owns that mechanism, and a
 hand-rolled work item will not be found by the tools that expect one.
