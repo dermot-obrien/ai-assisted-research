@@ -6,7 +6,7 @@ compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assist
 metadata:
   author: dermot-obrien
   framework: aar
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Sync Research Result
@@ -56,6 +56,25 @@ Usage: `/aar-sync-research-result {node_id} {WI_id}`, for example
    `blocked` to `ready`. Skipping this leaves work invisible.
 3. **Update the dashboard**: run `/aar-housekeep`.
 4. Optionally archive the work item to reduce clutter.
+
+## Phase 5: Hand the conclusion back
+
+Research decides whether to deliver; it does not deliver. Where the node began as an AAW
+inquiry, re-triage its conclusion into AAW, per the AAW inquiry seam
+(`docs/aaw-inquiry-seam.md` in the AI-Assisted Research framework):
+
+| Status | Hand back |
+|--------|-----------|
+| `validated` | Offer `/aaw-start-work` for the delivery item that implements the proven approach: usually an intervention, or a change if it is local. Link the node. |
+| `ineffective` | Close the inquiry as a lesson. The negative result recorded in the DAG is the deliverable; open no delivery item. |
+| `discarded` | Close the inquiry, recording why the research stopped. |
+
+If the finding settles an architectural choice, such as adopting one approach over another,
+propose an AI-Assisted Architecture Decision Record (`DR-NNN`) that cites the node and the
+work item. AAR records the finding, AAA the decision, and AAW delivers the change.
+
+Propose these hand-offs; do not open the item or the record unasked. Whether a result is
+worth delivering is the user's call.
 
 ## When metrics are missing
 

@@ -51,6 +51,15 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **The skills enact the AAW inquiry seam** (aar-start-hypothesis and aar-sync-research-result
+  1.3.0). The seam was documented but no skill carried it out. `/aar-start-hypothesis` now
+  hands the experiment to `/aaw-start-work` as an intervention (or a change if local) and says
+  it comes from AAR; AAW triage would otherwise read an uncertain hypothesis as an inquiry and
+  route it back. `/aar-sync-research-result` gains Phase 5, which proposes the hand-back once
+  the node is set: a delivery item for `validated`, a lesson for `ineffective`, a recorded
+  close for `discarded`, and an AAA Decision Record where the finding settles an
+  architectural choice. `docs/aaw-inquiry-seam.md` uses the `aar-` skill names, covers
+  `discarded`, and points at AAW's current `docs/concepts/work-classification.md`.
 - Content was preserved through the move rather than rewritten: the index-first node selection
   protocol is now a shared `references/node-selection.md` in the three skills that use it, and
   the Reconciler's finding-kind precedence is `references/finding-kinds.md`.

@@ -20,9 +20,9 @@ back into AAW** as delivery work (or closed as a lesson).
 When AAW triage classifies a unit of work as `inquiry`, it hands off to RMS:
 
 ```
-AAW triage → INQUIRY → AAR /start-hypothesis {node}   (frames the hypothesis)
-                       AAR /progress-hypothesis        (runs the experiment)
-                       AAR /sync-research-result        (records the metric/finding)
+AAW triage → INQUIRY → AAR /aar-start-hypothesis {node}   (frames the hypothesis)
+                       AAR /aar-progress-hypothesis        (runs the experiment)
+                       AAR /aar-sync-research-result       (records the metric/finding, hands back)
 ```
 
 The hypothesis enters the RMS lifecycle and moves through the standard node statuses:
@@ -31,6 +31,11 @@ The hypothesis enters the RMS lifecycle and moves through the standard node stat
 The originating intent (the AAW capture) becomes the hypothesis's framing; the inquiry is
 now governed entirely by RMS principles (Metric Supremacy, Lineage Continuity, …) until it
 concludes.
+
+`/aar-start-hypothesis` hands the experiment to AAW `/aaw-start-work` as an **intervention**
+(or a **change** if local), saying it comes from AAR. The inquiry is the hypothesis; the
+experiment that tests it is known work. Without the class, AAW triage would read the
+uncertain hypothesis as an inquiry and route it back to AAR.
 
 ## Outbound: a conclusion re-triages into AAW
 
@@ -43,10 +48,13 @@ re-enters AAW triage as a delivery class, or closes as a recorded lesson:
 | **ineffective** (no improvement) | → **close as a lesson.** No delivery. The negative result is the deliverable (recorded in the DAG + findings). |
 | **contested** (conflicting evidence) | → stay an **inquiry** (more research) or scope a smaller follow-up hypothesis. |
 | **partially_tested** | → keep researching, or carve out the validated portion as a delivery item and leave the rest as an open inquiry. |
+| **discarded** (research stopped early) | → **close the inquiry**, recording why it stopped. Re-open it as a new inquiry if the reason goes away. |
 
 This is AAW's *promotion / re-triage* rule applied across the seam: classification is
 provisional and cheap to revise. A validated hypothesis **spawns** a typed work item; an
 ineffective one costs only the research, and the lesson is preserved.
+
+`/aar-sync-research-result` proposes this re-triage once it has set the node's status.
 
 ## Decisions produced during research → AAA
 
@@ -60,7 +68,7 @@ records the *decision*; AAW delivers the *change*.
 | Concept | AAW | AAR (RMS) |
 |---------|-----|-----------|
 | uncertain work | class `inquiry` | a hypothesis node |
-| "investigate it" | route to AAR | `/start-hypothesis` |
+| "investigate it" | route to AAR | `/aar-start-hypothesis` |
 | "proven, do it" | re-triage → intervention/change | node `validated` |
 | "doesn't work" | close as lesson | node `ineffective` |
 | traceability | work item ↔ commit ↔ version | hypothesis DAG lineage |
@@ -68,4 +76,4 @@ records the *decision*; AAW delivers the *change*.
 RMS owns the *research lifecycle*; AAW owns the *class definitions and the delivery
 lifecycle*. The seam is `inquiry ↔ hypothesis` in, `conclusion → re-triage` out.
 
-See AAW's `packages/skills/work-management/work-classification.md` for the full taxonomy.
+See AAW's `docs/concepts/work-classification.md` for the full taxonomy.
