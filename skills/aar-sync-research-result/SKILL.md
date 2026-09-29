@@ -1,6 +1,6 @@
 ---
 name: aar-sync-research-result
-description: Return a completed work item's metrics, findings and deliverables to the hypothesis DAG, setting the node to validated, ineffective or discarded against its target, then regenerating the node index so unblocked children become ready. Use when asked to sync or synchronise a research result, close out a hypothesis, or record what an experiment found back into the lineage.
+description: "Return a completed work item's metrics, findings and deliverables to the hypothesis DAG, setting the node to validated, ineffective or discarded against its target, then regenerating the node index so unblocked children become ready. Use when asked to sync or synchronise a research result, close out a hypothesis, or record what an experiment found back into the lineage."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
 metadata:

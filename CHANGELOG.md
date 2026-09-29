@@ -7,7 +7,26 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Every skill now passes `skills-ref validate`, the Agent Skills reference validator.** Five
+  skills had an unquoted `description` containing ": ", which strict YAML parsers reject, so
+  a client using one could not load them: `aar-housekeep`, `aar-progress-hypothesis`,
+  `aar-start-hypothesis`, `aar-start-research` and `literature-discovery`. Every `description`
+  is now quoted. No skill's behaviour changes. Versions: `aar-housekeep` and `aar-start-research` 2.1.1, `aar-progress-hypothesis` 1.4.1,
+  `aar-start-hypothesis` 1.5.1, `literature-discovery` 1.1.1. The other skills' descriptions
+  were quoted too, with the same parsed value, so their versions stay.
+
+### Changed
+- `aar-run-audit` 2.1.1: the body now points at its verifier, `scripts/audit_verify.py`, and
+  says what it checks and how to run it. Before, only the `compatibility` field named it.
+- README: an Agent Skills conformance section (the specification, where skills install, how to
+  validate locally), and the install description now says skills go to `.agents/skills/<name>/`.
+
 ### Added
+- **CI runs `skills-ref validate`** on every skill `bundle.json` lists, with `skills-ref`
+  pinned to a commit of the agentskills repository, and fails if `bundle.json` and the
+  `skills/` directories disagree. The zero-dependency `validate-skills.mjs` still runs for
+  link checks; its lenient parser is why the YAML fault above went unnoticed.
 - **`bundle.json`**, the bundle manifest DD-11 of AI-Assisted Work defines: each skill's version,
   purl, requirements (as each `x-skill-requires` states them) and post-install check. CI
   validates it with `scripts/validate-bundle.mjs`; the validator and the schema are copies from
