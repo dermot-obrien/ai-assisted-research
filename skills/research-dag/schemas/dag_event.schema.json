@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dermot-obrien/ai-assisted-research/skills/research-dag/schemas/dag_event.schema.json",
+  "title": "Research DAG store event",
+  "description": "One event file in a shared DAG store, <store>/<project>/events/YYYY-MM-DD/<eid>.json. Archive files hold the same events, one per line, with src added.",
+  "type": "object",
+  "required": ["eid", "ts", "host", "type"],
+  "properties": {
+    "eid": {"type": "string", "description": "The event's file name without .json."},
+    "ts": {"type": "string", "description": "ISO-8601 UTC timestamp. Replay orders by ts, then src."},
+    "host": {"type": "string"},
+    "type": {"enum": ["doc", "add", "update", "append", "alias"]},
+    "src": {"type": "string", "description": "Archive lines only: the path the event had under the project folder."}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"type": {"const": "doc"}}},
+      "then": {
+        "properties": {
+          "fields": {"type": "object", "description": "Top-level keys other than nodes, to their values."},
+          "order": {"type": "array", "items": {"type": "string"}, "description": "Top-level key order, nodes included."},
+          "header": {"type": ["string", "null"], "description": "The file's leading comment block."},
+          "comments": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Top-level key to the comment block above it."},
+          "unset": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"type": {"const": "add"}}},
+      "then": {
+        "required": ["id", "node"],
+        "properties": {
+          "id": {"type": "string"},
+          "node": {"type": "object", "description": "The whole node, fields in order."},
+          "comment": {"type": "string", "description": "The comment block above the node."}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"type": {"const": "update"}}},
+      "then": {
+        "required": ["id", "set"],
+        "properties": {
+          "id": {"type": "string"},
+          "set": {"type": "object", "description": "Field to its new value. The latest set of a field wins."},
+          "prev": {"type": "object", "description": "Field to the value the writer saw. A different value in place means a concurrent edit, which is reported."},
+          "unset": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"type": {"const": "append"}}},
+      "then": {
+        "required": ["id", "field", "values"],
+        "properties": {
+          "id": {"type": "string"},
+          "field": {"type": "string"},
+          "values": {"type": "array", "description": "Items appended to the list field, skipping ones already there."}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"type": {"const": "alias"}}},
+      "then": {
+        "required": ["id", "was", "target"],
+        "properties": {
+          "id": {"type": "string", "description": "The id the node goes by."},
+          "was": {"type": "string", "description": "The id it was added as, which a concurrent writer took first."},
+          "target": {"type": "string", "description": "The eid of the add event."}
+        }
+      }
+    }
+  ]
+}

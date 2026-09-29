@@ -52,6 +52,8 @@ Use the `dag_update.py` tool to propose new nodes.
 python <skills>/research-dag/bin/dag_update.py --action add --parent H-001 --hypothesis "New Variant Description" --target 0.05
 ```
 
+When more than one machine or agent works on the DAG, keep it in a shared DAG store: set `dag_store` and `dag_project` in `research.yaml` and seed the project once with `dag_store.py import`. The same `dag_update.py` commands then write events to the store and regenerate `hypothesis-dag.yaml` as a view. Use the id the command reports for a new node, which carries a letter suffix if a concurrent writer took the id first. See [the shared DAG store](../skills/research-dag/references/dag-store.md).
+
 ### Step 2.2: Start the Hypothesis (Design Phase)
 Design the scope and plan for a hypothesis without necessarily starting implementation.
 ```bash

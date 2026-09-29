@@ -7,6 +7,15 @@
 dag_path: "research/hypothesis-dag.yaml"
 node_index_path: "research/node-index.yaml"
 
+# Optional: keep the DAG in a shared, event-sourced store, so several machines and
+# agents can change it at once. Set both keys and dag_path becomes a view generated
+# from the store; leave them unset to keep the DAG as the plain file above.
+# dag_store is a clone's path, or a git URL (or bare repository) to clone into
+# ~/.research-dags/. dag_project is this project's folder in the store.
+# See the research-dag skill's references/dag-store.md.
+# dag_store: "https://example.com/you/research-dags.git"
+# dag_project: "my-project"
+
 # Where AAW work items for research nodes live (your .aaw-config.yaml work_items_path).
 work_items_path: ".aaw/work-items/"
 

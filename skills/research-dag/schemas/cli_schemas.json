@@ -1,25 +1,33 @@
 {
   "dag_update.py": {
-    "description": "Safely update the Hypothesis DAG with a cross-platform file lock.",
+    "description": "Safely update the Hypothesis DAG with a cross-platform file lock. With dag_store and dag_project in research.yaml, the change is written as events to the shared DAG store, pushed with retry, and the YAML at dag_path is regenerated from the replay.",
     "arguments": {
       "--dag": {
         "type": "string",
-        "default": "hypothesis-dag.yaml",
-        "description": "Path to the DAG file."
+        "default": null,
+        "description": "Path to the DAG file (default: hypothesis-dag.yaml; with a DAG store, the view at dag_path)."
       },
       "--action": {
         "type": "string",
         "enum": [
           "add",
           "update",
-          "adopt"
+          "adopt",
+          "relink",
+          "set",
+          "note"
         ],
         "required": true,
         "description": "The action to perform."
       },
+      "--no-store": {
+        "type": "boolean",
+        "action": "store_true",
+        "description": "Edit the YAML file directly even when research.yaml names a DAG store."
+      },
       "--parent": {
         "type": "string",
-        "description": "Parent Node ID (Required if action=add)."
+        "description": "Parent Node ID (Required if action=add), or the new parent (Required if action=relink)."
       },
       "--hypothesis": {
         "type": "string",
@@ -35,7 +43,7 @@
       },
       "--node-id": {
         "type": "string",
-        "description": "Node ID to update (Required if action=update)."
+        "description": "Node ID to change (Required if action is update, adopt, relink, set or note)."
       },
       "--status": {
         "type": "string",
@@ -77,6 +85,79 @@
       "--adoption-note": {
         "type": "string",
         "description": "Why the node sits at this adoption state (Optional)."
+      },
+      "--field": {
+        "type": "string",
+        "description": "Field to set (Required if action=set). Not id or parent."
+      },
+      "--value": {
+        "type": "string",
+        "description": "Value to set, parsed as YAML (Required if action=set)."
+      },
+      "--note": {
+        "type": "string",
+        "description": "Text appended to the node's notes (Required if action=note)."
+      }
+    }
+  },
+  "dag_store.py": {
+    "description": "The shared, event-sourced store for the hypothesis DAG. Every command also takes --store (clone path or URL) and --project (folder), which override dag_store and dag_project in research.yaml.",
+    "arguments": {
+      "--store": {
+        "type": "string",
+        "description": "Clone path, git URL or bare repository of the store (overrides dag_store)."
+      },
+      "--project": {
+        "type": "string",
+        "description": "The project's folder in the store (overrides dag_project)."
+      },
+      "command": {
+        "type": "string",
+        "enum": [
+          "init",
+          "import",
+          "view",
+          "report",
+          "record",
+          "prune",
+          "verify",
+          "sync"
+        ],
+        "required": true,
+        "description": "init: clone and create the project folder. import: seed an empty project from a YAML DAG. view: pull and regenerate the YAML view. report: concurrent edits, aliases, orphaned events. record: turn direct edits to the view into events. prune: archive closed nodes' events. verify: check replay reproduces a YAML file. sync: push anything unpushed."
+      },
+      "--from": {
+        "type": "string",
+        "description": "import: the YAML DAG to import (default: dag_path)."
+      },
+      "--view": {
+        "type": "string",
+        "description": "view, record: the view file (default: dag_path)."
+      },
+      "--json": {
+        "type": "boolean",
+        "description": "report: machine-readable output."
+      },
+      "--no-pull": {
+        "type": "boolean",
+        "description": "report, verify: use the local clone as it is."
+      },
+      "--days": {
+        "type": "float",
+        "default": 90,
+        "description": "prune: only nodes untouched this many days."
+      },
+      "--statuses": {
+        "type": "string",
+        "description": "prune: comma-separated closed statuses (default discarded,ineffective,validated)."
+      },
+      "--dry-run": {
+        "type": "boolean",
+        "description": "prune: list what would be archived."
+      },
+      "--against": {
+        "type": "string",
+        "description": "verify: the YAML DAG to compare with (Required for verify)."
       }
     }
   },
