@@ -21,7 +21,7 @@ The RMS uses the **AI-Assisted Work (AAW)** framework as its process management 
 - **Framework Sync**: Ensure you have the latest version of AAW installed as a peer or parent directory.
 
 ### Environment
-- **Python 3.10+**: Required to run the tools in `tools/`.
+- **Python 3.10+** with PyYAML: required by the tools inside the skills, chiefly `research-dag`.
 - **Required Libraries**: `pip install pyyaml requests`
 - **Git**: Required for lineage tracking and branching.
 
@@ -54,7 +54,7 @@ node .ai-assisted-research/bin/aar.js install       # add --no-python to skip pi
 Either way replaces the old manual "copy the `skills/` folder" step. Re-run any time to
 refresh shims; your `research.yaml` and `research/` data are left untouched.
 
-> **Developers:** AAR's tooling is Python (`tools/*.py`) — there is nothing to build.
+> **Developers:** AAR's tooling is Python, inside the skills (`skills/research-dag/bin/`, and each skill's `scripts/`) — there is nothing to build.
 > The `aar` launcher is a zero-dependency Node script that delegates to AAW's engine
 > (found via npm dependency, `node_modules`, or the `.ai-assisted-work` submodule).
 > Runtime requirements: **Python 3.10+** and `pip install -r requirements.txt`
@@ -104,7 +104,7 @@ This activates the implementation branch and hands off to the work management ag
 This framework is permissively licensed to encourage the widest possible adoption — private, public, academic, and commercial. Attribution is the primary expectation.
 
 - **Documentation, agent specifications, skills, templates** ([`CC BY 4.0`](LICENSES/CC-BY-4.0.txt)) — use, share, modify, and redistribute, including commercially, with attribution.
-- **Executable code** (`tools/*.py`, `bin/*.js`) ([`Apache-2.0`](LICENSES/Apache-2.0.txt)) — same permissions, with an explicit patent grant.
+- **Executable code** (the skills' `bin/` and `scripts/`, `bin/*.js`) ([`Apache-2.0`](LICENSES/Apache-2.0.txt)) — same permissions, with an explicit patent grant.
 
 Per-file licensing is declared via SPDX identifiers and the [`REUSE.toml`](REUSE.toml) manifest, following the [REUSE Specification 3.3](https://reuse.software/spec-3.3/). See [`LICENSE`](LICENSE) for the full overview, including the trademark notice and attribution expectations.
 

@@ -11,7 +11,7 @@ If you are adding the Research Management System to a pre-existing workspace, us
 ### Step 0.1: Run Workspace Discovery
 The Discovery agent scans your code, docs, and git history to identify your starting nodes.
 ```bash
-python tools/discovery.py
+python <skills>/aar-init-research/scripts/discovery.py
 ```
 
 ### Step 0.2: Confirmation Dialogue
@@ -26,7 +26,7 @@ To start a new research project, the **Specialist** agent (or Human) must establ
 ### Step 1.1: Run SOTA Discovery
 Use the `sota_baseline.py` tool to find the current best performance for your topic.
 ```bash
-python tools/sota_baseline.py --query "Your Topic" --output baseline.yaml
+python <skills>/literature-discovery/bin/sota_baseline.py --query "Your Topic" --output baseline.yaml
 ```
 
 ### Step 1.2: Mandatory Benchmark & Data Setup
@@ -49,7 +49,7 @@ The **Specialist** agent brainstorms new variants and creates the blueprint for 
 ### Step 2.1: Update the DAG
 Use the `dag_update.py` tool to propose new nodes.
 ```bash
-python tools/dag_update.py --action add --parent H-001 --hypothesis "New Variant Description" --target 0.05
+python <skills>/research-dag/bin/dag_update.py --action add --parent H-001 --hypothesis "New Variant Description" --target 0.05
 ```
 
 ### Step 2.2: Start the Hypothesis (Design Phase)
@@ -88,13 +88,13 @@ Once implementation is complete, generate outputs in the `deliverables/` folder.
 ### Step 4.1: Run Audit
 The Auditor verifies the results using the Clean Room check.
 ```bash
-python tools/audit_verify.py --action verify --clean-room
+python <skills>/aar-run-audit/scripts/audit_verify.py --action verify --clean-room
 ```
 
 Check whether the research is actually live, as opposed to merely true:
 
 ```bash
-python tools/reconcile.py --dag research/hypothesis-dag.yaml --cwd .
+python <skills>/aar-reconcile/scripts/reconcile.py --dag research/hypothesis-dag.yaml --cwd .
 ```
 
 ### Step 4.2: Synchronize to RMS

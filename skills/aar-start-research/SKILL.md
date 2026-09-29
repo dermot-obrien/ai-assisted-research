@@ -1,12 +1,13 @@
 ---
 name: aar-start-research
 description: Initialise a new research project: baseline the state of the art, architect the hypothesis DAG as a search space of measurable variants, and create the initiative, root work item and workspace signpost. Use when asked to start a research project, set up a hypothesis DAG or research lineage, baseline SOTA for a problem, or frame a new avenue of investigation.
-license: CC-BY-4.0
-compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
+license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
+compatibility: Reads research.yaml at the workspace root. Needs the literature-discovery skill, and delegates to AI-Assisted Work, so aaw-start-initiative and aaw-start-work must be installed.
 metadata:
   author: dermot-obrien
-  framework: aar
-  version: "1.2.0"
+  version: "2.0.0"
+  homepage: https://github.com/dermot-obrien/ai-assisted-research
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-initiative ^2.1.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work ^2.4.0"
 ---
 
 # Start Research
@@ -16,8 +17,8 @@ the state of the art and architect the research search space as a hypothesis DAG
 
 ## Protocol
 
-1. **Baseline the SOTA.** Use academic APIs and literature to identify the External Best
-   Performance (EBP) for the problem. Record what the best published result actually is, with
+1. **Baseline the SOTA.** Use the `literature-discovery` skill, installed beside this one, to
+   search the literature and establish the External Best Performance (EBP) for the problem. Record what the best published result actually is, with
    its citation, not an impression of it.
 2. **Formulate variants.** Turn the gap between the EBP and the current system into specific,
    measurable avenues for exploration. A hypothesis that cannot be measured against a target

@@ -1,12 +1,13 @@
 ---
 name: aar-reconcile
 description: Check whether the running system embodies what the research established, binding an executable predicate to every adopted node and reporting drift, contradiction and unadopted findings without proposing remedies. Use when asked to reconcile research against production, check whether findings were adopted, detect drift between research and the live system, or audit adoption state.
-license: CC-BY-4.0
-compatibility: Reads research.yaml at the workspace root. Python 3 with PyYAML for the tools under .ai-assisted-research/tools/.
+license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
+compatibility: Reads research.yaml at the workspace root. Python 3.10+ with PyYAML, and the research-dag skill installed beside this one.
 metadata:
   author: dermot-obrien
-  framework: aar
-  version: "1.2.0"
+  version: "2.0.0"
+  homepage: https://github.com/dermot-obrien/ai-assisted-research
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0"
 ---
 
 # Reconcile
@@ -48,6 +49,8 @@ built from leaked features is a faithfully implemented wrong answer.
 
 ## Workflow
 
+`<skills>` below is the directory this skill is installed in; the `research-dag` skill sits beside it.
+
 1. **Migrate** if needed. `reconcile.py --migrate` seeds a default `adoption` block on any node
    lacking one. It infers nothing; every node lands at `not_assessed`, which is the honest
    starting point.
@@ -60,7 +63,7 @@ built from leaked features is a faithfully implemented wrong answer.
 4. **Record**, one node at a time:
 
    ```bash
-   python tools/dag_update.py --action adopt --node-id H-204.4.24 \
+   python <skills>/research-dag/bin/dag_update.py --action adopt --node-id H-204.4.24 \
      --adoption adopted \
      --artefact "path/to/Classifier.java" \
      --verification "grep -q 'channelFactor = 0.02' path/to/Classifier.java"
@@ -75,13 +78,13 @@ built from leaked features is a faithfully implemented wrong answer.
 
 ```bash
 # Seed adoption blocks on a DAG that predates AAR 1.2.0
-python .ai-assisted-research/tools/reconcile.py --dag research/hypothesis-dag.yaml --migrate
+python <skills>/aar-reconcile/scripts/reconcile.py --dag research/hypothesis-dag.yaml --migrate
 
 # Run the loop
-python .ai-assisted-research/tools/reconcile.py --dag research/hypothesis-dag.yaml --cwd .
+python <skills>/aar-reconcile/scripts/reconcile.py --dag research/hypothesis-dag.yaml --cwd .
 
 # Record a verdict
-python .ai-assisted-research/tools/dag_update.py --action adopt --node-id H-001 \
+python <skills>/research-dag/bin/dag_update.py --action adopt --node-id H-001 \
   --adoption adopted --artefact "src/Thing.java" \
   --verification "grep -q 'thing = 0.02' src/Thing.java"
 ```

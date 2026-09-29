@@ -11,10 +11,10 @@ It reports the gap and proposes nothing. A reconciliation that proposes fixes
 invites arguing about the fixes instead of accepting the gap.
 
 Usage:
-    python tools/reconcile.py --dag research/hypothesis-dag.yaml
-    python tools/reconcile.py --dag ... --migrate      # seed missing adoption blocks
-    python tools/reconcile.py --dag ... --json         # machine-readable
-    python tools/reconcile.py --dag ... --strict       # also fail on unverified claims
+    python <skills>/aar-reconcile/scripts/reconcile.py --dag research/hypothesis-dag.yaml
+    python <skills>/aar-reconcile/scripts/reconcile.py --dag ... --migrate      # seed missing adoption blocks
+    python <skills>/aar-reconcile/scripts/reconcile.py --dag ... --json         # machine-readable
+    python <skills>/aar-reconcile/scripts/reconcile.py --dag ... --strict       # also fail on unverified claims
 
 Exit codes:
     0  no drift

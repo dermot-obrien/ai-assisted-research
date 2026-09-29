@@ -23,7 +23,7 @@ jobs:
       # AAR's tooling is Python; the validator is zero-dependency so this job
       # needs no install step of its own.
       - name: Validate skills against the agentskills.io spec
-        run: node tools/validate-skills.mjs skills
+        run: node scripts/validate-skills.mjs skills
 
   install:
     name: Install into a scratch workspace
@@ -57,7 +57,7 @@ jobs:
 
       - name: Check the installed skills resolve
         run: |
-          node "$GITHUB_WORKSPACE/aar/tools/validate-skills.mjs" /tmp/ws/.agents/skills
+          node "$GITHUB_WORKSPACE/aar/scripts/validate-skills.mjs" /tmp/ws/.agents/skills
           for s in /tmp/ws/.claude/skills/aar-*; do
             test -f "$s/SKILL.md" || { echo "::error::$s does not resolve"; exit 1; }
           done
@@ -72,8 +72,24 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install -r requirements.txt
-      - name: Byte-compile the tools
-        run: python -m compileall -q tools
+      - name: Byte-compile the skills' tools
+        run: python -m compileall -q skills
+
+      - name: The research-dag tools run against a scratch workspace
+        run: |
+          B="$GITHUB_WORKSPACE/skills/research-dag/bin"
+          mkdir -p /tmp/rws/research && cd /tmp/rws
+          cp "$GITHUB_WORKSPACE/skills/research-dag/assets/research.yaml.example" research.yaml
+          printf 'nodes:\n- id: H-001\n  hypothesis: Root idea\n  status: framed\n  parents: []\n  target: 0.1\n  metric: accuracy\n' > research/hypothesis-dag.yaml
+          python "$B/dag_update.py" --dag research/hypothesis-dag.yaml --action add --parent H-001 --hypothesis "A variant" --target 0.05
+          python "$B/generate_node_index.py"
+          python "$B/validate_dag_references.py"
+          python "$B/generate_dashboard.py"
+          python "$GITHUB_WORKSPACE/skills/aar-reconcile/scripts/reconcile.py" --dag research/hypothesis-dag.yaml --migrate
+
+      # No network calls in CI: the literature APIs are rate-limited. Each tool must load.
+      - name: The literature-discovery tools load
+        run: for t in skills/literature-discovery/bin/*.py; do python "$t" --help > /dev/null; done
 
   reuse:
     name: REUSE compliance

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# Copyright 2026 Dermot O'Brien -- GPLv3
+# SPDX-FileCopyrightText: 2026 Dermot O'Brien
+# SPDX-License-Identifier: Apache-2.0
 """
 Generate node-index.yaml from the hypothesis DAG.
 
@@ -10,7 +11,7 @@ Computes parent-resolved readiness for each node and classifies them as:
   - blocked: pending nodes whose parent is still pending, in_progress, etc.
 
 Usage:
-    python .ai-assisted-research/tools/generate_node_index.py
+    python <skills>/research-dag/bin/generate_node_index.py
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 # Research Management System (RMS) workspace config.
 # Seeded by `aar install` if no research.yaml exists. Edit paths to match your repo.
 # All paths are relative to this file's directory (the repo root). Read by
-# .ai-assisted-research/tools/rms_config.py.
+# the research-dag skill (bin/rms_config.py).
 
 # The hypothesis DAG (lineage of ideas) and its computed index.
 dag_path: "research/hypothesis-dag.yaml"

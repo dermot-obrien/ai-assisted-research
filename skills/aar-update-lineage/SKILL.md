@@ -1,12 +1,13 @@
 ---
 name: aar-update-lineage
 description: Add or update nodes in the hypothesis DAG, formulating measurable variants against the state of the art and placing them under the parents whose resolution they depend on. Use when asked to add a hypothesis or research node, extend or revise the DAG, record a new avenue of investigation, or update the research search space.
-license: CC-BY-4.0
+license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Reads research.yaml at the workspace root for the DAG and node index paths. No runtime dependencies.
 metadata:
   author: dermot-obrien
-  framework: aar
-  version: "1.2.0"
+  version: "1.3.0"
+  homepage: https://github.com/dermot-obrien/ai-assisted-research
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0"
 ---
 
 # Update Lineage
