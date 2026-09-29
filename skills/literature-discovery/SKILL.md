@@ -5,7 +5,7 @@ license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apac
 compatibility: Python 3.10 or newer with requests and PyYAML (requirements.txt). Needs network access to api.openalex.org and api.semanticscholar.org. OPENALEX_EMAIL and S2_API_KEY are optional and raise the rate limits.
 metadata:
   author: dermot-obrien
-  version: "1.0.0"
+  version: "1.1.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: ""
 ---

@@ -1,0 +1,178 @@
+{
+  "$schema": "pkg:generic/dermot-obrien/ai-assisted-work/bundle-schema@1.0.0",
+  "name": "ai-assisted-research",
+  "owner": "dermot-obrien",
+  "description": "AI-Assisted Research: hypothesis-driven research as Agent Skills, on a shared hypothesis DAG, with literature discovery, audits and lineage, handing work to AI-Assisted Work.",
+  "license": "CC-BY-4.0 AND Apache-2.0",
+  "homepage": "https://github.com/dermot-obrien/ai-assisted-research",
+  "skills": [
+    {
+      "name": "aar-housekeep",
+      "path": "skills/aar-housekeep",
+      "version": "2.1.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-housekeep@2.1.0",
+      "requires": [
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag", "range": "^1.0.0" }
+      ],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "Python 3.10+, PyYAML, and research.yaml with the paths it names"
+      }
+    },
+    {
+      "name": "aar-init-research",
+      "path": "skills/aar-init-research",
+      "version": "1.4.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-init-research@1.4.0",
+      "requires": [
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag", "range": "^1.0.0" }
+      ],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "research.yaml is present and the paths it names resolve"
+      }
+    },
+    {
+      "name": "aar-progress-hypothesis",
+      "path": "skills/aar-progress-hypothesis",
+      "version": "1.4.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-progress-hypothesis@1.4.0",
+      "requires": [
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-work/aaw-progress-work", "range": "^2.3.0" }
+      ],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "research.yaml is present and the paths it names resolve"
+      }
+    },
+    {
+      "name": "aar-progress-research",
+      "path": "skills/aar-progress-research",
+      "version": "1.4.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-progress-research@1.4.0",
+      "requires": [
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag", "range": "^1.0.0" },
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-work/aaw-progress-work", "range": "^2.3.0" },
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work", "range": "^2.4.0" }
+      ],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "research.yaml is present and the paths it names resolve"
+      }
+    },
+    {
+      "name": "aar-reconcile",
+      "path": "skills/aar-reconcile",
+      "version": "2.1.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-reconcile@2.1.0",
+      "requires": [
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag", "range": "^1.0.0" }
+      ],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "Python 3.10+, PyYAML, and research.yaml with the paths it names"
+      }
+    },
+    {
+      "name": "aar-run-audit",
+      "path": "skills/aar-run-audit",
+      "version": "2.1.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-run-audit@2.1.0",
+      "requires": [],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "Python 3.10+, PyYAML, and research.yaml with the paths it names"
+      }
+    },
+    {
+      "name": "aar-start-hypothesis",
+      "path": "skills/aar-start-hypothesis",
+      "version": "1.5.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-start-hypothesis@1.5.0",
+      "requires": [
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag", "range": "^1.0.0" },
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work", "range": "^2.4.0" }
+      ],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "research.yaml is present and the paths it names resolve"
+      }
+    },
+    {
+      "name": "aar-start-research",
+      "path": "skills/aar-start-research",
+      "version": "2.1.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-start-research@2.1.0",
+      "requires": [
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery", "range": "^1.0.0" },
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-initiative", "range": "^2.1.0" },
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work", "range": "^2.4.0" }
+      ],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "research.yaml is present and the paths it names resolve"
+      }
+    },
+    {
+      "name": "aar-sync-research-result",
+      "path": "skills/aar-sync-research-result",
+      "version": "1.5.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-sync-research-result@1.5.0",
+      "requires": [
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag", "range": "^1.0.0" },
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work", "range": "^2.4.0" }
+      ],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "research.yaml is present and the paths it names resolve"
+      }
+    },
+    {
+      "name": "aar-update-lineage",
+      "path": "skills/aar-update-lineage",
+      "version": "1.4.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-update-lineage@1.4.0",
+      "requires": [
+        { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag", "range": "^1.0.0" }
+      ],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "research.yaml is present and the paths it names resolve"
+      }
+    },
+    {
+      "name": "literature-discovery",
+      "path": "skills/literature-discovery",
+      "version": "1.1.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery@1.1.0",
+      "requires": [],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "Python 3.10+, PyYAML and requests"
+      }
+    },
+    {
+      "name": "research-dag",
+      "path": "skills/research-dag",
+      "version": "1.1.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag@1.1.0",
+      "requires": [],
+      "check": {
+        "command": ["python", "bin/check.py"],
+        "runtime": "python",
+        "description": "Python 3.10+, PyYAML, and research.yaml with the paths it names"
+      }
+    }
+  ]
+}
