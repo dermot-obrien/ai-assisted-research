@@ -23,8 +23,8 @@
     {
       "name": "aar-init-research",
       "path": "skills/aar-init-research",
-      "version": "1.4.0",
-      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-init-research@1.4.0",
+      "version": "1.4.1",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-init-research@1.4.1",
       "requires": [
         { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag", "range": "^1.0.0" }
       ],
@@ -67,8 +67,8 @@
     {
       "name": "aar-reconcile",
       "path": "skills/aar-reconcile",
-      "version": "2.1.0",
-      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-reconcile@2.1.0",
+      "version": "2.1.1",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-reconcile@2.1.1",
       "requires": [
         { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag", "range": "^1.0.0" }
       ],
@@ -165,8 +165,8 @@
     {
       "name": "research-dag",
       "path": "skills/research-dag",
-      "version": "1.1.0",
-      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag@1.1.0",
+      "version": "1.1.1",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag@1.1.1",
       "requires": [],
       "check": {
         "command": ["python", "bin/check.py"],

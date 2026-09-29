@@ -7,7 +7,38 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Documentation: a [quick start](docs/quick-start.md) run end to end on Windows in PowerShell
+  and Git Bash, a [concepts](docs/concepts.md) guide, a guide to [each skill](docs/skills.md),
+  a [command reference](docs/commands.md) checked against every tool's `--help`, a
+  [configuration reference](docs/configuration.md) (`research.yaml`, environment variables,
+  precedence, the files the tools read and write, the manifests) and
+  [troubleshooting](docs/troubleshooting.md) keyed to the tools' messages. The README now
+  covers installing for any agent, and `docs/README.md` is the index, with pointers to the
+  examples in the repository. The user guide uses the `/aar-*` skill names and the installed
+  tool paths.
+
 ### Fixed
+- `research-dag` 1.1.1:
+  - `dag_update.py` without `--dag` edits `dag_path` from `research.yaml`, as the skill's
+    examples assume, instead of `hypothesis-dag.yaml` in the working directory. With no
+    `research.yaml` it still falls back to that file.
+  - `dag_update.py --action add` refuses a parent that is not in the DAG. In a flat DAG it
+    used to add the node with a dangling parent.
+  - `dag_update.py` reports `DAG file not found` instead of a traceback when the DAG's
+    folder does not exist, and reads and writes the DAG as UTF-8 on every platform.
+  - `generate_node_index.py`, `generate_dashboard.py` and `validate_dag_references.py`
+    answer `--help`. Before, `--help` needed a `research.yaml` and then ran the tool.
+  - `branch_manager.py --action handoff` records the current time, not a fixed 2026-03-01
+    timestamp, and no longer fails when `--instructions` is omitted.
+  - The `research.yaml not found` message is plain ASCII, so it prints cleanly in a Windows
+    console.
+- `aar-init-research` 1.4.1: `scripts/discovery.py --help` prints usage instead of running
+  the scan.
+- `aar-reconcile` 2.1.1: `references/finding-kinds.md` lists `unknown_contester`, which
+  `reconcile.py` reports.
+- `aar --help` lists `--workspace` and `--yes`, and says where the launcher looks for AAW
+  and that AAW must be installed first.
 - **Every skill now passes `skills-ref validate`, the Agent Skills reference validator.** Five
   skills had an unquoted `description` containing ": ", which strict YAML parsers reject, so
   a client using one could not load them: `aar-housekeep`, `aar-progress-hypothesis`,

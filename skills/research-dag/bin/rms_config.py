@@ -81,7 +81,7 @@ def find_repo_root(start: Path | None = None) -> Path:
     raise FileNotFoundError(
         "research.yaml not found. Looked upward from: "
         + ", ".join(tried)
-        + ". Run from inside the project, or set RMS_ROOT — see the "
+        + ". Run from inside the project, or set RMS_ROOT; see the "
         "rms_config.py docstring."
     )
 

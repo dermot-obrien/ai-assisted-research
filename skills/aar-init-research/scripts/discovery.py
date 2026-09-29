@@ -5,6 +5,21 @@ import sys
 import yaml
 import subprocess
 
+USAGE = """usage: discovery.py [--confirm]
+
+Scan the workspace (README.md, src/ and performance/ for metric names, and the last ten
+commits) and propose a starting hypothesis DAG: a root node H-000 and the current state
+H-001. Run it from the workspace root.
+
+It prints the proposal and asks for confirmation. On "yes", or with --confirm, it writes
+hypothesis-dag.yaml in the current directory. Without a terminal and without --confirm it
+writes nothing.
+
+options:
+  -h, --help  show this help message and exit
+  --confirm   accept the proposal without asking"""
+
+
 def run_command(command):
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -66,6 +81,9 @@ def reconstruct_dag(findings):
     return [root_node, current_node]
 
 def main():
+    if any(a in ("-h", "--help") for a in sys.argv[1:]):
+        print(USAGE)
+        return
     print("Agent: Discovery is excavating the workspace...")
     findings = excavate_workspace()
     reconstructed_nodes = reconstruct_dag(findings)

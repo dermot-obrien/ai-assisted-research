@@ -5,7 +5,7 @@ import subprocess
 import yaml
 import argparse
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 def run_command(command):
     try:
@@ -53,7 +53,7 @@ def init_metadata(node_id, branch_name, agent_id, role, parent_perf, target_imp,
         'handoff': {
             'next_role': None,
             'instructions': None,
-            'timestamp': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+            'timestamp': datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         },
         'milestones': [
             {'id': 'baseline', 'status': 'pending'},
@@ -121,7 +121,7 @@ def main():
         metadata['status'] = 'awaiting_review' if args.next_role == 'auditor' else 'in_progress'
         metadata['handoff']['next_role'] = args.next_role
         metadata['handoff']['instructions'] = args.instructions
-        metadata['handoff']['timestamp'] = "2026-03-01T10:05:00Z"
+        metadata['handoff']['timestamp'] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         if args.performance is not None:
             metadata['actual_performance'] = args.performance
             
@@ -129,7 +129,7 @@ def main():
             yaml.dump(metadata, f, sort_keys=False)
             
         run_command(f"git add {metadata_path}")
-        run_command(f'git commit -m "[HANDOFF: {args.next_role}] {args.instructions[:50]}..."')
+        run_command(f'git commit -m "[HANDOFF: {args.next_role}] {(args.instructions or '')[:50]}..."')
         print(f"Handoff complete. Next role: {args.next_role}")
 
 if __name__ == "__main__":

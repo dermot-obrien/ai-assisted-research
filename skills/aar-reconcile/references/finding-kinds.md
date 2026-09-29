@@ -9,6 +9,7 @@ Report by kind, most consequential first.
 | `validated_not_adopted` | Validated, nothing blocking it, and absent |
 | `unverified_claim` | Claims adoption with no predicate to show it |
 | `unknown_blocker` | `blocked_by` names a node that does not exist |
+| `unknown_contester` | `contested_by` names a node that does not exist |
 | `no_adoption_block` | Never assessed |
 
 A predicate that cannot be executed is reported as `drift`, deliberately. A check you cannot
