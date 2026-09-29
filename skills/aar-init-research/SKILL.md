@@ -1,12 +1,13 @@
 ---
 name: aar-init-research
 description: Reconstruct the lineage of ideas in an existing repository, discovering the kernel idea and the major refinements from commit history and documentation with cited evidence, then set up the hypothesis DAG and the AAW integration. Use when asked to reverse-engineer research lineage, discover how a project's ideas evolved, or bootstrap AAR onto a repository whose research predates it.
-license: CC-BY-4.0
+license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
 metadata:
   author: dermot-obrien
-  framework: aar
-  version: "1.2.0"
+  version: "1.3.0"
+  homepage: https://github.com/dermot-obrien/ai-assisted-research
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0"
 ---
 
 # Init Research
@@ -18,7 +19,9 @@ recording it.
 ## Protocol
 
 1. **Find the kernel idea.** Scan the earliest commits, READMEs and documentation for the
-   original claim the project was built to test.
+   original claim the project was built to test. `python <skills>/aar-init-research/scripts/discovery.py`,
+   run from the workspace root, gathers the first markers (stated objectives, metrics in the
+   code, recent history) as a starting point; `<skills>` is the directory this skill is installed in.
 2. **Identify the branches.** Major architectural shifts usually mark a refinement or a new
    avenue. Each becomes a node.
 3. **Cite the evidence. This is mandatory.** Every claim about the kernel idea and every

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# Copyright 2026 Dermot O'Brien -- GPLv3
+# SPDX-FileCopyrightText: 2026 Dermot O'Brien
+# SPDX-License-Identifier: Apache-2.0
 """
 Generate an interactive hypothesis research dashboard.
 
@@ -13,7 +14,7 @@ a self-contained HTML file with:
 - "Ready" nodes highlighted as the research frontier
 
 Usage:
-    python .ai-assisted-research/tools/generate_dashboard.py
+    python <skills>/research-dag/bin/generate_dashboard.py
 
 Paths are resolved via research.yaml at the consumer repo root.
 """

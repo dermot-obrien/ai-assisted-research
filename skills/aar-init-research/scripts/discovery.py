@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Dermot O'Brien
+# SPDX-License-Identifier: Apache-2.0
 import os
 import sys
 import yaml

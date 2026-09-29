@@ -7,6 +7,36 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **The research skills are standalone, as DD-11 of AI-Assisted Work sets out.** No skill reaches
+  into the framework clone any more (`.ai-assisted-research/tools/`, `templates/`); each carries
+  what it runs, or requires the skill that does.
+  - **`research-dag` 1.0.0, a new skill**: the hypothesis DAG engine the research skills share
+    (`dag_update`, `generate_node_index`, `generate_dashboard`, `validate_dag_references`,
+    `rms_config`, `branch_manager`, the CLI schemas, and the `research.yaml` template the
+    installer seeds). The research skills require it by Package URL,
+    `pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0`.
+  - `reconcile.py` moved into `aar-reconcile/scripts/`, `audit_verify.py` into
+    `aar-run-audit/scripts/`, `discovery.py` (workspace excavation) into
+    `aar-init-research/scripts/`, and the report templates into
+    `aar-progress-hypothesis/assets/templates/`.
+  - Literature search left for its own bundle, **literature-discovery**
+    (https://github.com/dermot-obrien/literature-discovery): `openalex_discovery`, `s2_ranking`
+    and `sota_baseline`. `aar-start-research` requires it by Package URL. `requests` leaves this
+    framework's requirements with it.
+  - Hand-offs to AI-Assisted Work are declared requirements: `aaw-start-work`,
+    `aaw-progress-work` and `aaw-start-initiative`, by Package URL and range.
+  - Versions: `aar-housekeep`, `aar-reconcile`, `aar-run-audit` and `aar-start-research` 2.0.0,
+    because a documented command, a tool's location or a required skill changed;
+    `aar-init-research`, `aar-progress-hypothesis`, `aar-progress-research` and
+    `aar-update-lineage` 1.3.0; `aar-start-hypothesis` and `aar-sync-research-result` 1.4.0.
+    `metadata.framework` is replaced by `metadata.homepage`, and the skills' `license` names the
+    CC BY 4.0 and Apache-2.0 split.
+  - The tools carry SPDX headers for Apache-2.0. Four still carried a stale GPLv3 line from
+    before the relicensing to CC BY 4.0 and Apache-2.0.
+  - The skills validator moved from `tools/` to `scripts/`, and CI runs the research-dag tools
+    against a scratch workspace.
+
 ### Added
 
 - **Ten Agent Skills** under `skills/`, replacing the per-tool command shims:

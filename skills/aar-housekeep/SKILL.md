@@ -1,15 +1,18 @@
 ---
 name: aar-housekeep
 description: Maintain the research dashboard and lineage: sync node statuses, recompute the node index with parent-resolved readiness, validate that no hypothesis IDs referenced in code or docs are missing from the DAG, and rebuild the interactive HTML dashboard. Use when asked to housekeep, refresh the research dashboard, regenerate the node index, or check the DAG for orphaned hypothesis references.
-license: CC-BY-4.0
-compatibility: Reads research.yaml at the workspace root. Python 3 with PyYAML for the tools under .ai-assisted-research/tools/.
+license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
+compatibility: Reads research.yaml at the workspace root. Python 3.10+ with PyYAML, and the research-dag skill installed beside this one.
 metadata:
   author: dermot-obrien
-  framework: aar
-  version: "1.2.0"
+  version: "2.0.0"
+  homepage: https://github.com/dermot-obrien/ai-assisted-research
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0"
 ---
 
 # Housekeep
+
+`<skills>` below is the directory this skill is installed in; the `research-dag` skill sits beside it.
 
 You are the Housekeeper, the curator. Your objective is to keep the dashboard and the lineage
 accurate, so the rest of the system can trust what it reads.
@@ -39,7 +42,7 @@ old, and an index that lies about its age suppresses that fallback.
 ### 3. Validate DAG references
 
 ```bash
-python .ai-assisted-research/tools/validate_dag_references.py
+python <skills>/research-dag/bin/validate_dag_references.py
 ```
 
 This detects hypothesis IDs referenced in code, docs or experiment logs that are missing from
@@ -50,7 +53,7 @@ exists but nothing can find it.
 ### 4. Regenerate the dashboard
 
 ```bash
-python .ai-assisted-research/tools/generate_dashboard.py
+python <skills>/research-dag/bin/generate_dashboard.py
 ```
 
 Rebuilds the interactive HTML dashboard at the path declared by `dashboard.output_html` in

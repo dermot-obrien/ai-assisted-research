@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# Copyright 2026 Dermot O'Brien -- GPLv3
+# SPDX-FileCopyrightText: 2026 Dermot O'Brien
+# SPDX-License-Identifier: Apache-2.0
 """
 Load research.yaml from the consumer repo and expose resolved paths.
 

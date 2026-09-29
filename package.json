@@ -17,8 +17,7 @@
   "files": [
     "bin/",
     "skills/",
-    "templates/",
-    "tools/",
+    "scripts/",
     "docs/",
     "requirements.txt",
     "framework.manifest.yaml"

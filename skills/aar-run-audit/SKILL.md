@@ -1,12 +1,13 @@
 ---
 name: aar-run-audit
 description: Verify research results for scientific integrity by re-running benchmarks in a clean room, pulling evaluation scripts from the baseline rather than the research branch, and confirming that data, measured performance and written claims agree. Use when asked to audit, verify or validate a research result, check benchmark integrity, or confirm a reported improvement is real.
-license: CC-BY-4.0
-compatibility: Reads research.yaml at the workspace root. Python 3 with PyYAML for the tools under .ai-assisted-research/tools/.
+license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
+compatibility: Reads research.yaml at the workspace root. Python 3.10+ with PyYAML. Its verifier is scripts/audit_verify.py in this skill.
 metadata:
   author: dermot-obrien
-  framework: aar
-  version: "1.2.0"
+  version: "2.0.0"
+  homepage: https://github.com/dermot-obrien/ai-assisted-research
+  x-skill-requires: ""
 ---
 
 # Run Audit

@@ -9,7 +9,7 @@ primary expectation.
 | Asset | Licence | SPDX identifier |
 |-------|---------|-----------------|
 | Documentation, agent specifications, skills, templates (Markdown, YAML, JSON, text, diagrams) | **Creative Commons Attribution 4.0 International** | `CC-BY-4.0` |
-| Executable code (`tools/*.py`, `bin/*.js`) | **Apache License, Version 2.0** | `Apache-2.0` |
+| Executable code (the `bin/` and `scripts/` of each skill, `bin/*.js`, `scripts/*.mjs`) | **Apache License, Version 2.0** | `Apache-2.0` |
 
 Per-file licensing is declared via SPDX identifiers and the `REUSE.toml`
 manifest at the repository root, following the

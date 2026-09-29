@@ -1,12 +1,13 @@
 ---
 name: aar-sync-research-result
 description: Return a completed work item's metrics, findings and deliverables to the hypothesis DAG, setting the node to validated, ineffective or discarded against its target, then regenerating the node index so unblocked children become ready. Use when asked to sync or synchronise a research result, close out a hypothesis, or record what an experiment found back into the lineage.
-license: CC-BY-4.0
+license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
 metadata:
   author: dermot-obrien
-  framework: aar
-  version: "1.3.0"
+  version: "1.4.0"
+  homepage: https://github.com/dermot-obrien/ai-assisted-research
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work ^2.4.0"
 ---
 
 # Sync Research Result

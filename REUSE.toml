@@ -20,7 +20,6 @@ path = [
   "**.json",
   "**.txt",
   "skills/**",
-  "templates/**",
   "docs/**",
 ]
 precedence = "aggregate"
@@ -30,8 +29,9 @@ SPDX-License-Identifier = "CC-BY-4.0"
 # --- Executable code (override the broad rule above) ---
 [[annotations]]
 path = [
-  "tools/**.py",
-  "tools/**.mjs",
+  "skills/**/bin/**.py",
+  "skills/**/scripts/**.py",
+  "scripts/**.mjs",
   "bin/**.js",
   "bin/**.mjs",
 ]

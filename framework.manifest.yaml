@@ -28,7 +28,7 @@ skills: { src: skills }
 
 # Idempotent: only seeded if the host has no research.yaml yet.
 config:
-  - { file: research.yaml, template: templates/research.yaml.example }
+  - { file: research.yaml, template: skills/research-dag/assets/research.yaml.example }
 
 # Committed home for the hypothesis DAG + lineage artefacts.
 data_dirs: [research/]

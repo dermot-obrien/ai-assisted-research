@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# Copyright 2026 Dermot O'Brien -- GPLv3
+# SPDX-FileCopyrightText: 2026 Dermot O'Brien
+# SPDX-License-Identifier: Apache-2.0
 """
 Validate that all hypothesis IDs referenced in code, docs, and experiment logs
 exist in the hypothesis DAG (research/hypothesis-dag.yaml).
@@ -8,8 +9,8 @@ Catches the case where an agent creates hypothesis IDs in code/docs/experiments
 without registering them in the central DAG.
 
 Usage:
-    python .ai-assisted-research/tools/validate_dag_references.py
-    python .ai-assisted-research/tools/validate_dag_references.py --fix  # show what to add
+    python <skills>/research-dag/bin/validate_dag_references.py
+    python <skills>/research-dag/bin/validate_dag_references.py --fix  # show what to add
 
 Exit code:
     0 = all references valid
