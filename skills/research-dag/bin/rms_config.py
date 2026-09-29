@@ -21,6 +21,13 @@ Expected research.yaml schema (excerpt):
       findings_edges: "research/findings-edges.yaml"
       output_html: "ml_pipeline/dashboard.html"
 
+Two optional keys move the DAG into the shared, event-sourced store (see
+dag_store.py). With both set, dag_path becomes a view generated from the
+store; with neither, the DAG is the plain YAML file at dag_path:
+
+    dag_store: "https://example.com/me/research-dags.git"  # clone path or URL
+    dag_project: "my-project"                             # folder in the store
+
 All string path values are resolved relative to the directory containing
 research.yaml. Project-specific keys (e.g. a trading dashboard) can be
 declared in research.yaml too and read via the generic `cfg.path(dotted)`
@@ -112,6 +119,23 @@ class Config:
     @property
     def work_items_path(self) -> Path:
         return self.path("work_items_path")
+
+    # --- Shared DAG store (optional) ---
+    @property
+    def dag_store(self) -> str | None:
+        """The store's clone path or URL, as written; None when not configured."""
+        value = self._get("dag_store", None)
+        return str(value) if value else None
+
+    @property
+    def dag_project(self) -> str | None:
+        value = self._get("dag_project", None)
+        return str(value) if value else None
+
+    @property
+    def uses_dag_store(self) -> bool:
+        """True when the DAG lives in the store and dag_path is a generated view."""
+        return bool(self.dag_store and self.dag_project)
 
     # --- Dashboard paths ---
     @property
