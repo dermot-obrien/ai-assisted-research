@@ -158,7 +158,7 @@ def migrate(path):
             raise SystemExit("migrate: %d node(s) still lack a block: %s" % (len(missing), missing[:5]))
 
     print("migrate: %d node(s) given a default adoption block" % touched)
-    print("         all at state 'not_assessed' — nothing was inferred")
+    print("         all at state 'not_assessed'; nothing was inferred")
     print("         comments and formatting preserved; re-parsed and node set verified")
     return 0
 

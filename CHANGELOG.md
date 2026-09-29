@@ -8,6 +8,10 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Troubleshooting covers the remaining messages the tools print: the DAG store's
+  `NOT PUSHED`, unreadable-event and `verify` messages, the reference check's alias
+  warning, `reconcile.py` without PyYAML, `sota_baseline.py` with no Semantic Scholar
+  results, and `discovery.py` without a terminal.
 - Documentation: a [quick start](docs/quick-start.md) run end to end on Windows in PowerShell
   and Git Bash, a [concepts](docs/concepts.md) guide, a guide to [each skill](docs/skills.md),
   a [command reference](docs/commands.md) checked against every tool's `--help`, a
@@ -19,6 +23,11 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   tool paths.
 
 ### Fixed
+- `aar-reconcile` 2.1.2: `reconcile.py --migrate` prints plain ASCII, so its summary no
+  longer shows a garbled character in a Git Bash or other non-UTF-8 Windows console.
+- `literature-discovery` 1.1.2: `sota_baseline.py` stamps `established_at` with a
+  timezone-aware UTC time instead of the deprecated `datetime.utcnow()`, which warns on
+  Python 3.12.
 - `research-dag` 1.1.1:
   - `dag_update.py` without `--dag` edits `dag_path` from `research.yaml`, as the skill's
     examples assume, instead of `hypothesis-dag.yaml` in the working directory. With no
