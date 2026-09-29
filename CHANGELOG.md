@@ -20,10 +20,10 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     `aar-run-audit/scripts/`, `discovery.py` (workspace excavation) into
     `aar-init-research/scripts/`, and the report templates into
     `aar-progress-hypothesis/assets/templates/`.
-  - Literature search left for its own bundle, **literature-discovery**
-    (https://github.com/dermot-obrien/literature-discovery): `openalex_discovery`, `s2_ranking`
-    and `sota_baseline`. `aar-start-research` requires it by Package URL. `requests` leaves this
-    framework's requirements with it.
+  - **`literature-discovery` 1.0.0, a new skill**: literature search, `openalex_discovery`,
+    `s2_ranking` and `sota_baseline`, with its own `requirements.txt`, usable on its own.
+    `aar-start-research` requires it by Package URL,
+    `pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery ^1.0.0`.
   - Hand-offs to AI-Assisted Work are declared requirements: `aaw-start-work`,
     `aaw-progress-work` and `aaw-start-initiative`, by Package URL and range.
   - Versions: `aar-housekeep`, `aar-reconcile`, `aar-run-audit` and `aar-start-research` 2.0.0,
@@ -35,7 +35,7 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - The tools carry SPDX headers for Apache-2.0. Four still carried a stale GPLv3 line from
     before the relicensing to CC BY 4.0 and Apache-2.0.
   - The skills validator moved from `tools/` to `scripts/`, and CI runs the research-dag tools
-    against a scratch workspace.
+    against a scratch workspace and checks the literature-discovery tools load.
 
 ### Added
 

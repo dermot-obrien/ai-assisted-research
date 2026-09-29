@@ -73,6 +73,7 @@ sequenceDiagram
 | **`change/work-items/WI-NNN-research-*/`** | Dedicated AAW work item for each research node. |
 | **`metadata.yaml`** | Per-node state tracking, stored within the research work item. |
 | **`skills/research-dag/`** | The hypothesis DAG engine the research skills share: DAG updates, node index, dashboard, reference validation, branches. |
+| **`skills/literature-discovery/`** | Literature search: OpenAlex discovery, Semantic Scholar ranking, and the state-of-the-art baseline that combines them. Usable on its own. |
 | **`skills/*/scripts/`, `skills/*/assets/`** | Tools and templates belonging to one skill, such as the audit verifier and the report templates. |
 
 ---

@@ -87,6 +87,10 @@ jobs:
           python "$B/generate_dashboard.py"
           python "$GITHUB_WORKSPACE/skills/aar-reconcile/scripts/reconcile.py" --dag research/hypothesis-dag.yaml --migrate
 
+      # No network calls in CI: the literature APIs are rate-limited. Each tool must load.
+      - name: The literature-discovery tools load
+        run: for t in skills/literature-discovery/bin/*.py; do python "$t" --help > /dev/null; done
+
   reuse:
     name: REUSE compliance
     runs-on: ubuntu-latest
