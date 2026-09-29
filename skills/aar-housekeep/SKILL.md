@@ -1,11 +1,11 @@
 ---
 name: aar-housekeep
-description: Maintain the research dashboard and lineage: sync node statuses, recompute the node index with parent-resolved readiness, validate that no hypothesis IDs referenced in code or docs are missing from the DAG, and rebuild the interactive HTML dashboard. Use when asked to housekeep, refresh the research dashboard, regenerate the node index, or check the DAG for orphaned hypothesis references.
+description: "Maintain the research dashboard and lineage: sync node statuses, recompute the node index with parent-resolved readiness, validate that no hypothesis IDs referenced in code or docs are missing from the DAG, and rebuild the interactive HTML dashboard. Use when asked to housekeep, refresh the research dashboard, regenerate the node index, or check the DAG for orphaned hypothesis references."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Reads research.yaml at the workspace root. Python 3.10+ with PyYAML, and the research-dag skill installed beside this one.
 metadata:
   author: dermot-obrien
-  version: "2.1.0"
+  version: "2.1.1"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0"
 ---

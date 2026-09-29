@@ -30,9 +30,9 @@ The RMS uses the **AI-Assisted Work (AAW)** framework as its process management 
 ## Quick Start
 
 AAR installs through the shared AAW engine (it depends on AAW). Both models below work
-**without npm-registry access**. The installer wires skill shims for every detected tool
-(Claude/Cursor/Gemini), seeds a `research.yaml`, creates the `research/` data dir, and
-`pip install`s AAR's Python deps.
+**without npm-registry access**. The installer copies each skill to `.agents/skills/<name>/`
+(linking `.claude/skills/<name>` at it for Claude Code), seeds a `research.yaml`, creates the
+`research/` data dir, and `pip install`s AAR's Python deps.
 
 ### Option A — npm git-dependency (recommended)
 
@@ -52,7 +52,7 @@ node .ai-assisted-research/bin/aar.js install       # add --no-python to skip pi
 ```
 
 Either way replaces the old manual "copy the `skills/` folder" step. Re-run any time to
-refresh shims; your `research.yaml` and `research/` data are left untouched.
+refresh the skills; your `research.yaml` and `research/` data are left untouched.
 
 > **Developers:** AAR's tooling is Python, inside the skills (`skills/research-dag/bin/`, and each skill's `scripts/`) — there is nothing to build.
 > The `aar` launcher is a zero-dependency Node script that delegates to AAW's engine
@@ -95,7 +95,32 @@ This activates the implementation branch and hands off to the work management ag
 - [**User Guide**](docs/user-guide.md)
 - [**Research Principles**](docs/PRINCIPLES.md): The core guardrails for autonomous research.
 - [**AAW Inquiry Seam**](docs/aaw-inquiry-seam.md): How an AAW `inquiry` becomes a hypothesis, and how a conclusion re-triages into delivery.
-- [**Agent Skills**](skills/): the ten workflows, each a self-contained `SKILL.md` that every skills-compatible tool reads.
+- [**Agent Skills**](skills/): the twelve skills, each a self-contained `SKILL.md` that every skills-compatible tool reads.
+
+---
+
+## Agent Skills conformance
+
+Every skill in [`skills/`](skills/) follows the [Agent Skills specification](https://agentskills.io/specification):
+a directory named after the skill, holding a `SKILL.md` whose YAML frontmatter has a `name`
+that matches the directory and a `description` that says what the skill does and when to use
+it. Metadata values are strings, bodies stay well under the 500-line guidance, and longer
+material sits in the skill's `references/`, `scripts/` and `assets/` folders.
+
+The installer puts each skill in `.agents/skills/<name>/`, the cross-tool location the
+specification's clients read, and links `.claude/skills/<name>` at it for Claude Code.
+[`bundle.json`](bundle.json) lists the skills it ships.
+
+CI validates every skill listed in `bundle.json` with `skills-ref`, the specification's
+reference validator, and fails if `bundle.json` and the `skills/` directories disagree. To
+validate locally (Python 3.11 or newer):
+
+```bash
+python -m venv .venv && . .venv/bin/activate    # on Windows: .venv\Scripts\activate
+pip install "git+https://github.com/agentskills/agentskills#subdirectory=skills-ref"
+for d in skills/*/; do skills-ref validate "$d"; done
+node scripts/validate-skills.mjs skills          # also checks relative links resolve
+```
 
 ---
 

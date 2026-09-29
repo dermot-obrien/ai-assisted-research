@@ -1,11 +1,11 @@
 ---
 name: aar-run-audit
-description: Verify research results for scientific integrity by re-running benchmarks in a clean room, pulling evaluation scripts from the baseline rather than the research branch, and confirming that data, measured performance and written claims agree. Use when asked to audit, verify or validate a research result, check benchmark integrity, or confirm a reported improvement is real.
+description: "Verify research results for scientific integrity by re-running benchmarks in a clean room, pulling evaluation scripts from the baseline rather than the research branch, and confirming that data, measured performance and written claims agree. Use when asked to audit, verify or validate a research result, check benchmark integrity, or confirm a reported improvement is real."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Reads research.yaml at the workspace root. Python 3.10+ with PyYAML. Its verifier is scripts/audit_verify.py in this skill.
 metadata:
   author: dermot-obrien
-  version: "2.1.0"
+  version: "2.1.1"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: ""
 ---
@@ -32,6 +32,18 @@ evaluation code against the branch's own result verifies nothing at all.
    experimentation.
 3. **Confirm consistency** between the data, the measured performance and the claims made in
    the article. All three must agree; where they do not, the disagreement is the finding.
+
+The reference verifier is [scripts/audit_verify.py](scripts/audit_verify.py). It reads the
+node's `metadata.yaml` in the working directory and checks the recorded performance against
+the parent's and that the deliverables exist. With `--clean-room` it also fails the audit if
+`performance/benchmarks/` differs from `main`:
+
+```bash
+python <skills>/aar-run-audit/scripts/audit_verify.py --action verify --clean-room
+```
+
+`<skills>` is the directory this skill is installed in. `--action report` prints the recorded
+figures without verifying them.
 
 ## Reporting
 

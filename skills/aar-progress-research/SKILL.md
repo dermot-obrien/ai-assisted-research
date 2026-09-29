@@ -1,6 +1,6 @@
 ---
 name: aar-progress-research
-description: Resume a research strand or pick up the next actionable node, using the node index to find ready work and delegating the design and execution phases to the hypothesis skills. Use when asked to continue or resume research, find the next research node to work on, or drive a research strand forward without naming a specific node.
+description: "Resume a research strand or pick up the next actionable node, using the node index to find ready work and delegating the design and execution phases to the hypothesis skills. Use when asked to continue or resume research, find the next research node to work on, or drive a research strand forward without naming a specific node."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
 metadata:

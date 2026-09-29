@@ -1,11 +1,11 @@
 ---
 name: literature-discovery
-description: Search the scholarly literature and establish the state of the art for a question: find papers through OpenAlex, rank them by citations through Semantic Scholar, and combine both into a state-of-the-art baseline with the best published results and their citations. Use when asked to search the literature, find related work or prior art, establish the state of the art or a baseline for a research question, or rank papers on a topic.
+description: "Search the scholarly literature and establish the state of the art for a question: find papers through OpenAlex, rank them by citations through Semantic Scholar, and combine both into a state-of-the-art baseline with the best published results and their citations. Use when asked to search the literature, find related work or prior art, establish the state of the art or a baseline for a research question, or rank papers on a topic."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Python 3.10 or newer with requests and PyYAML (requirements.txt). Needs network access to api.openalex.org and api.semanticscholar.org. OPENALEX_EMAIL and S2_API_KEY are optional and raise the rate limits.
 metadata:
   author: dermot-obrien
-  version: "1.1.0"
+  version: "1.1.1"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: ""
 ---

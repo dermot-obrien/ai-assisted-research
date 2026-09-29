@@ -1,6 +1,6 @@
 ---
 name: aar-reconcile
-description: Check whether the running system embodies what the research established, binding an executable predicate to every adopted node and reporting drift, contradiction and unadopted findings without proposing remedies. Use when asked to reconcile research against production, check whether findings were adopted, detect drift between research and the live system, or audit adoption state.
+description: "Check whether the running system embodies what the research established, binding an executable predicate to every adopted node and reporting drift, contradiction and unadopted findings without proposing remedies. Use when asked to reconcile research against production, check whether findings were adopted, detect drift between research and the live system, or audit adoption state."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Reads research.yaml at the workspace root. Python 3.10+ with PyYAML, and the research-dag skill installed beside this one.
 metadata:
