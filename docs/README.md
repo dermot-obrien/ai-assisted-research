@@ -72,7 +72,7 @@ sequenceDiagram
 | **`hypothesis-dag.yaml`** | The central map of the research solution space (root or `docs/`). |
 | **`change/work-items/WI-NNN-research-*/`** | Dedicated AAW work item for each research node. |
 | **`metadata.yaml`** | Per-node state tracking, stored within the research work item. |
-| **`skills/research-dag/`** | The hypothesis DAG engine the research skills share: DAG updates, node index, dashboard, reference validation, branches. |
+| **`skills/research-dag/`** | The hypothesis DAG engine the research skills share: DAG updates, node index, dashboard, reference validation, branches, and the optional shared DAG store. |
 | **`skills/literature-discovery/`** | Literature search: OpenAlex discovery, Semantic Scholar ranking, and the state-of-the-art baseline that combines them. Usable on its own. |
 | **`skills/*/scripts/`, `skills/*/assets/`** | Tools and templates belonging to one skill, such as the audit verifier and the report templates. |
 
@@ -85,3 +85,4 @@ sequenceDiagram
 - [**Agent Skills**](../skills/): the ten workflows, each a self-contained `SKILL.md`.
 - [**Framework Design**](../change/work-items/WI-001-research-management-system/deliverables/D01-framework-design.md): Detailed schema documentation.
 - [Adoption and Drift](adoption-and-drift.md) — the second axis: whether a validated finding is live, and how drift is detected.
+- [The shared DAG store](../skills/research-dag/references/dag-store.md): one DAG changed by several machines and agents at once, as append-only events in a separate repository.

@@ -24,8 +24,32 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Versions: `aar-housekeep`, `aar-reconcile`, `aar-run-audit` and `aar-start-research` 2.1.0;
   `aar-init-research`, `aar-progress-hypothesis`, `aar-progress-research` and
   `aar-update-lineage` 1.4.0; `aar-start-hypothesis` and `aar-sync-research-result` 1.5.0;
-  `literature-discovery` 1.1.0; `research-dag` 1.1.0, the version the DAG store work also
-  takes, so whichever lands second releases both as 1.1.0.
+  `literature-discovery` 1.1.0; `research-dag` 1.1.0, released together with the DAG store below.
+
+- `research-dag` 1.1.0: a shared, event-sourced store for the hypothesis DAG, so several machines
+  and agents can change one DAG at once. Opt in with `dag_store` (a clone path, git URL or bare
+  repository) and `dag_project` (the project's folder) in `research.yaml`; without them nothing
+  changes. See `skills/research-dag/references/dag-store.md`.
+  - The store is a separate git repository with one folder per project. Every change is a new,
+    never-edited JSON event file, so writers never merge-conflict. `dag_update.py` pulls, writes
+    events, and pushes with a retry on a rejected push.
+  - `hypothesis-dag.yaml` becomes a view generated from the replay, with the source file's
+    leading and per-node comments kept, so every tool that reads the YAML works unchanged.
+  - Concurrent edits to one field: the later wins, and the replaced value is shown in the view,
+    by `dag_update.py` and by `dag_store.py report`. Appends to a list all survive.
+  - Concurrent adds under one id: the node already in the store keeps it, the other takes a
+    letter suffix (H-204.4.25b) recorded as an alias event, and `validate_dag_references.py`
+    reports aliases.
+  - New `dag_store.py`: `import` seeds a project from an existing DAG, one event per node, and
+    refuses unless replay reproduces it; `view`, `report`, `record` (turn direct edits of the
+    view into events), `prune` (archive closed nodes' events; replay still reads them),
+    `verify` and `sync`.
+  - `dag_update.py` gains `relink`, `set` and `note` actions and `--no-store`, in both modes.
+  - `dag_update.py` allocates hierarchical ids in a DAG that has them (the next child under
+    the parent) instead of failing on them; a flat DAG keeps sequential numbering.
+  - `schemas/dag_event.schema.json`, the updated `cli_schemas.json`, commented keys in
+    `research.yaml.example`, unit tests under `tests/`, and a CI smoke test of the store
+    against a local bare repository.
 
 ### Changed
 - **The research skills are standalone, as DD-11 of AI-Assisted Work sets out.** No skill reaches

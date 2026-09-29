@@ -114,6 +114,35 @@ jobs:
           python "$B/generate_dashboard.py"
           python "$GITHUB_WORKSPACE/skills/aar-reconcile/scripts/reconcile.py" --dag research/hypothesis-dag.yaml --migrate
 
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
+      # The shared DAG store, end to end, against a local bare repository: seed a
+      # project, write through dag_update, and read the generated view with the
+      # unchanged reading tools.
+      - name: The research-dag tools run against a DAG store
+        env:
+          RESEARCH_DAG_HOME: /tmp/dag-home
+        run: |
+          B="$GITHUB_WORKSPACE/skills/research-dag/bin"
+          git init --quiet --bare -b main /tmp/dags.git
+          printf 'nodes:\n- id: H-001\n  hypothesis: Root idea\n  status: validated\n  parent: null\n' > /tmp/seed.yaml
+          mkdir -p /tmp/sws/research && cd /tmp/sws
+          cp "$GITHUB_WORKSPACE/skills/research-dag/assets/research.yaml.example" research.yaml
+          printf 'dag_store: "/tmp/dags.git"\ndag_project: demo\n' >> research.yaml
+          python "$B/dag_store.py" import --from /tmp/seed.yaml
+          python "$B/dag_store.py" view
+          python "$B/dag_store.py" verify --against /tmp/seed.yaml
+          python "$B/dag_update.py" --action add --parent H-001 --hypothesis "A variant" --target 0.05
+          python "$B/dag_update.py" --action update --node-id H-002 --status in_progress
+          grep -q "id: H-002" research/hypothesis-dag.yaml
+          python "$B/generate_node_index.py"
+          python "$B/validate_dag_references.py"
+          python "$B/generate_dashboard.py"
+          python "$B/dag_store.py" report
+          python "$B/dag_store.py" prune --days 0 --dry-run
+          test "$(git --git-dir=/tmp/dags.git rev-list --count main)" -ge 3
+
       # No network calls in CI: the literature APIs are rate-limited. Each tool must load.
       - name: The literature-discovery tools load
         run: for t in skills/literature-discovery/bin/*.py; do python "$t" --help > /dev/null; done

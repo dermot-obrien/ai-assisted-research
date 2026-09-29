@@ -12,6 +12,10 @@ Usage:
     python <skills>/research-dag/bin/validate_dag_references.py
     python <skills>/research-dag/bin/validate_dag_references.py --fix  # show what to add
 
+With a shared DAG store (dag_store and dag_project in research.yaml), it also
+reports aliases: nodes renamed with a letter suffix because a concurrent writer
+took their id first. A reference to the original id may have meant either node.
+
 Exit code:
     0 = all references valid
     1 = orphaned references found
@@ -93,11 +97,37 @@ def scan_file(path: Path) -> dict[str, list[int]]:
     return refs
 
 
+def report_aliases() -> None:
+    """Print the store's aliases, as of the local clone's last pull. Informational."""
+    if not getattr(_cfg, "uses_dag_store", False):
+        return
+    try:
+        import dag_store
+        store = dag_store.DagStore.from_config(_cfg)
+        if not store.clone.exists():
+            print("DAG store not cloned here yet; dag_store.py view clones it. Aliases not checked.")
+            return
+        aliases = store.replay().aliases
+    except Exception as e:  # noqa: BLE001 - the reference check does not depend on it
+        print(f"Could not read the DAG store for aliases: {e}")
+        return
+    if not aliases:
+        return
+    print(f"\n{len(aliases)} ALIAS(ES) FROM CONCURRENT ADDS:")
+    print("Each node was added under an id a concurrent writer took first, and renamed.")
+    print("A reference to the original id written before the rename may mean either node.\n")
+    for a in aliases:
+        note = "" if a.get("recorded") else " (alias not yet recorded in the store)"
+        print(f"  {a['id']} was added as {a['was']}{note}")
+    print()
+
+
 def main():
     fix_mode = "--fix" in sys.argv
 
     dag_ids = load_dag_ids()
     print(f"DAG contains {len(dag_ids)} hypothesis IDs")
+    report_aliases()
 
     # Scan all relevant files
     all_refs: dict[str, list[tuple[str, list[int]]]] = {}  # {id: [(file, [lines])]}
