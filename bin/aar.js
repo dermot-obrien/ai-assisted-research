@@ -9,7 +9,7 @@
 // bundle and delegates: `aaw install --framework <this AAR repo>`. No npm
 // install, no node_modules, no bundling needed here.
 //
-//   aar install [--no-python]   Wire AAR shims, seed research.yaml + research/,
+//   aar install [--no-python]   Install the skills, seed research.yaml + research/,
 //                               pip-install requirements (needs AAW present).
 
 import { spawnSync } from "node:child_process";
@@ -19,14 +19,25 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const HELP = `aar — AI-Assisted Research (RMS) installer
+const HELP = `aar: AI-Assisted Research (RMS) installer
 
 Usage:
-  aar install [--no-python]   Install AAR into this workspace
+  aar install [options]       Install AAR into this workspace
+  aar                         The same as aar install
   aar --help                  Show this help
 
-AAR depends on AAW: the .ai-assisted-work submodule must be present (it provides
-the shared install engine). Tooling runs in Python (pip).
+Options for install (passed to the AAW install engine):
+  --no-python                 Skip pip install -r requirements.txt
+  --workspace PATH            Install into PATH instead of the workspace found
+                              from the current directory (the nearest .git or
+                              .aaw-config.yaml)
+  --yes                       Never prompt for the workspace
+
+AAR depends on AAW, which provides the install engine. The launcher finds it as
+an npm dependency, at the source_root .aaw-config.yaml records for aaw, in
+node_modules/ai-assisted-work, or in a .ai-assisted-work clone. Install AAW
+into the workspace first (aaw install). Otherwise, unless a .ai-assisted-work
+clone is present, the dependency check warns and the install exits 1.
 `;
 
 function findWorkspaceRoot(start) {

@@ -43,11 +43,11 @@ def load_dag(path):
     if not os.path.exists(path):
         print(f"Error: DAG file not found at {path}")
         sys.exit(1)
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 def save_dag(path, dag):
-    with open(path, 'w') as f:
+    with open(path, 'w', encoding='utf-8') as f:
         yaml.dump(dag, f, sort_keys=False)
 
 def next_node_id(nodes, parent_id):
@@ -115,6 +115,8 @@ def add_node(dag, parent_id, hypothesis, target_improvement, metric=None):
     if metric and primary_metric and metric.lower() != primary_metric.lower():
         print(f"Warning: Proposed metric '{metric}' differs from DAG's primary metric '{primary_metric}'.")
     
+    if not any(node['id'] == parent_id for node in dag.get('nodes', [])):
+        raise ValueError(f"Parent {parent_id} is not in the DAG.")
     new_id = next_node_id(dag.get('nodes', []), parent_id)
 
     new_node = {
@@ -374,8 +376,8 @@ def run_in_store(store, args, view_path):
 def main():
     parser = argparse.ArgumentParser(description="Safely update the Hypothesis DAG.")
     parser.add_argument("--dag", default=None,
-                        help="Path to hypothesis-dag.yaml (default: hypothesis-dag.yaml; with a DAG "
-                             "store, the view at dag_path)")
+                        help="Path to hypothesis-dag.yaml (default: dag_path from research.yaml, or "
+                             "hypothesis-dag.yaml where there is no research.yaml)")
     parser.add_argument("--action", choices=['add', 'update', 'adopt', 'relink', 'set', 'note'], required=True)
     parser.add_argument("--no-store", action="store_true",
                         help="Edit the YAML file directly even when research.yaml names a DAG store")
@@ -404,7 +406,8 @@ def main():
 
     args = parser.parse_args()
     
-    cfg = None if args.no_store else workspace_config()
+    config = workspace_config()
+    cfg = None if args.no_store else config
     if cfg is not None and bool(cfg.dag_store) != bool(cfg.dag_project):
         print("Warning: research.yaml sets only one of dag_store and dag_project; "
               "editing the YAML file directly.")
@@ -418,7 +421,10 @@ def main():
             print(f"Error: {e}")
             sys.exit(1)
 
-    args.dag = args.dag or "hypothesis-dag.yaml"
+    args.dag = args.dag or (str(config.dag_path) if config is not None else "hypothesis-dag.yaml")
+    if not os.path.exists(args.dag):
+        print(f"Error: DAG file not found at {args.dag}")
+        sys.exit(1)
     with DAGLock(args.dag):
         dag = load_dag(args.dag)
         message, _ = apply_action(dag, args)

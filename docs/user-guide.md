@@ -1,123 +1,229 @@
-# RMS User Guide: Step-by-Step Instructions
+# User guide
 
-This guide provides instructions for both human researchers and AI agents using the Research Management System. All research execution follows the unified hierarchy within the **AI-Assisted Work (AAW)** framework.
+The full research cycle, step by step, for human researchers and the agents working with
+them. It assumes AAR and AAW are installed in the workspace; the
+[quick start](quick-start.md) does that and tries the tools on a two-node DAG. The
+[concepts](concepts.md) page explains the terms used here.
+
+Commands below run from the workspace root. `<skills>` is where the skills are installed,
+usually `.agents/skills`. Slash commands are typed in your agent; you can also ask for the
+same thing in plain words.
+
+All research execution goes through AI-Assisted Work (AAW): AAR decides what to research
+and records what was found, AAW runs the work.
 
 ---
 
-## 0. Initializing in an Existing Repository
+## 0. Starting in an existing repository
 
-If you are adding the Research Management System to a pre-existing workspace, use the **Discovery** agent to reconstruct the lineage of ideas.
+When the research already happened before anyone recorded it, reconstruct the lineage
+instead of starting fresh.
 
-### Step 0.1: Run Workspace Discovery
-The Discovery agent scans your code, docs, and git history to identify your starting nodes.
+### Step 0.1: Run discovery
+
+```text
+/aar-init-research
+```
+
+The Discovery role scans early commits, READMEs and docs for the kernel idea and the major
+shifts since, citing a commit, pull request or file and line for each. Its helper gathers
+the first markers:
+
 ```bash
 python <skills>/aar-init-research/scripts/discovery.py
 ```
 
-### Step 0.2: Confirmation Dialogue
-The agent will propose a root node (H-000) and a current implementing node (H-001). Confirm the reconstruction to initialize the `hypothesis-dag.yaml` (typically in the root or `docs/`).
+It proposes H-000 (the original baseline) and H-001 (the current state) and asks before
+writing `hypothesis-dag.yaml` in the current directory. Move that file to `dag_path`
+(normally `research/hypothesis-dag.yaml`) if you accept it from the command line; the skill
+writes it in the right place.
+
+### Step 0.2: Confirm the lineage
+
+Check the proposed nodes and their evidence. Correct anything guessed; a node marked as
+inferred, with its reasoning, is better than one presented as established.
 
 ---
 
-## 1. Initializing a New Research Project
+## 1. Starting a new research project
 
-To start a new research project, the **Specialist** agent (or Human) must establish the SOTA baseline.
+The Specialist role establishes what "better" means before anything is tried.
 
-### Step 1.1: Run SOTA Discovery
-Use the `sota_baseline.py` tool to find the current best performance for your topic.
+### Step 1.1: Baseline the state of the art
+
+```text
+/aar-start-research {topic}
+```
+
+It uses the `literature-discovery` skill. To run the search yourself:
+
 ```bash
 python <skills>/literature-discovery/bin/sota_baseline.py --query "Your Topic" --output baseline.yaml
 ```
 
-### Step 1.2: Mandatory Benchmark & Data Setup
-Before initializing the DAG, the **Specialist** (or Human) MUST establish the standardized testing environment:
-1.  **Identify Dataset**: Place research data in `performance/data/{project_name}/`.
-2.  **Supply Benchmark Script**: Place the primary evaluation code in `performance/benchmarks/evaluate_{metric}.py`.
-3.  **Validate Baseline**: Run the benchmark script against the root code to ensure it matches the reported SOTA performance (Node H-000).
+`sota_baseline.py` needs Semantic Scholar; if it answers `429`, use
+`openalex_discovery.py` with the same flags, or set `S2_API_KEY`.
 
-### Step 1.3: Initialize the DAG
-Create `hypothesis-dag.yaml` in the repository root.
-- **Node H-000**: Represents the external SOTA.
-- **Setup Metadata**: Include the `primary_metric` and `standardized_setup` paths.
+### Step 1.2: Set up the benchmark and data
 
----
+Before the DAG, fix the testing environment every node will be measured in:
 
-## 2. Proposing & Framing Avenues
+1. Dataset: put the research data in `performance/data/{project_name}/`.
+2. Benchmark: put the evaluation code in `performance/benchmarks/evaluate_{metric}.py`.
+   The audit's clean-room check compares this folder with `main`.
+3. Baseline: run the benchmark against the current code and confirm it reproduces the
+   figure you will record on H-000.
 
-The **Specialist** agent brainstorms new variants and creates the blueprint for exploration.
+### Step 1.3: Create the DAG
 
-### Step 2.1: Update the DAG
-Use the `dag_update.py` tool to propose new nodes.
-```bash
-python <skills>/research-dag/bin/dag_update.py --action add --parent H-001 --hypothesis "New Variant Description" --target 0.05
-```
+`/aar-start-research` writes `research/hypothesis-dag.yaml` with:
 
-When more than one machine or agent works on the DAG, keep it in a shared DAG store: set `dag_store` and `dag_project` in `research.yaml` and seed the project once with `dag_store.py import`. The same `dag_update.py` commands then write events to the store and regenerate `hypothesis-dag.yaml` as a view. Use the id the command reports for a new node, which carries a letter suffix if a concurrent writer took the id first. See [the shared DAG store](../skills/research-dag/references/dag-store.md).
+- `metadata.primary_metric`: the metric every node is measured by.
+- H-000: the baseline, external state of the art or your current system, with its
+  measured performance.
+- The first avenues as `pending` nodes under it.
 
-### Step 2.2: Start the Hypothesis (Design Phase)
-Design the scope and plan for a hypothesis without necessarily starting implementation.
-```bash
-/start-hypothesis {node_id}
-```
-- **Action**: Delegates to AAW `/start-work` to create a new research work item.
-- **Action**: Populates `scope.md`, `research.md`, and `plan.md`.
-- **Status Change**: DAG node status moves from `pending` to **`framed`**.
+It also asks AAW for the initiative and the root work item. To write the file by hand,
+start from the [quick start's example](quick-start.md#4-write-a-tiny-dag).
 
 ---
 
-## 3. Executing Research (Execution Phase)
+## 2. Proposing and framing avenues
 
-The **Worker** agent activates a framed item and performs the implementation.
+### Step 2.1: Add hypotheses
 
-### Step 3.1: Progress the Hypothesis (Activation & Execution)
-Activate a framed item or continue execution of tasks.
-```bash
-/progress-hypothesis {WI_id} {node_id}
+```text
+/aar-update-lineage
 ```
-- **First Call**: Creates the Git research branch, initializes `metadata.yaml`, and moves DAG status to **`in_progress`**.
-- **Execution Loop**: Delegates to AAW `/progress-work` to execute tasks and record findings.
 
-### Step 3.2: Synthesis
-Once implementation is complete, generate outputs in the `deliverables/` folder.
-- `blog_template.md` -> `deliverables/{node_id}-blog.md`
-- `arxiv_template.md` -> `deliverables/{node_id}-arxiv.md`
-- `pivot_template.md` -> `deliverables/{node_id}-pivot.md` (if result is ineffective)
+or directly:
+
+```bash
+python <skills>/research-dag/bin/dag_update.py --action add --parent H-001 --hypothesis "New variant description" --target 0.05 --metric accuracy
+python <skills>/research-dag/bin/generate_node_index.py
+```
+
+`dag_update.py` edits the DAG at `dag_path` from `research.yaml`; pass `--dag` to name
+another file. Regenerate the index after every change, or the new node stays invisible to
+the skills that read `ready`.
+
+When more than one machine or agent works on the DAG, keep it in a shared DAG store: set
+`dag_store` and `dag_project` in `research.yaml` and seed the project once with
+`dag_store.py import`. The same `dag_update.py` commands then write events to the store
+and regenerate `hypothesis-dag.yaml` as a view. Use the id the command reports for a new
+node, which carries a letter suffix if a concurrent writer took the id first. See
+[the shared DAG store](../skills/research-dag/references/dag-store.md).
+
+### Step 2.2: Frame a hypothesis (design phase)
+
+```text
+/aar-start-hypothesis {node_id}
+```
+
+- Checks the node is `ready` in the node index, and warns if it is `blocked`.
+- Delegates to AAW `/aaw-start-work` to create a research work item with `scope.md`,
+  `research.md` and `plan.md`.
+- Records the work item on the node and moves it from `pending` to `framed`.
+
+Framing is worth doing even if the experiment waits: the design is captured while the idea
+is fresh.
 
 ---
 
-## 4. Verification and Synchronization
+## 3. Executing research (execution phase)
 
-### Step 4.1: Run Audit
-The Auditor verifies the results using the Clean Room check.
+### Step 3.1: Progress the hypothesis
+
+```text
+/aar-progress-hypothesis {WI_id} {node_id}
+```
+
+- First call: creates the branch `research/{node_id}-{topic}`, writes the work item's
+  `metadata.yaml` with the parent's performance and the target, and moves the node to
+  `in_progress`. The helper behind this is
+  `python <skills>/research-dag/bin/branch_manager.py --action init --node-id H-001 --topic "day of week" --agent-id me --parent-perf 0.81 --target-imp 0.03 --target-dir <work item folder>`.
+- Then: delegates to AAW `/aaw-progress-work` to execute the tasks, recording a finding
+  and what prompted it for each activity.
+
+`/aar-progress-research` does steps 2.2 and 3.1 for the next ready node without you naming
+it.
+
+### Step 3.2: Write it up
+
+When the work is done, write the outputs in the work item's `deliverables/` from the
+templates in `<skills>/aar-progress-hypothesis/assets/templates/`:
+
+- `blog_template.md` to `deliverables/{node_id}-blog.md`
+- `arxiv_template.md` to `deliverables/{node_id}-arxiv.md`
+- `pivot_template.md` to `deliverables/{node_id}-pivot.md`, when the result missed its
+  target
+
+---
+
+## 4. Verification and synchronisation
+
+### Step 4.1: Audit
+
+```text
+/aar-run-audit
+```
+
+The Auditor re-runs the benchmark in a clean room. From the work item folder that holds
+`metadata.yaml`:
+
 ```bash
 python <skills>/aar-run-audit/scripts/audit_verify.py --action verify --clean-room
 ```
 
-Check whether the research is actually live, as opposed to merely true:
+It checks the result improved on the parent (it treats lower as better), that the
+deliverables exist, and that `performance/benchmarks/` matches `main`.
+
+Check whether the research is live, as opposed to merely true:
 
 ```bash
 python <skills>/aar-reconcile/scripts/reconcile.py --dag research/hypothesis-dag.yaml --cwd .
 ```
 
-### Step 4.2: Synchronize to RMS
-Once the AAW work item is `done`, synchronize the result back to the master DAG:
-```bash
-/sync-research-result {node_id} {WI_id}
-```
-This closes the loop, updating the DAG status (`validated` or `ineffective`) and linking the deliverables.
+### Step 4.2: Synchronise the result
 
-### Step 4.3: Merge to Main
-The research branch is merged into `main`, and the `hypothesis-dag.yaml` is updated on the main branch.
+Once the AAW work item is `done`:
+
+```text
+/aar-sync-research-result {node_id} {WI_id}
+```
+
+It sets the node to `validated` or `ineffective` against the target fixed in step 3.1 (or
+`discarded` if the work stopped), links the deliverables, regenerates the index so
+unblocked children become `ready`, and proposes the hand-back to AAW.
+
+### Step 4.3: Merge
+
+Merge the research branch into `main`, with the updated `hypothesis-dag.yaml`.
 
 ---
 
-## Summary of Agent Tools
+## 5. Keeping the record true
+
+| When | Run |
+|---|---|
+| After a batch of changes | `/aar-housekeep`: index, reference check, dashboard |
+| Regularly, or before a merge | `/aar-reconcile`: adoption drift. `reconcile.py` exits 1 on drift |
+| A new avenue appears | `/aar-update-lineage` |
+
+---
+
+## Summary of tools
 
 | Tool | Role | Purpose |
-| :--- | :--- | :--- |
-| `sota_baseline.py` | Specialist | Discovery of SOTA and baseline extraction. |
-| `dag_update.py` | Specialist | Adding/updating nodes in the central DAG with concurrency locking. |
-| `branch_manager.py` | Worker | Manage research branches and metadata (called by /progress-hypothesis). |
-| `audit_verify.py` | Auditor | Automated verification with Clean Room support. |
-| `reconcile.py` | Reconciler | Check the DAG against the running system; reports drift, proposes nothing. |
-| `/sync-research-result` | Worker | The "Return Path" from AAW back to the RMS DAG. |
+|---|---|---|
+| `sota_baseline.py`, `openalex_discovery.py`, `s2_ranking.py` | Specialist | Literature search and the state-of-the-art baseline |
+| `dag_update.py` | Specialist | Adding and updating nodes, with locking, or through the DAG store |
+| `generate_node_index.py` | All | Which nodes are ready |
+| `branch_manager.py` | Worker | Research branches and `metadata.yaml` (used by `/aar-progress-hypothesis`) |
+| `audit_verify.py` | Auditor | Verification with the clean-room check |
+| `reconcile.py` | Reconciler | The DAG against the running system; reports drift, proposes nothing |
+| `validate_dag_references.py`, `generate_dashboard.py` | Housekeeper | Orphaned ids and the dashboard |
+| `dag_store.py` | All | The shared DAG store |
+| `/aar-sync-research-result` | Worker | The return path from AAW to the DAG |
+
+Every flag is in the [command reference](commands.md).

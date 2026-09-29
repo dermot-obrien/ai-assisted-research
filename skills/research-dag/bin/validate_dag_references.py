@@ -30,6 +30,11 @@ from pathlib import Path
 
 import rms_config
 
+# --help needs no research.yaml, so it is answered before the config is loaded.
+if __name__ == "__main__" and any(a in ("-h", "--help") for a in sys.argv[1:]):
+    print(__doc__.strip())
+    sys.exit(0)
+
 _cfg = rms_config.load()
 REPO_ROOT = _cfg.repo_root
 DAG_PATH = _cfg.dag_path

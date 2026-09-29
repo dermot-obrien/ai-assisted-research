@@ -5,7 +5,7 @@ license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apac
 compatibility: Python 3.10 or newer with PyYAML, and git for a shared DAG store. Reads research.yaml, found by searching upward from the working directory, for the DAG, node index, work items and dashboard paths, and the optional DAG store.
 metadata:
   author: dermot-obrien
-  version: "1.1.0"
+  version: "1.1.1"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: ""
 ---

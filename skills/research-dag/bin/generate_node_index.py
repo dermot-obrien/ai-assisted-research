@@ -16,11 +16,17 @@ Usage:
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
 
 import yaml
 
 import rms_config
+
+# --help needs no research.yaml, so it is answered before the config is loaded.
+if __name__ == "__main__" and any(a in ("-h", "--help") for a in sys.argv[1:]):
+    print(__doc__.strip())
+    sys.exit(0)
 
 RESOLVED_STATUSES = {"completed", "validated", "ineffective"}
 ACTIVE_STATUSES = {"in_progress", "partially_tested", "contested"}
