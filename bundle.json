@@ -67,8 +67,8 @@
     {
       "name": "aar-reconcile",
       "path": "skills/aar-reconcile",
-      "version": "2.1.1",
-      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-reconcile@2.1.1",
+      "version": "2.1.2",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/aar-reconcile@2.1.2",
       "requires": [
         { "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research-dag", "range": "^1.0.0" }
       ],
@@ -153,8 +153,8 @@
     {
       "name": "literature-discovery",
       "path": "skills/literature-discovery",
-      "version": "1.1.1",
-      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery@1.1.1",
+      "version": "1.1.2",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery@1.1.2",
       "requires": [],
       "check": {
         "command": ["python", "bin/check.py"],

@@ -127,7 +127,8 @@ index.
 ### `Error: --parent and --hypothesis are required for 'add' action.`
 
 Each action has required flags; see [commands](commands.md#dag_updatepy). The same form
-covers `update`, `adopt`, `relink`, `set` and `note`.
+covers `update`, `adopt`, `relink`, `set` and `note`, and `branch_manager.py`'s `init` and
+`handoff`.
 
 ### `Error: Cannot set 'parent': use --action relink.` / `Cannot set 'id': ids never change.`
 
@@ -207,6 +208,26 @@ The store is append-only. Set the node's status to `discarded` instead.
 The push failed, often because you are offline. Run `dag_store.py sync` later; the next
 write also pushes it.
 
+### `dag_store: NOT PUSHED: recorded locally only. It goes up with the next successful write or dag_store.py sync.`
+
+The same condition, from `dag_store.py` itself: the commit is in your clone, but every push
+attempt failed (offline, no write access, or the remote kept moving). Check you can push to
+the store's remote, then run `dag_store.py sync`.
+
+### `dag_store: skipping unreadable event ...` / `dag_store: skipping unreadable line in ...`
+
+An event file in the store, or a line of an archive file, is not valid JSON, usually a
+half-written file or a merge conflict left in the clone. Replay skips it, so the DAG is
+missing that change. Open the file in the store clone (under `$RESEARCH_DAG_HOME` for a
+cloned store), repair it through git, then run `dag_store.py view`.
+
+### `Replay of ... differs from ...:`
+
+`dag_store.py verify --against FILE` found differences, listed below the line. Exit 1.
+Straight after `import` it means the import lost something; otherwise the store and the
+file have diverged since. Decide which is right: keep the store, or record the file's
+edits with `dag_store.py record`.
+
 ### `Added new node: H-204.4.25b (H-204.4.25 was taken by a concurrent writer; the alias is recorded)`
 
 Someone added a node under the same id first. Use the id printed. `validate_dag_references.py`
@@ -235,6 +256,11 @@ reference; `--fix` prints a stub per id. Exit 1. The check scans only `docs/`, `
 
 Informational. Run `dag_store.py view` once on this machine.
 
+### `Could not read the DAG store for aliases: ...`
+
+Informational: the reference check itself ran, but the alias listing could not. Run
+`dag_store.py view` to see the underlying error.
+
 ### The dashboard page is blank
 
 The graph loads D3 from `d3js.org`; open the page with a network connection. If the
@@ -262,6 +288,11 @@ Finding kinds, in the order reported:
 ### `DAG not found: research/hypothesis-dag.yaml`
 
 Pass `--dag` with the DAG's path. Exit 2.
+
+### `PyYAML is required: python -m pip install -r requirements.txt`
+
+The Python on your PATH lacks PyYAML. Run `python -m pip install PyYAML` with that same
+Python, or re-run `npx aar install` without `--no-python`. Exit 2.
 
 ### `predicate timed out after 60s`
 
@@ -308,10 +339,25 @@ Semantic Scholar's unauthenticated rate limit. Wait and retry, or set `S2_API_KE
 `sota_baseline.py` depends on Semantic Scholar, so it fails with it; use
 `openalex_discovery.py` meanwhile.
 
+### `No results found in Semantic Scholar.`
+
+`sota_baseline.py` takes its baseline paper from Semantic Scholar, so it writes nothing.
+A preceding `Error fetching from Semantic Scholar` line means the request failed (see
+above); otherwise broaden the query.
+
 ### `Error fetching from OpenAlex: ...`
 
 Usually the network or a proxy. Set `OPENALEX_EMAIL` to join the polite pool, which is
 less often throttled.
+
+## Reconstructing lineage (discovery.py)
+
+### `Non-interactive mode detected. Use --confirm to auto-accept.`
+
+`discovery.py` prints its proposed DAG and asks for confirmation. Without a terminal, as
+when an agent runs it, it writes nothing. Read the proposal, then run it again with
+`--confirm`. It writes `hypothesis-dag.yaml` in the working directory, not at `dag_path`,
+so move the file to `dag_path` if they differ.
 
 ## In an agent
 
