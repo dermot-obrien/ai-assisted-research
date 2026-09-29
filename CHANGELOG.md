@@ -7,6 +7,26 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **`bundle.json`**, the bundle manifest DD-11 of AI-Assisted Work defines: each skill's version,
+  purl, requirements (as each `x-skill-requires` states them) and post-install check. CI
+  validates it with `scripts/validate-bundle.mjs`; the validator and the schema are copies from
+  AI-Assisted Work in `scripts/vendor/`, so CI needs no network.
+- **Post-install checks**, as DD-11 defines them: every skill ships the same `bin/check.py`
+  (CI checks the copies agree), run from the workspace root with `SKILL_DIR` set. It checks
+  Python 3.10 or newer, the packages the skill's own tools import (PyYAML for `research-dag`,
+  `aar-housekeep`, `aar-reconcile` and `aar-run-audit`; PyYAML and requests for
+  `literature-discovery`), and, for every skill but `literature-discovery`, `research.yaml`
+  with `dag_path`, `node_index_path` and `work_items_path` set. A path not created yet is a
+  warning; one whose folder does not exist is a problem. Exit 0 when all is well, 1 with one
+  line per problem, 2 for a usage or environment error. CI runs every check in the scratch
+  workspace, with `research.yaml` (they must pass) and without it (they must fail).
+  Versions: `aar-housekeep`, `aar-reconcile`, `aar-run-audit` and `aar-start-research` 2.1.0;
+  `aar-init-research`, `aar-progress-hypothesis`, `aar-progress-research` and
+  `aar-update-lineage` 1.4.0; `aar-start-hypothesis` and `aar-sync-research-result` 1.5.0;
+  `literature-discovery` 1.1.0; `research-dag` 1.1.0, the version the DAG store work also
+  takes, so whichever lands second releases both as 1.1.0.
+
 ### Changed
 - **The research skills are standalone, as DD-11 of AI-Assisted Work sets out.** No skill reaches
   into the framework clone any more (`.ai-assisted-research/tools/`, `templates/`); each carries

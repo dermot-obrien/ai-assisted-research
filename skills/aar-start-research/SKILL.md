@@ -5,7 +5,7 @@ license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apac
 compatibility: Reads research.yaml at the workspace root. Needs the literature-discovery skill, and delegates to AI-Assisted Work, so aaw-start-initiative and aaw-start-work must be installed.
 metadata:
   author: dermot-obrien
-  version: "2.0.0"
+  version: "2.1.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-initiative ^2.1.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work ^2.4.0"
 ---

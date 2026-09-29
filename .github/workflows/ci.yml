@@ -25,6 +25,17 @@ jobs:
       - name: Validate skills against the agentskills.io spec
         run: node scripts/validate-skills.mjs skills
 
+      # The validator and the bundle schema are copies from AAW in scripts/vendor/.
+      - name: Validate bundle.json against the bundle schema and the skills
+        run: node scripts/validate-bundle.mjs .
+
+      # Each skill ships its own copy of the check, so it is complete on its own.
+      - name: The post-install checks are one file
+        run: |
+          for f in skills/*/bin/check.py; do
+            cmp skills/research-dag/bin/check.py "$f" || { echo "::error::$f differs from skills/research-dag/bin/check.py"; exit 1; }
+          done
+
   install:
     name: Install into a scratch workspace
     runs-on: ubuntu-latest
@@ -62,6 +73,22 @@ jobs:
             test -f "$s/SKILL.md" || { echo "::error::$s does not resolve"; exit 1; }
           done
           test -f /tmp/ws/research.yaml || { echo "::error::research.yaml was not seeded"; exit 1; }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the tools' Python packages
+        run: python -m pip install -r aar/requirements.txt
+
+      # An installer runs each skill's check after installing it; this runs them the same way.
+      - name: Each skill's post-install check passes, and fails without research.yaml
+        run: |
+          CHECK="node $GITHUB_WORKSPACE/aar/scripts/validate-bundle.mjs --run-checks /tmp/ws $GITHUB_WORKSPACE/aar"
+          $CHECK
+          mv /tmp/ws/research.yaml /tmp/research.yaml
+          if $CHECK; then echo "::error::the checks passed without research.yaml"; exit 1; fi
+          mv /tmp/research.yaml /tmp/ws/research.yaml
 
   python:
     name: Python tools

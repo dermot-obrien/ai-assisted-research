@@ -5,7 +5,7 @@ license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apac
 compatibility: Reads research.yaml at the workspace root for the DAG and node index paths. No runtime dependencies.
 metadata:
   author: dermot-obrien
-  version: "1.3.0"
+  version: "1.4.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0"
 ---

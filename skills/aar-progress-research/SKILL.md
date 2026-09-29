@@ -5,7 +5,7 @@ license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apac
 compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
 metadata:
   author: dermot-obrien
-  version: "1.3.0"
+  version: "1.4.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-progress-work ^2.3.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work ^2.4.0"
 ---
