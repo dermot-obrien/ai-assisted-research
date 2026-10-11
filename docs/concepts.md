@@ -101,12 +101,12 @@ the roles in more depth.
 Research splits into phases so the experimental design is fixed before the result is known.
 
 1. Design. `/aar-start-hypothesis {node}` checks the node is ready, extracts its target and
-   evidence, and asks AI-Assisted Work (`/aaw-start-work`) to create a work item for the
+   evidence, and asks AI-Assisted Work (`/work start`) to create a work item for the
    experiment. The node moves to `framed`.
 2. Execution. `/aar-progress-hypothesis {WI} {node}` opens the research branch
    `research/{node}-{topic}`, fixes the parent's performance and the target in the work
    item's `metadata.yaml`, moves the node to `in_progress`, and hands the task loop to
-   `/aaw-progress-work`, recording a finding per activity.
+   `/work progress`, recording a finding per activity.
 3. Homecoming. `/aar-sync-research-result {node} {WI}` reads the measured result, sets the
    node to `validated`, `ineffective` or `discarded` against the target fixed in step 2,
    links the deliverables and regenerates the index.

@@ -2,17 +2,17 @@
 name: aar-progress-hypothesis
 description: "Execute and benchmark a framed hypothesis: create the research branch, move the node to in_progress, delegate the task loop to AAW progress-work recording a finding per activity, then synthesise outputs and synchronise results back to the lineage. Use when asked to progress, execute, run or implement a hypothesis or research node that has already been framed."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
-compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
+compatibility: Reads research.yaml at the workspace root. Delegates to the work skill (/work start, /work progress), so work must be installed.
 metadata:
   author: dermot-obrien
-  version: "1.4.1"
+  version: "1.5.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
-  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-work/aaw-progress-work ^2.3.0"
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0"
 ---
 
 # Progress Hypothesis
 
-The Research Execution phase. It maps onto AAW `/aaw-progress-work`: it activates a framed
+The Research Execution phase. It maps onto AAW `/work progress`: it activates a framed
 hypothesis and runs the implementation loop.
 
 Usage: `/aar-progress-hypothesis {WI_id} {node_id}`
@@ -29,7 +29,7 @@ Usage: `/aar-progress-hypothesis {WI_id} {node_id}`
 
 ## Phase 2: Delegate to AAW
 
-Invoke `/aaw-progress-work {WI_id}` to execute the tasks.
+Invoke `/work progress {WI_id}` to execute the tasks.
 
 Two research-specific obligations on top of the standard loop:
 

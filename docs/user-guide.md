@@ -121,7 +121,7 @@ node, which carries a letter suffix if a concurrent writer took the id first. Se
 ```
 
 - Checks the node is `ready` in the node index, and warns if it is `blocked`.
-- Delegates to AAW `/aaw-start-work` to create a research work item with `scope.md`,
+- Delegates to AAW `/work start` to create a research work item with `scope.md`,
   `research.md` and `plan.md`.
 - Records the work item on the node and moves it from `pending` to `framed`.
 
@@ -142,7 +142,7 @@ is fresh.
   `metadata.yaml` with the parent's performance and the target, and moves the node to
   `in_progress`. The helper behind this is
   `python <skills>/research-dag/bin/branch_manager.py --action init --node-id H-001 --topic "day of week" --agent-id me --parent-perf 0.81 --target-imp 0.03 --target-dir <work item folder>`.
-- Then: delegates to AAW `/aaw-progress-work` to execute the tasks, recording a finding
+- Then: delegates to AAW `/work progress` to execute the tasks, recording a finding
   and what prompted it for each activity.
 
 `/aar-progress-research` does steps 2.2 and 3.1 for the next ready node without you naming

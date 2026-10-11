@@ -221,7 +221,7 @@ on top of these tools. Open the folder in your agent and ask:
 ```
 
 or, in plain words, "frame hypothesis H-001". The agent reads the node index, delegates to
-`/aaw-start-work` to create a work item under `.aaw/work-items/`, records the work item on
+`/work start` to create a work item under `.aaw/work-items/`, records the work item on
 the node and moves it to `framed`. From there, `/aar-progress-hypothesis {WI_id} H-001`
 runs the experiment and `/aar-sync-research-result H-001 {WI_id}` records the result. The
 [user guide](user-guide.md) walks the whole cycle.

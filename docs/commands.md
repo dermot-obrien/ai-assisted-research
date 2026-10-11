@@ -59,7 +59,7 @@ creates `research/`; installs the Python packages; records `modules.aar` in
 a warning, such as AAW not installed in the workspace or pip failing.
 
 The AAW commands the quick start uses are AAW's own: `aaw install` sets up
-`.aaw-config.yaml` and the `/aaw-*` skills, taking `--yes`, `--workspace PATH`,
+`.aaw-config.yaml` and the `work` and `thread` skills, taking `--yes`, `--workspace PATH`,
 `--tenant NAME`, `--mode local-fs|cloud` and `--work-items-path PATH`. Do not run
 `aaw install --help` to find out: it installs. See the AAW README.
 

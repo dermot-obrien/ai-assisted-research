@@ -2,12 +2,12 @@
 name: aar-start-research
 description: "Initialise a new research project: baseline the state of the art, architect the hypothesis DAG as a search space of measurable variants, and create the initiative, root work item and workspace signpost. Use when asked to start a research project, set up a hypothesis DAG or research lineage, baseline SOTA for a problem, or frame a new avenue of investigation."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
-compatibility: Reads research.yaml at the workspace root. Needs the literature-discovery skill, and delegates to AI-Assisted Work, so aaw-start-initiative and aaw-start-work must be installed.
+compatibility: Reads research.yaml at the workspace root. Needs the literature-discovery skill, and delegates to the work skill (/work initiative, /work start), so work must be installed.
 metadata:
   author: dermot-obrien
-  version: "2.1.1"
+  version: "2.2.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
-  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-initiative ^2.1.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work ^2.4.0"
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0"
 ---
 
 # Start Research
@@ -29,7 +29,7 @@ the state of the art and architect the research search space as a hypothesis DAG
    signpost that tells anyone arriving in the repository where the research lives.
 
 Delegate the work-item mechanics to AI-Assisted Work rather than creating folders by hand:
-`/aaw-start-initiative` for the initiative, `/aaw-start-work` for the root work item.
+`/work initiative` for the initiative, `/work start` for the root work item.
 
 ## What good looks like
 

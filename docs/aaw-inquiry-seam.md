@@ -32,7 +32,7 @@ The originating intent (the AAW capture) becomes the hypothesis's framing; the i
 now governed entirely by RMS principles (Metric Supremacy, Lineage Continuity, …) until it
 concludes.
 
-`/aar-start-hypothesis` hands the experiment to AAW `/aaw-start-work` as an **intervention**
+`/aar-start-hypothesis` hands the experiment to AAW `/work start` as an **intervention**
 (or a **change** if local), saying it comes from AAR. The inquiry is the hypothesis; the
 experiment that tests it is known work. Without the class, AAW triage would read the
 uncertain hypothesis as an inquiry and route it back to AAR.

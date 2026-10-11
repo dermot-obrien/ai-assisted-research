@@ -18,7 +18,7 @@ called the Research Management System (RMS).
   installer runs `pip install -r requirements.txt` for you.
 - git. The workspace must be a git repository.
 - AI-Assisted Work, installed in the same workspace. The research skills that create or
-  run work delegate to its `/aaw-*` skills, and its engine installs AAR.
+  run work delegate to its `work` skill (4.0.0 or later), and its engine installs AAR.
 - Any agent that reads [Agent Skills](https://agentskills.io/specification): VS Code with
   GitHub Copilot, Cursor, Claude Code, Codex, Gemini CLI and others.
 

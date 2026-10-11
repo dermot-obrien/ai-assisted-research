@@ -7,6 +7,15 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- The research skills hand off to AI-Assisted Work's `work` skill: `/work start`,
+  `/work progress` and `/work initiative`, which replaced `aaw-start-work`,
+  `aaw-progress-work` and `aaw-start-initiative` in AI-Assisted Work 4.0.0. Their declared
+  requirement is now `pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0`, in each
+  `SKILL.md` and in `bundle.json`. `aar-start-research`, `aar-start-hypothesis`,
+  `aar-sync-research-result`, `aar-progress-research` and `aar-progress-hypothesis` move up a
+  minor version; `aar-init-research`, whose wording alone changed, a patch.
+
 ### Added
 - Troubleshooting covers the remaining messages the tools print: the DAG store's
   `NOT PUSHED`, unreadable-event and `verify` messages, the reference check's alias

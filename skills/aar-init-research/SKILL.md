@@ -2,10 +2,10 @@
 name: aar-init-research
 description: "Reconstruct the lineage of ideas in an existing repository, discovering the kernel idea and the major refinements from commit history and documentation with cited evidence, then set up the hypothesis DAG and the AAW integration. Use when asked to reverse-engineer research lineage, discover how a project's ideas evolved, or bootstrap AAR onto a repository whose research predates it."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
-compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
+compatibility: Reads research.yaml at the workspace root. Delegates to the work skill (/work start, /work progress), so work must be installed.
 metadata:
   author: dermot-obrien
-  version: "1.4.1"
+  version: "1.4.2"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0"
 ---

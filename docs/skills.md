@@ -25,8 +25,9 @@ guide for people. Every skill ships the post-install check `bin/check.py`; see
 | [research-dag](#research-dag) | The DAG engine the others call | Python, PyYAML, git for a store |
 | [literature-discovery](#literature-discovery) | Search the literature, on its own or for a baseline | Python, requests, PyYAML, network |
 
-"AAW" means the AI-Assisted Work skills (`aaw-start-work`, `aaw-progress-work`,
-`aaw-start-initiative`) installed in the same workspace. The exact version ranges are in
+"AAW" means AI-Assisted Work's `work` skill (`/work start`, `/work progress`,
+`/work initiative`), 3.0.0 or later, installed in the same workspace. It replaced the five
+`aaw-*` work skills in AI-Assisted Work 4.0.0. The exact version ranges are in
 [`bundle.json`](../bundle.json).
 
 A typical project runs them in this order: `aar-start-research` (or `aar-init-research`),
@@ -43,7 +44,7 @@ Role: Specialist. Starts a research project from nothing.
 - Does: baselines the state of the art with `literature-discovery`, recording the best
   published result with its citation; turns the gap into measurable variants; proposes the
   DAG, each node with hypothesis, target, datasets and parent evidence; asks AAW for the
-  initiative (`/aaw-start-initiative`) and the root work item (`/aaw-start-work`).
+  initiative (`/work initiative`) and the root work item (`/work start`).
 - Leaves: `research/hypothesis-dag.yaml`, an AAW initiative and root work item, and a
   signpost to where the research lives.
 - Use `aar-init-research` instead when the research already happened.
@@ -90,7 +91,7 @@ The design phase for one node.
 
 - Invoke: `/aar-start-hypothesis {node_id}`.
 - Does: checks the node is `ready` (or warns if `blocked`), extracts its hypothesis,
-  targets, datasets and parent evidence, and asks `/aaw-start-work` for a work item titled
+  targets, datasets and parent evidence, and asks `/work start` for a work item titled
   `{node_id}-research-{topic}`, classed as an intervention (or a change if local) so AAW
   does not route it back as an inquiry. Records the work item on the node and moves it to
   `framed`.
@@ -105,7 +106,7 @@ The execution phase for one framed node.
 - Invoke: `/aar-progress-hypothesis {WI_id} {node_id}`.
 - Does: on first run, checks the node is `framed`, creates `research/{node_id}-{topic}`,
   fixes `parent_performance` and `target_metric` in the work item's `metadata.yaml`, and
-  moves the node to `in_progress`. Then hands the task loop to `/aaw-progress-work`,
+  moves the node to `in_progress`. Then hands the task loop to `/work progress`,
   recording a `finding` and `prompted_by` per activity. When the work item is done, writes
   the blog post and arXiv draft, or a pivot report, from
   [`assets/templates/`](../skills/aar-progress-hypothesis/assets/templates/), and calls

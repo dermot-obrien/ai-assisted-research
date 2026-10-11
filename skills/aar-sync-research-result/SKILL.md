@@ -2,12 +2,12 @@
 name: aar-sync-research-result
 description: "Return a completed work item's metrics, findings and deliverables to the hypothesis DAG, setting the node to validated, ineffective or discarded against its target, then regenerating the node index so unblocked children become ready. Use when asked to sync or synchronise a research result, close out a hypothesis, or record what an experiment found back into the lineage."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
-compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
+compatibility: Reads research.yaml at the workspace root. Delegates to the work skill (/work start, /work progress), so work must be installed.
 metadata:
   author: dermot-obrien
-  version: "1.5.0"
+  version: "1.6.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
-  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work ^2.4.0"
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0"
 ---
 
 # Sync Research Result
@@ -66,7 +66,7 @@ inquiry, re-triage its conclusion into AAW, per the AAW inquiry seam
 
 | Status | Hand back |
 |--------|-----------|
-| `validated` | Offer `/aaw-start-work` for the delivery item that implements the proven approach: usually an intervention, or a change if it is local. Link the node. |
+| `validated` | Offer `/work start` for the delivery item that implements the proven approach: usually an intervention, or a change if it is local. Link the node. |
 | `ineffective` | Close the inquiry as a lesson. The negative result recorded in the DAG is the deliverable; open no delivery item. |
 | `discarded` | Close the inquiry, recording why the research stopped. |
 

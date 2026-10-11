@@ -361,10 +361,12 @@ so move the file to `dag_path` if they differ.
 
 ## In an agent
 
-### The agent says an `/aaw-*` skill is missing
+### The agent says the `work` skill, or an `/aaw-*` skill, is missing
 
-The `aar-*` skills that create or run work delegate to AI-Assisted Work. Install AAW in
-the workspace (`npx aaw install`) and restart the agent.
+The `aar-*` skills that create or run work delegate to AI-Assisted Work's `work` skill
+(`/work start`, `/work progress`, `/work initiative`). Install AI-Assisted Work 4.0.0 or later
+in the workspace (`npx aaw install`) and restart the agent. Before 4.0.0 the same steps were
+five skills named `aaw-start-work`, `aaw-progress-work` and so on; those names are retired.
 
 ### The agent reads the wrong DAG
 

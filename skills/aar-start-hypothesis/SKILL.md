@@ -2,17 +2,17 @@
 name: aar-start-hypothesis
 description: "Design the experiment for one hypothesis node: check its readiness against the node index, extract its SOTA targets and parent evidence, and delegate to AAW start-work to create the work item blueprint, then move the node to framed. Use when asked to start, frame, scope or design a hypothesis or research node, or to plan an experiment before running it."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
-compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
+compatibility: Reads research.yaml at the workspace root. Delegates to the work skill (/work start, /work progress), so work must be installed.
 metadata:
   author: dermot-obrien
-  version: "1.5.1"
+  version: "1.6.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
-  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work ^2.4.0"
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0"
 ---
 
 # Start Hypothesis
 
-The Research Design phase. It maps onto AAW `/aaw-start-work`: it takes a hypothesis node from
+The Research Design phase. It maps onto AAW `/work start`: it takes a hypothesis node from
 the research lineage and initialises a work item blueprint for exploring it.
 
 Usage: `/aar-start-hypothesis {node_id}`
@@ -31,7 +31,7 @@ Usage: `/aar-start-hypothesis {node_id}`
 
 ## Phase 2: Delegate to AAW
 
-Invoke `/aaw-start-work` with:
+Invoke `/work start` with:
 
 | Parameter | Value |
 |-----------|-------|

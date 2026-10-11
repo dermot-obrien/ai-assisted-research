@@ -2,12 +2,12 @@
 name: aar-progress-research
 description: "Resume a research strand or pick up the next actionable node, using the node index to find ready work and delegating the design and execution phases to the hypothesis skills. Use when asked to continue or resume research, find the next research node to work on, or drive a research strand forward without naming a specific node."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
-compatibility: Reads research.yaml at the workspace root. Delegates to AI-Assisted Work, so the /aaw-* skills must be installed.
+compatibility: Reads research.yaml at the workspace root. Delegates to the work skill (/work start, /work progress), so work must be installed.
 metadata:
   author: dermot-obrien
-  version: "1.4.0"
+  version: "1.5.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
-  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-progress-work ^2.3.0, pkg:generic/dermot-obrien/ai-assisted-work/aaw-start-work ^2.4.0"
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^1.0.0, pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0"
 ---
 
 # Progress Research
@@ -27,10 +27,10 @@ Research splits into distinct phases so the experimental design stays honest: th
 fixed before the result is known.
 
 1. **Design.** Identify a node, then invoke `/aar-start-hypothesis {node_id}`. It delegates to
-   AAW `/aaw-start-work` to create the blueprint: scope, research and plan. The node moves to
+   AAW `/work start` to create the blueprint: scope, research and plan. The node moves to
    `framed`.
 2. **Execution.** Invoke `/aar-progress-hypothesis {WI_id} {node_id}`. It creates the research
-   branch and hands task execution to the AAW `/aaw-progress-work` loop.
+   branch and hands task execution to the AAW `/work progress` loop.
 3. **Homecoming.** Once implementation is complete and the articles are synthesised, invoke
    `/aar-sync-research-result` to pull metrics and findings back to the DAG.
 
