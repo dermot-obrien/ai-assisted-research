@@ -24,7 +24,7 @@ from pathlib import Path
 import yaml
 
 REPO = Path(__file__).resolve().parents[1]
-BIN = REPO / "skills" / "research-dag" / "bin"
+BIN = REPO / "skills" / "research" / "bin"
 sys.path.insert(0, str(BIN))
 
 import dag_store  # noqa: E402
@@ -125,7 +125,7 @@ class StoreCase(unittest.TestCase):
     def workspace(self, name, store_keys=True, dag_text=None):
         ws = self.tmp / name
         (ws / "research").mkdir(parents=True)
-        text = (REPO / "skills" / "research-dag" / "assets" / "research.yaml.example").read_text(encoding="utf-8")
+        text = (REPO / "skills" / "research" / "assets" / "research.yaml.example").read_text(encoding="utf-8")
         if store_keys:
             text += f'\ndag_store: "{self.bare.as_posix()}"\ndag_project: demo\n'
         (ws / "research.yaml").write_text(text, encoding="utf-8")

@@ -16,8 +16,8 @@ repository's own manifests.
 ## research.yaml
 
 One per workspace, at its root. The installer seeds it from
-[`skills/research-dag/assets/research.yaml.example`](../skills/research-dag/assets/research.yaml.example)
-if none exists, and never overwrites it. Read by every `research-dag` tool (through
+[`skills/research/assets/research.yaml.example`](../skills/research/assets/research.yaml.example)
+if none exists, and never overwrites it. Read by every tool of the `research` skill (through
 `rms_config.py`), by the post-install checks, and by the skills.
 
 String paths are relative to the folder that holds `research.yaml`.
@@ -80,7 +80,7 @@ The post-install check (`bin/check.py`) uses 1 and 2 only.
 
 | Variable | Read by | Default | Effect |
 |---|---|---|---|
-| `RMS_ROOT` | every `research-dag` tool, every `bin/check.py` | unset | The folder holding `research.yaml`, overriding the upward search |
+| `RMS_ROOT` | every `research` tool, every `bin/check.py` | unset | The folder holding `research.yaml`, overriding the upward search |
 | `RESEARCH_DAG_HOME` | `dag_store.py`, `dag_update.py`, `validate_dag_references.py` | `~/.research-dags` | Where a store given as a URL or bare repository is cloned |
 | `OPENALEX_EMAIL` | `openalex_discovery.py`, `sota_baseline.py` | `user@example.com` | Sent as `mailto`, which puts requests in OpenAlex's polite pool. Set it to an address you read |
 | `S2_API_KEY` | `s2_ranking.py`, `sota_baseline.py` | unset | Semantic Scholar API key, raising its rate limit. `s2_ranking.py --api-key` wins over it |
@@ -183,7 +183,7 @@ All optional.
 
 Per research node, in the work item (or the folder given to `branch_manager.py
 --target-dir`). Written by `branch_manager.py --action init`, read by `audit_verify.py`
-from the working directory and by `/aar-sync-research-result`.
+from the working directory and by `/research sync`.
 
 | Key | Meaning |
 |---|---|

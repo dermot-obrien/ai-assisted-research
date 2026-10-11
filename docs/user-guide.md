@@ -22,7 +22,7 @@ instead of starting fresh.
 ### Step 0.1: Run discovery
 
 ```text
-/aar-init-research
+/research init
 ```
 
 The Discovery role scans early commits, READMEs and docs for the kernel idea and the major
@@ -30,7 +30,7 @@ shifts since, citing a commit, pull request or file and line for each. Its helpe
 the first markers:
 
 ```bash
-python <skills>/aar-init-research/scripts/discovery.py
+python <skills>/research/scripts/discovery.py
 ```
 
 It proposes H-000 (the original baseline) and H-001 (the current state) and asks before
@@ -52,7 +52,7 @@ The Specialist role establishes what "better" means before anything is tried.
 ### Step 1.1: Baseline the state of the art
 
 ```text
-/aar-start-research {topic}
+/research start {topic}
 ```
 
 It uses the `literature-discovery` skill. To run the search yourself:
@@ -76,7 +76,7 @@ Before the DAG, fix the testing environment every node will be measured in:
 
 ### Step 1.3: Create the DAG
 
-`/aar-start-research` writes `research/hypothesis-dag.yaml` with:
+`/research start` writes `research/hypothesis-dag.yaml` with:
 
 - `metadata.primary_metric`: the metric every node is measured by.
 - H-000: the baseline, external state of the art or your current system, with its
@@ -93,14 +93,14 @@ start from the [quick start's example](quick-start.md#4-write-a-tiny-dag).
 ### Step 2.1: Add hypotheses
 
 ```text
-/aar-update-lineage
+/research lineage
 ```
 
 or directly:
 
 ```bash
-python <skills>/research-dag/bin/dag_update.py --action add --parent H-001 --hypothesis "New variant description" --target 0.05 --metric accuracy
-python <skills>/research-dag/bin/generate_node_index.py
+python <skills>/research/bin/dag_update.py --action add --parent H-001 --hypothesis "New variant description" --target 0.05 --metric accuracy
+python <skills>/research/bin/generate_node_index.py
 ```
 
 `dag_update.py` edits the DAG at `dag_path` from `research.yaml`; pass `--dag` to name
@@ -112,16 +112,16 @@ When more than one machine or agent works on the DAG, keep it in a shared DAG st
 `dag_store.py import`. The same `dag_update.py` commands then write events to the store
 and regenerate `hypothesis-dag.yaml` as a view. Use the id the command reports for a new
 node, which carries a letter suffix if a concurrent writer took the id first. See
-[the shared DAG store](../skills/research-dag/references/dag-store.md).
+[the shared DAG store](../skills/research/references/dag-store.md).
 
 ### Step 2.2: Frame a hypothesis (design phase)
 
 ```text
-/aar-start-hypothesis {node_id}
+/research frame {node_id}
 ```
 
 - Checks the node is `ready` in the node index, and warns if it is `blocked`.
-- Delegates to AAW `/aaw-start-work` to create a research work item with `scope.md`,
+- Delegates to AAW `/work start` to create a research work item with `scope.md`,
   `research.md` and `plan.md`.
 - Records the work item on the node and moves it from `pending` to `framed`.
 
@@ -135,23 +135,23 @@ is fresh.
 ### Step 3.1: Progress the hypothesis
 
 ```text
-/aar-progress-hypothesis {WI_id} {node_id}
+/research run {WI_id} {node_id}
 ```
 
 - First call: creates the branch `research/{node_id}-{topic}`, writes the work item's
   `metadata.yaml` with the parent's performance and the target, and moves the node to
   `in_progress`. The helper behind this is
-  `python <skills>/research-dag/bin/branch_manager.py --action init --node-id H-001 --topic "day of week" --agent-id me --parent-perf 0.81 --target-imp 0.03 --target-dir <work item folder>`.
-- Then: delegates to AAW `/aaw-progress-work` to execute the tasks, recording a finding
+  `python <skills>/research/bin/branch_manager.py --action init --node-id H-001 --topic "day of week" --agent-id me --parent-perf 0.81 --target-imp 0.03 --target-dir <work item folder>`.
+- Then: delegates to AAW `/work progress` to execute the tasks, recording a finding
   and what prompted it for each activity.
 
-`/aar-progress-research` does steps 2.2 and 3.1 for the next ready node without you naming
+`/research progress` does steps 2.2 and 3.1 for the next ready node without you naming
 it.
 
 ### Step 3.2: Write it up
 
 When the work is done, write the outputs in the work item's `deliverables/` from the
-templates in `<skills>/aar-progress-hypothesis/assets/templates/`:
+templates in `<skills>/research run/assets/templates/`:
 
 - `blog_template.md` to `deliverables/{node_id}-blog.md`
 - `arxiv_template.md` to `deliverables/{node_id}-arxiv.md`
@@ -165,14 +165,14 @@ templates in `<skills>/aar-progress-hypothesis/assets/templates/`:
 ### Step 4.1: Audit
 
 ```text
-/aar-run-audit
+/research audit
 ```
 
 The Auditor re-runs the benchmark in a clean room. From the work item folder that holds
 `metadata.yaml`:
 
 ```bash
-python <skills>/aar-run-audit/scripts/audit_verify.py --action verify --clean-room
+python <skills>/research/scripts/audit_verify.py --action verify --clean-room
 ```
 
 It checks the result improved on the parent (it treats lower as better), that the
@@ -181,7 +181,7 @@ deliverables exist, and that `performance/benchmarks/` matches `main`.
 Check whether the research is live, as opposed to merely true:
 
 ```bash
-python <skills>/aar-reconcile/scripts/reconcile.py --dag research/hypothesis-dag.yaml --cwd .
+python <skills>/research/scripts/reconcile.py --dag research/hypothesis-dag.yaml --cwd .
 ```
 
 ### Step 4.2: Synchronise the result
@@ -189,7 +189,7 @@ python <skills>/aar-reconcile/scripts/reconcile.py --dag research/hypothesis-dag
 Once the AAW work item is `done`:
 
 ```text
-/aar-sync-research-result {node_id} {WI_id}
+/research sync {node_id} {WI_id}
 ```
 
 It sets the node to `validated` or `ineffective` against the target fixed in step 3.1 (or
@@ -206,9 +206,9 @@ Merge the research branch into `main`, with the updated `hypothesis-dag.yaml`.
 
 | When | Run |
 |---|---|
-| After a batch of changes | `/aar-housekeep`: index, reference check, dashboard |
-| Regularly, or before a merge | `/aar-reconcile`: adoption drift. `reconcile.py` exits 1 on drift |
-| A new avenue appears | `/aar-update-lineage` |
+| After a batch of changes | `/research housekeep`: index, reference check, dashboard |
+| Regularly, or before a merge | `/research reconcile`: adoption drift. `reconcile.py` exits 1 on drift |
+| A new avenue appears | `/research lineage` |
 
 ---
 
@@ -219,11 +219,11 @@ Merge the research branch into `main`, with the updated `hypothesis-dag.yaml`.
 | `sota_baseline.py`, `openalex_discovery.py`, `s2_ranking.py` | Specialist | Literature search and the state-of-the-art baseline |
 | `dag_update.py` | Specialist | Adding and updating nodes, with locking, or through the DAG store |
 | `generate_node_index.py` | All | Which nodes are ready |
-| `branch_manager.py` | Worker | Research branches and `metadata.yaml` (used by `/aar-progress-hypothesis`) |
+| `branch_manager.py` | Worker | Research branches and `metadata.yaml` (used by `/research run`) |
 | `audit_verify.py` | Auditor | Verification with the clean-room check |
 | `reconcile.py` | Reconciler | The DAG against the running system; reports drift, proposes nothing |
 | `validate_dag_references.py`, `generate_dashboard.py` | Housekeeper | Orphaned ids and the dashboard |
 | `dag_store.py` | All | The shared DAG store |
-| `/aar-sync-research-result` | Worker | The return path from AAW to the DAG |
+| `/research sync` | Worker | The return path from AAW to the DAG |
 
 Every flag is in the [command reference](commands.md).

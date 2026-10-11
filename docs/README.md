@@ -12,7 +12,7 @@ Skills.
 | [Quick start](quick-start.md) | From an empty folder to a working DAG, index, dashboard and literature search in ten minutes |
 | [Concepts](concepts.md) | The ideas you need, in the order you need them |
 | [User guide](user-guide.md) | The full research cycle, step by step |
-| [Skills](skills.md) | What each of the twelve skills does, when to use it, what it needs |
+| [Skills](skills.md) | What the two skills and the research flows do, when to use each, what each needs |
 
 ## Reference
 
@@ -21,9 +21,9 @@ Skills.
 | [Commands](commands.md) | Every script, subcommand and flag, and the skill invocations |
 | [Configuration](configuration.md) | `research.yaml`, environment variables, precedence, file formats, manifests |
 | [Troubleshooting](troubleshooting.md) | The tools' error and warning messages, and what to do about each |
-| [The shared DAG store](../skills/research-dag/references/dag-store.md) | One DAG changed by several machines and agents at once |
-| [Reconcile finding kinds](../skills/aar-reconcile/references/finding-kinds.md) | What each `reconcile.py` finding means |
-| [Node selection](../skills/aar-start-hypothesis/references/node-selection.md) | How the skills choose work from the node index |
+| [The shared DAG store](../skills/research/references/dag-store.md) | One DAG changed by several machines and agents at once |
+| [Reconcile finding kinds](../skills/research reconcile/references/finding-kinds.md) | What each `reconcile.py` finding means |
+| [Node selection](../skills/research frame/references/node-selection.md) | How the skills choose work from the node index |
 
 ## Design
 
@@ -40,11 +40,11 @@ Skills.
 
 | Example | Shows |
 |---|---|
-| [`research.yaml.example`](../skills/research-dag/assets/research.yaml.example) | A complete, commented workspace configuration |
+| [`research.yaml.example`](../skills/research/assets/research.yaml.example) | A complete, commented workspace configuration |
 | [Quick start, step 4](quick-start.md#4-write-a-tiny-dag) | The smallest useful DAG |
 | [`tests/test_dag_store.py`](../tests/test_dag_store.py) | A hierarchical DAG with comments, block ids and adoption blocks (`FIXTURE`), and the store's behaviour under concurrent writers |
 | [CI, job "Python tools"](../.github/workflows/ci.yml) | Two end-to-end runs of the tools in a scratch workspace: plain file, and against a DAG store in a local bare repository |
-| [Output templates](../skills/aar-progress-hypothesis/assets/templates/) | Blog post, arXiv draft, pivot report and changes log |
+| [Output templates](../skills/research/assets/templates/) | Blog post, arXiv draft, pivot report and changes log |
 | [WI-001](../change/work-items/WI-001-research-management-system/) | A complete AAW work item: scope, plan, progress and deliverables |
 
 ## How the parts fit
@@ -79,7 +79,7 @@ sequenceDiagram
     participant K as Housekeeper (Curator)
     participant G as Git (Main Branch)
 
-    H->>D: /aar-init-research
+    H->>D: /research init
     D->>D: Scan repo history for Kernel Idea
     D->>G: Initialize hypothesis-dag.yaml
     D->>H: Present discovered lineage (Review Gate 1)
@@ -88,15 +88,15 @@ sequenceDiagram
     S->>S: Propose New Nodes
     S->>H: Submit Proposal (Review Gate 2)
     H->>W: Approve Avenue
-    W->>W: /aar-start-hypothesis (Design Phase)
-    W->>W: /aar-progress-hypothesis (Execution Phase)
+    W->>W: /research frame (Design Phase)
+    W->>W: /research run (Execution Phase)
     W->>W: Benchmarking & Synthesis
     W->>A: Handoff to Auditor
     A->>A: Clean Room Verification
     A->>A: Verify Results & Code
     A->>H: Ready for Review (Review Gate 3)
-    H->>G: /aar-sync-research-result & Merge to Main
-    K->>K: /aar-housekeep: Update Dashboard & Visuals
+    H->>G: /research sync & Merge to Main
+    K->>K: /research housekeep: Update Dashboard & Visuals
 ```
 
 ### Key components
@@ -108,6 +108,5 @@ sequenceDiagram
 | `research/node-index.yaml` | Which nodes are ready, active, framed or blocked, computed from the DAG |
 | AAW work items (`work_items_path`) | One per research node, created through AI-Assisted Work |
 | `metadata.yaml` | Per-node state in the work item: fixed parent performance and target, measured result, handoffs |
-| `skills/research-dag/` | The hypothesis DAG engine the research skills share: DAG updates, node index, dashboard, reference validation, branches, and the optional shared DAG store |
+| `skills/research/` | The research method: one `SKILL.md` routing to a reference per flow (`references/`), the DAG tools (`bin/`: DAG updates, node index, dashboard, reference validation, branches, the optional shared DAG store), the flows' own tools (`scripts/`) and templates (`assets/`) |
 | `skills/literature-discovery/` | Literature search: OpenAlex discovery, Semantic Scholar ranking, and a state-of-the-art baseline. Usable on its own |
-| `skills/aar-*/` | The ten research workflows, each a self-contained `SKILL.md` with its own scripts, references and templates |

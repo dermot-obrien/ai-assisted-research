@@ -21,17 +21,17 @@ description. [Skills](skills.md) describes each.
 
 | Invocation | Arguments |
 |---|---|
-| `/aar-start-research {topic}` | The problem to research |
-| `/aar-init-research` | None; works on the current repository |
-| `/aar-update-lineage` | What to add or change, in words |
-| `/aar-progress-research` | None, or a node id |
-| `/aar-start-hypothesis {node_id}` | e.g. `H-001` |
-| `/aar-progress-hypothesis {WI_id} {node_id}` | e.g. `WI-042 H-001` |
-| `/aar-sync-research-result {node_id} {WI_id}` | e.g. `H-001 WI-042` |
-| `/aar-run-audit` | None, or a node id |
-| `/aar-reconcile` | None |
-| `/aar-housekeep` | None |
-| `/research-dag`, `/literature-discovery` | Usually invoked by the other skills |
+| `/research start {topic}` | The problem to research |
+| `/research init` | None; works on the current repository |
+| `/research lineage` | What to add or change, in words |
+| `/research progress` | None, or a node id |
+| `/research frame {node_id}` | e.g. `H-001` |
+| `/research run {WI_id} {node_id}` | e.g. `WI-042 H-001` |
+| `/research sync {node_id} {WI_id}` | e.g. `H-001 WI-042` |
+| `/research audit` | None, or a node id |
+| `/research reconcile` | None |
+| `/research housekeep` | None |
+| `/literature-discovery` | Searches the literature; `/research start` uses it for the baseline |
 
 ## aar (installer launcher)
 
@@ -59,20 +59,20 @@ creates `research/`; installs the Python packages; records `modules.aar` in
 a warning, such as AAW not installed in the workspace or pip failing.
 
 The AAW commands the quick start uses are AAW's own: `aaw install` sets up
-`.aaw-config.yaml` and the `/aaw-*` skills, taking `--yes`, `--workspace PATH`,
+`.aaw-config.yaml` and the `work` and `thread` skills, taking `--yes`, `--workspace PATH`,
 `--tenant NAME`, `--mode local-fs|cloud` and `--work-items-path PATH`. Do not run
 `aaw install --help` to find out: it installs. See the AAW README.
 
-## research-dag tools
+## The research skill's DAG tools
 
-In `<skills>/research-dag/bin/`. All need PyYAML and read `research.yaml`.
+In `<skills>/research/bin/`. All need PyYAML and read `research.yaml`.
 
 ### dag_update.py
 
 Change the DAG. The only supported way to edit it.
 
 ```text
-python <skills>/research-dag/bin/dag_update.py --action ACTION [options]
+python <skills>/research/bin/dag_update.py --action ACTION [options]
 ```
 
 | Flag | Used by | Meaning |
@@ -105,8 +105,8 @@ It prints `Added new node: H-001`, `Updated node: H-001`, `Set adoption of H-001
 plain file is locked with `<dag>.lock` while it is written.
 
 ```bash
-python <skills>/research-dag/bin/dag_update.py --action update --node-id H-001 --status validated --performance 0.845
-python <skills>/research-dag/bin/dag_update.py --action set --node-id H-001 --field evidence --value "notebooks/eval.ipynb"
+python <skills>/research/bin/dag_update.py --action update --node-id H-001 --status validated --performance 0.845
+python <skills>/research/bin/dag_update.py --action set --node-id H-001 --field evidence --value "notebooks/eval.ipynb"
 ```
 
 ### generate_node_index.py
@@ -122,7 +122,7 @@ and a `file:///` link. `--help` prints its description.
 ### validate_dag_references.py
 
 ```text
-python <skills>/research-dag/bin/validate_dag_references.py [--fix]
+python <skills>/research/bin/validate_dag_references.py [--fix]
 ```
 
 Scans `docs/`, `python/`, `ml_pipeline/` and `.irregular-timeseries-intent/` under the
@@ -134,7 +134,7 @@ any is orphaned.
 ### branch_manager.py
 
 ```text
-python <skills>/research-dag/bin/branch_manager.py --action {init,handoff} [options]
+python <skills>/research/bin/branch_manager.py --action {init,handoff} [options]
 ```
 
 | Flag | Default | Meaning |
@@ -154,10 +154,10 @@ python <skills>/research-dag/bin/branch_manager.py --action {init,handoff} [opti
 
 ### dag_store.py
 
-The shared DAG store. See [the store reference](../skills/research-dag/references/dag-store.md).
+The shared DAG store. See [the store reference](../skills/research/references/dag-store.md).
 
 ```text
-python <skills>/research-dag/bin/dag_store.py [--store STORE] [--project PROJECT] COMMAND [options]
+python <skills>/research/bin/dag_store.py [--store STORE] [--project PROJECT] COMMAND [options]
 ```
 
 `--store` and `--project` override `dag_store` and `dag_project`, and are needed where
@@ -205,10 +205,10 @@ Without `--output` each prints YAML to the terminal. A failed request prints
 python <skills>/literature-discovery/bin/sota_baseline.py --query "graph neural networks drug discovery" --limit 5 --output baseline.yaml
 ```
 
-## aar-reconcile: reconcile.py
+## research: scripts/reconcile.py
 
 ```text
-python <skills>/aar-reconcile/scripts/reconcile.py [options]
+python <skills>/research/scripts/reconcile.py [options]
 ```
 
 | Flag | Default | Meaning |
@@ -223,12 +223,12 @@ python <skills>/aar-reconcile/scripts/reconcile.py [options]
 Exit 0 no drift; 1 any finding other than `unverified_claim` (or any finding under
 `--strict`); 2 DAG not found or PyYAML missing. Predicates run through the system shell:
 `cmd.exe` on Windows, `/bin/sh` elsewhere. Finding kinds are in
-[finding-kinds.md](../skills/aar-reconcile/references/finding-kinds.md).
+[finding-kinds.md](../skills/research reconcile/references/finding-kinds.md).
 
-## aar-run-audit: audit_verify.py
+## research: scripts/audit_verify.py
 
 ```text
-python <skills>/aar-run-audit/scripts/audit_verify.py --action {verify,report} [--clean-room]
+python <skills>/research/scripts/audit_verify.py --action {verify,report} [--clean-room]
 ```
 
 Reads `metadata.yaml` in the working directory, so run it from the work item folder.
@@ -239,10 +239,10 @@ Reads `metadata.yaml` in the working directory, so run it from the work item fol
 | `--action report` | Print the recorded figures without checking them |
 | `--clean-room` | With `verify`: also fail if `performance/benchmarks/` differs from `main` |
 
-## aar-init-research: discovery.py
+## research: scripts/discovery.py
 
 ```text
-python <skills>/aar-init-research/scripts/discovery.py [--confirm]
+python <skills>/research/scripts/discovery.py [--confirm]
 ```
 
 Run from the workspace root. Greps `README.md` for objectives and `src/` and
@@ -250,7 +250,7 @@ Run from the workspace root. Greps `README.md` for objectives and `src/` and
 It asks before writing `hypothesis-dag.yaml` in the current directory; `--confirm`
 accepts without asking. Without a terminal and without `--confirm` it writes nothing. The
 greps use the shell, so on Windows they find nothing unless `grep` is on the path; the
-agent running `/aar-init-research` does the real excavation.
+agent running `/research init` does the real excavation.
 
 ## Repository scripts
 

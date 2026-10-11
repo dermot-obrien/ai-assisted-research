@@ -20,9 +20,9 @@ back into AAW** as delivery work (or closed as a lesson).
 When AAW triage classifies a unit of work as `inquiry`, it hands off to RMS:
 
 ```
-AAW triage → INQUIRY → AAR /aar-start-hypothesis {node}   (frames the hypothesis)
-                       AAR /aar-progress-hypothesis        (runs the experiment)
-                       AAR /aar-sync-research-result       (records the metric/finding, hands back)
+AAW triage → INQUIRY → AAR /research frame {node}   (frames the hypothesis)
+                       AAR /research run        (runs the experiment)
+                       AAR /research sync       (records the metric/finding, hands back)
 ```
 
 The hypothesis enters the RMS lifecycle and moves through the standard node statuses:
@@ -32,7 +32,7 @@ The originating intent (the AAW capture) becomes the hypothesis's framing; the i
 now governed entirely by RMS principles (Metric Supremacy, Lineage Continuity, …) until it
 concludes.
 
-`/aar-start-hypothesis` hands the experiment to AAW `/aaw-start-work` as an **intervention**
+`/research frame` hands the experiment to AAW `/work start` as an **intervention**
 (or a **change** if local), saying it comes from AAR. The inquiry is the hypothesis; the
 experiment that tests it is known work. Without the class, AAW triage would read the
 uncertain hypothesis as an inquiry and route it back to AAR.
@@ -54,7 +54,7 @@ This is AAW's *promotion / re-triage* rule applied across the seam: classificati
 provisional and cheap to revise. A validated hypothesis **spawns** a typed work item; an
 ineffective one costs only the research, and the lesson is preserved.
 
-`/aar-sync-research-result` proposes this re-triage once it has set the node's status.
+`/research sync` proposes this re-triage once it has set the node's status.
 
 ## Decisions produced during research → AAA
 
@@ -68,7 +68,7 @@ records the *decision*; AAW delivers the *change*.
 | Concept | AAW | AAR (RMS) |
 |---------|-----|-----------|
 | uncertain work | class `inquiry` | a hypothesis node |
-| "investigate it" | route to AAR | `/aar-start-hypothesis` |
+| "investigate it" | route to AAR | `/research frame` |
 | "proven, do it" | re-triage → intervention/change | node `validated` |
 | "doesn't work" | close as lesson | node `ineffective` |
 | traceability | work item ↔ commit ↔ version | hypothesis DAG lineage |

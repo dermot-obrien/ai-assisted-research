@@ -6,7 +6,7 @@
 
 A framework for tracking the lineage of ideas through structured, metric-driven research,
 run by AI agents. Research lives in a hypothesis DAG where every node is a measurable claim
-tested against a target fixed before the result is known; twelve Agent Skills frame, run,
+tested against a target fixed before the result is known; two Agent Skills frame, run,
 audit and record each experiment, handing the work itself to
 [AI-Assisted Work](https://github.com/dermot-obrien/ai-assisted-work) (AAW). It is also
 called the Research Management System (RMS).
@@ -18,7 +18,7 @@ called the Research Management System (RMS).
   installer runs `pip install -r requirements.txt` for you.
 - git. The workspace must be a git repository.
 - AI-Assisted Work, installed in the same workspace. The research skills that create or
-  run work delegate to its `/aaw-*` skills, and its engine installs AAR.
+  run work delegate to its `work` skill (4.0.0 or later), and its engine installs AAR.
 - Any agent that reads [Agent Skills](https://agentskills.io/specification): VS Code with
   GitHub Copilot, Cursor, Claude Code, Codex, Gemini CLI and others.
 
@@ -35,7 +35,7 @@ npx aar install
 ```
 
 `npm i` fetches AAR and AAW from GitHub; no npm registry access is needed. `aaw install`
-sets up AAW and its skills; `aar install` then copies the twelve skills to
+sets up AAW and its skills; `aar install` then copies the two skills to
 `.agents/skills/<name>/`, seeds `research.yaml`, creates `research/` and installs the
 Python packages (`--no-python` skips that). Install AAW first: otherwise `aar install`
 warns that its dependency is missing and exits 1.
@@ -80,22 +80,22 @@ gh skill install dermot-obrien/ai-assisted-research literature-discovery --scope
 ### Check it worked
 
 ```bash
-python .agents/skills/research-dag/bin/check.py
+python .agents/skills/research/bin/check.py
 ```
 
-It prints `research-dag: ok`, with warnings for files a new workspace has not created yet.
-In your agent, type `/` and look for the `aar-*` skills.
+It prints `research: ok`, with warnings for files a new workspace has not created yet.
+In your agent, type `/` and look for `/research`.
 
 ## Quick start
 
 After installing, and with a root node H-000 in `research/hypothesis-dag.yaml` ([quick start, step 4](docs/quick-start.md#4-write-a-tiny-dag)), add a hypothesis and see it become ready:
 
 ```bash
-python .agents/skills/research-dag/bin/dag_update.py --dag research/hypothesis-dag.yaml --action add --parent H-000 --hypothesis "Adding day-of-week features lifts accuracy by at least 0.03" --target 0.03
-python .agents/skills/research-dag/bin/generate_node_index.py
+python .agents/skills/research/bin/dag_update.py --dag research/hypothesis-dag.yaml --action add --parent H-000 --hypothesis "Adding day-of-week features lifts accuracy by at least 0.03" --target 0.03
+python .agents/skills/research/bin/generate_node_index.py
 ```
 
-Then ask your agent for `/aar-start-hypothesis H-001`. The [quick start](docs/quick-start.md)
+Then ask your agent for `/research frame H-001`. The [quick start](docs/quick-start.md)
 does this from an empty folder, with the root node, the dashboard, the adoption check and a
 literature search, in PowerShell and bash, in about ten minutes.
 
@@ -106,7 +106,7 @@ literature search, in PowerShell and bash, in about ten minutes.
 | [Quick start](docs/quick-start.md) | A first real result in ten minutes |
 | [Concepts](docs/concepts.md) | The DAG, statuses, readiness, the three phases, audit, adoption, the store |
 | [User guide](docs/user-guide.md) | The full research cycle, step by step |
-| [Skills](docs/skills.md) | Each of the twelve skills: what, when, needs, leaves behind |
+| [Skills](docs/skills.md) | The two skills and each research flow: what, when, needs, leaves behind |
 | [Commands](docs/commands.md) | Every script, subcommand and flag |
 | [Configuration](docs/configuration.md) | `research.yaml`, environment variables, precedence, file formats |
 | [Troubleshooting](docs/troubleshooting.md) | Error and warning messages, and what to do |
@@ -114,19 +114,21 @@ literature search, in PowerShell and bash, in about ten minutes.
 
 ## The skills
 
-| Skill | Does |
+Two skills. `research` holds the whole method as flows over one hypothesis DAG, with the DAG tools they share; it was eleven skills (`aar-start-research`, `aar-start-hypothesis` and the rest, with `research-dag`) until they were merged, because every one of them ran the same tools over the same files. `literature-discovery` searches the literature and works on its own.
+
+| Flow or skill | Does |
 |---|---|
-| `aar-start-research` | Baselines the state of the art and designs the hypothesis DAG |
-| `aar-init-research` | Reconstructs the lineage of research that predates AAR |
-| `aar-update-lineage` | Adds or revises hypotheses |
-| `aar-progress-research` | Picks the next ready node and drives it |
-| `aar-start-hypothesis` | Designs one node's experiment as an AAW work item |
-| `aar-progress-hypothesis` | Runs a framed experiment on its own branch |
-| `aar-sync-research-result` | Records the result in the DAG and hands the conclusion back |
-| `aar-run-audit` | Checks a result is sound, in a clean room |
-| `aar-reconcile` | Checks results are live in the running system |
-| `aar-housekeep` | Refreshes the node index, reference check and dashboard |
-| `research-dag` | The DAG engine the others call, with the optional shared DAG store |
+| `/research start` | Baselines the state of the art and designs the hypothesis DAG |
+| `/research init` | Reconstructs the lineage of research that predates AAR |
+| `/research lineage` | Adds or revises hypotheses |
+| `/research progress` | Picks the next ready node and drives it |
+| `/research frame` | Designs one node's experiment as an AAW work item |
+| `/research run` | Runs a framed experiment on its own branch |
+| `/research sync` | Records the result in the DAG and hands the conclusion back |
+| `/research audit` | Checks a result is sound, in a clean room |
+| `/research reconcile` | Checks results are live in the running system |
+| `/research housekeep` | Refreshes the node index, reference check and dashboard |
+| `/research dag` | The DAG tools every flow calls, with the optional shared DAG store |
 | `literature-discovery` | Searches the literature and baselines the state of the art; usable alone |
 
 ## Agent Skills conformance
