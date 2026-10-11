@@ -14,7 +14,7 @@ says which skill does what.
 AAR works inside a git repository, the workspace. Its root holds `research.yaml`, which
 tells every tool where the research lives: the DAG, the node index, the work items and the
 dashboard. The installer seeds it from
-[`research.yaml.example`](../skills/research-dag/assets/research.yaml.example) and never
+[`research.yaml.example`](../skills/research/assets/research.yaml.example) and never
 overwrites it. Paths in it are relative to the folder that holds it. Tools find it by
 searching upward from the working directory, so you can run them from any subfolder.
 [Configuration](configuration.md) lists every key.
@@ -74,7 +74,7 @@ writes the result to `node_index_path`:
 
 The research skills pick work from `ready` instead of scanning the DAG. An index older than
 seven days, or missing a node, is treated as stale and the skills fall back to the DAG. So
-regenerate the index after every change; `/aar-housekeep` and `/aar-sync-research-result`
+regenerate the index after every change; `/research housekeep` and `/research sync`
 do it for you.
 
 ## Roles and skills
@@ -84,51 +84,51 @@ any skills-compatible agent reads. Each plays a role:
 
 | Role | Skills |
 |---|---|
-| Discovery, the detective | `aar-init-research` reconstructs lineage in a repository whose research predates AAR |
-| Specialist, the strategist | `aar-start-research` baselines the state of the art and designs the DAG; `aar-update-lineage` extends it |
-| Worker, the optimiser | `aar-progress-research`, `aar-start-hypothesis`, `aar-progress-hypothesis`, `aar-sync-research-result` run a strand |
-| Auditor, the validator | `aar-run-audit` checks a result is sound |
-| Reconciler, the drift detector | `aar-reconcile` checks a result is live |
-| Housekeeper, the curator | `aar-housekeep` keeps the index and dashboard true |
+| Discovery, the detective | `/research init` reconstructs lineage in a repository whose research predates AAR |
+| Specialist, the strategist | `/research start` baselines the state of the art and designs the DAG; `/research lineage` extends it |
+| Worker, the optimiser | `/research progress`, `/research frame`, `/research run`, `/research sync` run a strand |
+| Auditor, the validator | `/research audit` checks a result is sound |
+| Reconciler, the drift detector | `/research reconcile` checks a result is live |
+| Housekeeper, the curator | `/research housekeep` keeps the index and dashboard true |
 
-Two skills have no role of their own. `research-dag` is the engine: the Python tools every
-research skill uses to change and read the DAG. `literature-discovery` searches the
-literature and works on its own, without the rest of AAR. [AGENTS.md](AGENTS.md) describes
+Every role is a flow of the one `research` skill. Its DAG tools (`/research dag`) are the
+engine: the Python every flow uses to change and read the DAG. `literature-discovery`, the
+other skill, searches the literature and works on its own, without the rest of AAR. [AGENTS.md](AGENTS.md) describes
 the roles in more depth.
 
 ## The three phases of a hypothesis, and AAW
 
 Research splits into phases so the experimental design is fixed before the result is known.
 
-1. Design. `/aar-start-hypothesis {node}` checks the node is ready, extracts its target and
+1. Design. `/research frame {node}` checks the node is ready, extracts its target and
    evidence, and asks AI-Assisted Work (`/work start`) to create a work item for the
    experiment. The node moves to `framed`.
-2. Execution. `/aar-progress-hypothesis {WI} {node}` opens the research branch
+2. Execution. `/research run {WI} {node}` opens the research branch
    `research/{node}-{topic}`, fixes the parent's performance and the target in the work
    item's `metadata.yaml`, moves the node to `in_progress`, and hands the task loop to
    `/work progress`, recording a finding per activity.
-3. Homecoming. `/aar-sync-research-result {node} {WI}` reads the measured result, sets the
+3. Homecoming. `/research sync {node} {WI}` reads the measured result, sets the
    node to `validated`, `ineffective` or `discarded` against the target fixed in step 2,
    links the deliverables and regenerates the index.
 
 AAW owns the work: work items, activities, claiming and locking. AAR owns the research:
-the hypothesis, the metric and the finding. That is why the `aar-*` skills that create or
-run work need the AAW skills installed. `/aar-progress-research` drives the three phases
+the hypothesis, the metric and the finding. That is why the research flows that create or
+run work need AAW's `work` skill installed. `/research progress` drives the three phases
 without you naming a node.
 
 ## Deliverables
 
 A finished hypothesis leaves a write-up in the work item's `deliverables/`, from the
-templates in [`aar-progress-hypothesis/assets/templates/`](../skills/aar-progress-hypothesis/assets/templates/):
+templates in [`research/assets/templates/`](../skills/research/assets/templates/):
 a blog post and an arXiv-style draft for a result that held, or a pivot report for one that
 did not. `changes_template.md` records the research changes log.
 
 ## Audit: is it sound?
 
-`/aar-run-audit` re-runs the benchmark in a clean room: the evaluation scripts under
+`/research audit` re-runs the benchmark in a clean room: the evaluation scripts under
 `performance/benchmarks/` come from `main`, never from the branch under audit, because a
 worker optimising against a benchmark can change the benchmark instead of the system.
-[`audit_verify.py`](../skills/aar-run-audit/scripts/audit_verify.py) checks the recorded
+[`audit_verify.py`](../skills/research/scripts/audit_verify.py) checks the recorded
 performance against the parent's, that the deliverables exist, and with `--clean-room`
 that the benchmarks match `main`.
 
@@ -138,12 +138,12 @@ A validated node can be entirely absent from the running system. So each node ca
 second, independent state, `adoption.state`: `not_assessed`, `not_applicable`,
 `not_adopted`, `partial`, `adopted` or `contradicted`. A node claiming `adopted`,
 `partial` or `contradicted` owes a verification predicate: a shell command that exits 0
-while the claim holds. `/aar-reconcile` runs every predicate and reports drift without
+while the claim holds. `/research reconcile` runs every predicate and reports drift without
 proposing fixes. [Adoption and drift](adoption-and-drift.md) is the full design.
 
 ## Housekeeping and the dashboard
 
-`/aar-housekeep` regenerates the node index, checks that every hypothesis id mentioned in
+`/research housekeep` regenerates the node index, checks that every hypothesis id mentioned in
 code and docs exists in the DAG, and rebuilds `research/dashboard.html`: an interactive
 graph of the DAG coloured by status, with experiments, breakthroughs, papers and
 cross-node findings when those files exist.
@@ -157,7 +157,7 @@ conflict. `dag_update.py` pulls, writes events, pushes with a retry, and regener
 at `dag_path` as a view that every other tool reads unchanged. Concurrent edits to one field:
 the later wins and the replaced value is reported. Concurrent adds under one id: the later
 takes a letter suffix, recorded as an alias.
-[The shared DAG store](../skills/research-dag/references/dag-store.md) has the event format
+[The shared DAG store](../skills/research/references/dag-store.md) has the event format
 and the day-to-day commands.
 
 ## Where AAR meets AAW, and AAA

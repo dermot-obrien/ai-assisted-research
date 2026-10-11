@@ -38,4 +38,4 @@ Both services are free and rate-limited. Set `OPENALEX_EMAIL` to an address you 
 
 ## Related
 
-- `aar-start-research`, in this bundle, uses this skill to baseline the state of the art before it designs the hypothesis DAG. Nothing else in this bundle is needed to use it.
+- The `research` skill's `/research start` flow, in this bundle, uses this skill to baseline the state of the art before it designs the hypothesis DAG. Nothing else in this bundle is needed to use it.

@@ -33,7 +33,7 @@ jobs:
       - name: The post-install checks are one file
         run: |
           for f in skills/*/bin/check.py; do
-            cmp skills/research-dag/bin/check.py "$f" || { echo "::error::$f differs from skills/research-dag/bin/check.py"; exit 1; }
+            cmp skills/research/bin/check.py "$f" || { echo "::error::$f differs from skills/research/bin/check.py"; exit 1; }
           done
 
   # The reference validator from the Agent Skills specification. Its YAML parser is
@@ -110,7 +110,7 @@ jobs:
       - name: Check the installed skills resolve
         run: |
           node "$GITHUB_WORKSPACE/aar/scripts/validate-skills.mjs" /tmp/ws/.agents/skills
-          for s in /tmp/ws/.claude/skills/aar-*; do
+          for s in /tmp/ws/.claude/skills/research /tmp/ws/.claude/skills/literature-discovery; do
             test -f "$s/SKILL.md" || { echo "::error::$s does not resolve"; exit 1; }
           done
           test -f /tmp/ws/research.yaml || { echo "::error::research.yaml was not seeded"; exit 1; }
@@ -143,17 +143,17 @@ jobs:
       - name: Byte-compile the skills' tools
         run: python -m compileall -q skills
 
-      - name: The research-dag tools run against a scratch workspace
+      - name: The research skill's tools run against a scratch workspace
         run: |
-          B="$GITHUB_WORKSPACE/skills/research-dag/bin"
+          B="$GITHUB_WORKSPACE/skills/research/bin"
           mkdir -p /tmp/rws/research && cd /tmp/rws
-          cp "$GITHUB_WORKSPACE/skills/research-dag/assets/research.yaml.example" research.yaml
+          cp "$GITHUB_WORKSPACE/skills/research/assets/research.yaml.example" research.yaml
           printf 'nodes:\n- id: H-001\n  hypothesis: Root idea\n  status: framed\n  parents: []\n  target: 0.1\n  metric: accuracy\n' > research/hypothesis-dag.yaml
           python "$B/dag_update.py" --dag research/hypothesis-dag.yaml --action add --parent H-001 --hypothesis "A variant" --target 0.05
           python "$B/generate_node_index.py"
           python "$B/validate_dag_references.py"
           python "$B/generate_dashboard.py"
-          python "$GITHUB_WORKSPACE/skills/aar-reconcile/scripts/reconcile.py" --dag research/hypothesis-dag.yaml --migrate
+          python "$GITHUB_WORKSPACE/skills/research/scripts/reconcile.py" --dag research/hypothesis-dag.yaml --migrate
 
       - name: Unit tests
         run: python -m unittest discover -s tests -v
@@ -161,15 +161,15 @@ jobs:
       # The shared DAG store, end to end, against a local bare repository: seed a
       # project, write through dag_update, and read the generated view with the
       # unchanged reading tools.
-      - name: The research-dag tools run against a DAG store
+      - name: The research skill's tools run against a DAG store
         env:
           RESEARCH_DAG_HOME: /tmp/dag-home
         run: |
-          B="$GITHUB_WORKSPACE/skills/research-dag/bin"
+          B="$GITHUB_WORKSPACE/skills/research/bin"
           git init --quiet --bare -b main /tmp/dags.git
           printf 'nodes:\n- id: H-001\n  hypothesis: Root idea\n  status: validated\n  parent: null\n' > /tmp/seed.yaml
           mkdir -p /tmp/sws/research && cd /tmp/sws
-          cp "$GITHUB_WORKSPACE/skills/research-dag/assets/research.yaml.example" research.yaml
+          cp "$GITHUB_WORKSPACE/skills/research/assets/research.yaml.example" research.yaml
           printf 'dag_store: "/tmp/dags.git"\ndag_project: demo\n' >> research.yaml
           python "$B/dag_store.py" import --from /tmp/seed.yaml
           python "$B/dag_store.py" view

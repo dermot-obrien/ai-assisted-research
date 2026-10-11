@@ -51,13 +51,13 @@ prints:
 ```text
 ▸ Installing AI-Assisted Research (RMS) (aar@1.2.0)
   ▸ skills: installed 12 → .agents\skills/
-      aar-housekeep, aar-init-research, ..., literature-discovery, research-dag
+      literature-discovery, research
   ▸ claude: linked 12 → .claude\skills/
   ▸ seeded research.yaml
   ▸ data dir research/
   ▸ python -m pip install -r requirements.txt
 ...
-Done. aar@1.2.0 — 12 skill(s).
+Done. aar@2.0.0 — 2 skill(s).
 ```
 
 Run `aar install` after `aaw install`. The other way round it still installs, but warns
@@ -68,13 +68,13 @@ Run `aar install` after `aaw install`. The other way round it still installs, bu
 Each skill ships a post-install check. Run the engine's:
 
 ```bash
-python .agents/skills/research-dag/bin/check.py
+python .agents/skills/research/bin/check.py
 ```
 
 ```text
 warning: research.yaml: dag_path research/hypothesis-dag.yaml does not exist yet; the first hypothesis creates it.
 warning: research.yaml: node_index_path research/node-index.yaml does not exist yet; generate_node_index.py writes it.
-research-dag: ok
+research: ok
 ```
 
 The warnings are expected in a new workspace. A line without `warning:` is a problem; see
@@ -122,7 +122,7 @@ Change the DAG through `dag_update.py`, never by hand, so ids, parents and statu
 consistent:
 
 ```bash
-python .agents/skills/research-dag/bin/dag_update.py --dag research/hypothesis-dag.yaml --action add --parent H-000 --hypothesis "Adding day-of-week features lifts accuracy by at least 0.03" --target 0.03 --metric accuracy
+python .agents/skills/research/bin/dag_update.py --dag research/hypothesis-dag.yaml --action add --parent H-000 --hypothesis "Adding day-of-week features lifts accuracy by at least 0.03" --target 0.03 --metric accuracy
 ```
 
 ```text
@@ -137,7 +137,7 @@ block at `not_assessed`, and H-000 lists it under `avenues`.
 The research skills read readiness from the node index rather than walking the DAG:
 
 ```bash
-python .agents/skills/research-dag/bin/generate_node_index.py
+python .agents/skills/research/bin/generate_node_index.py
 ```
 
 ```text
@@ -154,8 +154,8 @@ H-001 is `ready` because its parent is resolved (`validated`).
 ## 7. Check references and build the dashboard
 
 ```bash
-python .agents/skills/research-dag/bin/validate_dag_references.py
-python .agents/skills/research-dag/bin/generate_dashboard.py
+python .agents/skills/research/bin/validate_dag_references.py
+python .agents/skills/research/bin/generate_dashboard.py
 ```
 
 ```text
@@ -180,8 +180,8 @@ running system. `reconcile.py` checks the second. H-000 was written by hand with
 `adoption` block, so seed one first:
 
 ```bash
-python .agents/skills/aar-reconcile/scripts/reconcile.py --dag research/hypothesis-dag.yaml --migrate
-python .agents/skills/aar-reconcile/scripts/reconcile.py --dag research/hypothesis-dag.yaml
+python .agents/skills/research/scripts/reconcile.py --dag research/hypothesis-dag.yaml --migrate
+python .agents/skills/research/scripts/reconcile.py --dag research/hypothesis-dag.yaml
 ```
 
 ```text
@@ -213,17 +213,17 @@ Set `OPENALEX_EMAIL` to an address you read to use OpenAlex's polite pool. The
 
 ## 10. Hand a hypothesis to your agent
 
-Everything so far ran without an agent. The `aar-*` skills are the workflows an agent runs
+Everything so far ran without an agent. The `research` skill's flows are the workflows an agent runs
 on top of these tools. Open the folder in your agent and ask:
 
 ```text
-/aar-start-hypothesis H-001
+/research frame H-001
 ```
 
 or, in plain words, "frame hypothesis H-001". The agent reads the node index, delegates to
 `/work start` to create a work item under `.aaw/work-items/`, records the work item on
-the node and moves it to `framed`. From there, `/aar-progress-hypothesis {WI_id} H-001`
-runs the experiment and `/aar-sync-research-result H-001 {WI_id}` records the result. The
+the node and moves it to `framed`. From there, `/research run {WI_id} H-001`
+runs the experiment and `/research sync H-001 {WI_id}` records the result. The
 [user guide](user-guide.md) walks the whole cycle.
 
 ## Clean up
@@ -234,5 +234,5 @@ delete the work-items folder it created under your home folder (`aaw/local/resea
 ## Next
 
 - [Concepts](concepts.md): the ideas behind what you just ran.
-- [Skills](skills.md): what each of the twelve skills does and when to use it.
+- [Skills](skills.md): what each skill and research flow does and when to use it.
 - [Commands](commands.md) and [configuration](configuration.md): every flag and key.

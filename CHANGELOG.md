@@ -7,6 +7,21 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed (breaking, 2.0.0)
+- The research skills are one skill, `research` 3.0.0 (WI-005 of AI-Assisted Work). `aar-start-research`,
+  `aar-init-research`, `aar-update-lineage`, `aar-progress-research`, `aar-start-hypothesis`,
+  `aar-progress-hypothesis`, `aar-sync-research-result`, `aar-run-audit`, `aar-reconcile`,
+  `aar-housekeep` and their engine `research-dag` ran the same tools over the same files, so none
+  worked installed alone. They are now flows of `research`: `/research start`, `init`, `lineage`,
+  `progress`, `frame`, `run`, `sync`, `audit`, `reconcile`, `housekeep` and `dag`, each with its
+  instructions in `references/<flow>.md`. The DAG tools are in `bin/`, the flows' own tools
+  (`discovery.py`, `audit_verify.py`, `reconcile.py`) in `scripts/`, the templates in `assets/`.
+  Nothing was dropped, and the skill's description still answers to the old names. The DAG store's
+  folder (`~/.research-dags`), `RESEARCH_DAG_HOME` and its commit identity are unchanged, so existing
+  stores keep working. `literature-discovery` stays a skill of its own; `/research start` uses it
+  when it is installed. Migrate by installing `research` and removing the eleven old folders from
+  `.agents/skills` and `.claude/skills`.
+
 ### Changed
 - The research skills hand off to AI-Assisted Work's `work` skill: `/work start`,
   `/work progress` and `/work initiative`, which replaced `aaw-start-work`,

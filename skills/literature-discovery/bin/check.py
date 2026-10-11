@@ -41,10 +41,7 @@ SKILL = os.path.basename(SKILL_DIR)
 # The packages each skill's own tools import, as pip names them, and whether it reads
 # research.yaml. A skill not listed reads research.yaml and imports nothing.
 NEEDS = {
-    "research-dag": {"packages": {"yaml": "PyYAML"}},
-    "aar-housekeep": {"packages": {"yaml": "PyYAML"}},
-    "aar-reconcile": {"packages": {"yaml": "PyYAML"}},
-    "aar-run-audit": {"packages": {"yaml": "PyYAML"}},
+    "research": {"packages": {"yaml": "PyYAML"}},
     "literature-discovery": {"packages": {"yaml": "PyYAML", "requests": "requests"}, "research_yaml": False},
 }
 need = NEEDS.get(SKILL, {})
@@ -95,7 +92,7 @@ if need.get("research_yaml", True):
     if not root or not os.path.isfile(config):
         where = f"RMS_ROOT={os.environ.get('RMS_ROOT')}" if via else f"{os.getcwd()} or above"
         problems.append(f"research.yaml: not found in {where}. Run the AI-Assisted Research installer in "
-                        f"the workspace root, or copy research-dag's assets/research.yaml.example there.")
+                        f"the workspace root, or copy the research skill's assets/research.yaml.example there.")
     else:
         try:
             cfg = read_config(config)

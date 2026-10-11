@@ -54,7 +54,7 @@ Fix that and run `python -m pip install pyyaml requests`.
 
 Windows PowerShell 5.1 shows anything pip writes to stderr, such as
 `WARNING: Ignoring invalid distribution`, as a red error record. If the install ends with
-`Done. aar@... — 12 skill(s).` and exits 0, it worked.
+`Done. aar@... — 2 skill(s).` and exits 0, it worked.
 
 ## Post-install check (bin/check.py)
 
@@ -62,7 +62,7 @@ Windows PowerShell 5.1 shows anything pip writes to stderr, such as
 
 No `research.yaml` in the working directory or any parent (or at `RMS_ROOT`). Run the
 check from the workspace root, run `npx aar install` there, or copy
-`research-dag/assets/research.yaml.example` to `research.yaml`.
+`research/assets/research.yaml.example` to `research.yaml`.
 
 ### `research.yaml: dag_path ... is in ..., which does not exist`
 
@@ -363,7 +363,7 @@ so move the file to `dag_path` if they differ.
 
 ### The agent says the `work` skill, or an `/aaw-*` skill, is missing
 
-The `aar-*` skills that create or run work delegate to AI-Assisted Work's `work` skill
+The research flows that create or run work delegate to AI-Assisted Work's `work` skill
 (`/work start`, `/work progress`, `/work initiative`). Install AI-Assisted Work 4.0.0 or later
 in the workspace (`npx aaw install`) and restart the agent. Before 4.0.0 the same steps were
 five skills named `aaw-start-work`, `aaw-progress-work` and so on; those names are retired.

@@ -11,7 +11,7 @@
 
 id: aar
 name: AI-Assisted Research (RMS)
-version: 1.2.0
+version: 2.0.0
 depends: [aaw]
 runtime: python
 # Python tooling deps (PyYAML, requests). Installed via `python -m pip install -r`.
@@ -26,9 +26,24 @@ tool_setup:
 # path back into the framework, so nothing needs rewriting at install time.
 skills: { src: skills }
 
+# Skills earlier releases shipped, merged into `research` in 2.0.0. Install removes their
+# copies from a workspace (AI-Assisted Work's engine, from the release that reads this key).
+retired_skills:
+  - aar-start-research
+  - aar-init-research
+  - aar-update-lineage
+  - aar-progress-research
+  - aar-start-hypothesis
+  - aar-progress-hypothesis
+  - aar-sync-research-result
+  - aar-run-audit
+  - aar-reconcile
+  - aar-housekeep
+  - research-dag
+
 # Idempotent: only seeded if the host has no research.yaml yet.
 config:
-  - { file: research.yaml, template: skills/research-dag/assets/research.yaml.example }
+  - { file: research.yaml, template: skills/research/assets/research.yaml.example }
 
 # Committed home for the hypothesis DAG + lineage artefacts.
 data_dirs: [research/]
