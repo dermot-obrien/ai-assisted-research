@@ -33,35 +33,19 @@ description. [Skills](skills.md) describes each.
 | `/research housekeep` | None |
 | `/literature-discovery` | Searches the literature; `/research start` uses it for the baseline |
 
-## aar (installer launcher)
+## Installing (skills.mjs)
 
-`bin/aar.js`, run as `npx aar` after `npm i github:dermot-obrien/ai-assisted-research`, or
-as `node <path to the clone>/bin/aar.js`. It finds AAW's install engine and runs
-`aaw install --framework <this repository>` with your options.
+AAR ships no installer. The skills install with AI-Assisted Work's `bin/skills.mjs`; its own help (`node <aaw>/bin/skills.mjs help`) and AAW's [command reference](https://github.com/dermot-obrien/ai-assisted-work/blob/main/docs/reference/commands.md) list every flag. The commands AAR's documentation uses:
 
 | Command | Effect |
 |---|---|
-| `aar install [options]` | Install AAR into the workspace |
-| `aar` | The same as `aar install` |
-| `aar --help`, `-h`, `help` | Print usage, exit 0 |
-| anything else | `Unknown command`, exit 2 |
+| `skills.mjs install --bundle <clone of this repository>` | Copy both skills to `.agents/skills/<name>/`, link `.claude/skills/<name>` when `.claude/` exists, and record them in `.agents/skills.lock.json` |
+| `skills.mjs install research --bundle <clone>` | The same, for the one skill named |
+| `skills.mjs install work` | Install the `work` skill that `research` requires, from the bundle beside the script |
+| `skills.mjs sync [--locked] [--copy]` | Install what `.agents/skills.json` declares and remove what this installer put there that it no longer declares; `--locked` installs the commits in the lock |
+| `skills.mjs check` | A tick or a cross per installed skill; exit 1 when one changed or is missing |
 
-| Option | Effect |
-|---|---|
-| `--no-python` | Skip `python -m pip install -r requirements.txt` |
-| `--workspace PATH` | Install into PATH instead of the workspace found from the current directory (the nearest folder with `.git` or `.aaw-config.yaml`) |
-| `--yes` | Never prompt for the workspace |
-
-What it does: copies each skill to `.agents/skills/<name>/`; links `.claude/skills/<name>`
-at it when `.claude/` exists (a junction on Windows); seeds `research.yaml` if absent;
-creates `research/`; installs the Python packages; records `modules.aar` in
-`.aaw-config.yaml`. It exits 1 when AAW cannot be found, or when the install finished with
-a warning, such as AAW not installed in the workspace or pip failing.
-
-The AAW commands the quick start uses are AAW's own: `aaw install` sets up
-`.aaw-config.yaml` and the `work` and `thread` skills, taking `--yes`, `--workspace PATH`,
-`--tenant NAME`, `--mode local-fs|cloud` and `--work-items-path PATH`. Do not run
-`aaw install --help` to find out: it installs. See the AAW README.
+It installs no Python packages and creates no `research.yaml`: run `python -m pip install -r requirements.txt` from a clone, and let `/research start` or `/research init` create `research.yaml` from `skills/research/assets/research.yaml.example` (or copy it yourself).
 
 ## The research skill's DAG tools
 
@@ -223,7 +207,7 @@ python <skills>/research/scripts/reconcile.py [options]
 Exit 0 no drift; 1 any finding other than `unverified_claim` (or any finding under
 `--strict`); 2 DAG not found or PyYAML missing. Predicates run through the system shell:
 `cmd.exe` on Windows, `/bin/sh` elsewhere. Finding kinds are in
-[finding-kinds.md](../skills/research reconcile/references/finding-kinds.md).
+[finding-kinds.md](../skills/research/references/finding-kinds.md).
 
 ## research: scripts/audit_verify.py
 

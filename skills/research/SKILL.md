@@ -5,7 +5,7 @@ license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apac
 compatibility: Reads research.yaml at the workspace root. Python 3.10 or newer with PyYAML, and git for a shared DAG store or research branches. The start, frame, run, progress and sync flows hand the work item to the work skill (/work start, /work progress, /work initiative), so work must be installed for them; the start flow uses literature-discovery when it is installed.
 metadata:
   author: dermot-obrien
-  version: "3.0.0"
+  version: "3.1.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0"
 ---
@@ -47,6 +47,6 @@ Read the flow's reference before acting, and the references it names when it nam
 |---|---|
 | `bin/` | The DAG tools (`dag_update.py`, `dag_store.py`, `generate_node_index.py`, `generate_dashboard.py`, `validate_dag_references.py`, `branch_manager.py`) and the post-install check |
 | `scripts/` | The flows' own tools: `discovery.py` (init), `audit_verify.py` (audit), `reconcile.py` (reconcile) |
-| `references/` | One file per flow, and the shared `node-selection.md`, `finding-kinds.md` and `dag-store.md` |
+| `references/` | One file per flow, and the shared `node-selection.md`, `finding-kinds.md`, `dag-store.md`, the research principles (`principles.md`) and how an inquiry becomes a hypothesis (`inquiry-seam.md`) |
 | `assets/` | `research.yaml.example` and the run flow's output templates |
 | `schemas/` | The tools' argument schemas and the DAG store's event schema |

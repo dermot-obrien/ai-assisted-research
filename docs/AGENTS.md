@@ -22,7 +22,7 @@ than two.
 3.  **Mandatory Provenance Check**: Cite specific evidence (commit hashes, PR numbers, file line numbers) for every discovery.
 4.  **Verification Dialogue**: Present the discovered lineage to the user for confirmation.
 
-**Full definition**: [`skills/research init/SKILL.md`](../skills/research init/SKILL.md), invoked as `/research init`
+**Full definition**: [`skills/research/references/init.md`](../skills/research/references/init.md), invoked as `/research init`
 
 ---
 
@@ -37,7 +37,7 @@ than two.
 2.  **Hypothesis Formulation**: Formulate specific, measurable variants and avenues for exploration.
 3.  **DAG Expansion**: Propose new nodes to the Hypothesis DAG.
 
-**Full definition**: [`skills/research start/SKILL.md`](../skills/research start/SKILL.md), invoked as `/research start`
+**Full definition**: [`skills/research/references/start.md`](../skills/research/references/start.md), invoked as `/research start`
 
 ---
 
@@ -52,7 +52,7 @@ than two.
 2.  **Execution Phase**: Invoke `/progress-hypothesis {WI_id} {node_id}` to create the Git research branch and execute implementation.
 3.  **Homecoming Phase**: Invoke `/sync-research-result` to pull metrics and findings back to the DAG.
 
-**Full definition**: [`skills/research progress/SKILL.md`](../skills/research progress/SKILL.md), invoked as `/research progress`
+**Full definition**: [`skills/research/references/progress.md`](../skills/research/references/progress.md), invoked as `/research progress`
 
 ---
 
@@ -68,7 +68,7 @@ than two.
 3.  **Code Review**: Verify changes are non-destructive and artifact-free.
 4.  **Consistency Check**: Confirm data, actual performance, and article claims are aligned.
 
-**Full definition**: [`skills/research audit/SKILL.md`](../skills/research audit/SKILL.md), invoked as `/research audit`
+**Full definition**: [`skills/research/references/audit.md`](../skills/research/references/audit.md), invoked as `/research audit`
 
 ---
 
@@ -87,7 +87,7 @@ than two.
 
 This is distinct from the Auditor. The Auditor asks whether the research is sound and stops at the boundary of the experiment. The Reconciler asks whether it reached production.
 
-**Full definition**: [`skills/research reconcile/SKILL.md`](../skills/research reconcile/SKILL.md), invoked as `/research reconcile` · **Standard**: [`docs/adoption-and-drift.md`](adoption-and-drift.md)
+**Full definition**: [`skills/research/references/reconcile.md`](../skills/research/references/reconcile.md), invoked as `/research reconcile` · **Standard**: [`docs/adoption-and-drift.md`](adoption-and-drift.md)
 
 ---
 
@@ -102,4 +102,4 @@ This is distinct from the Auditor. The Auditor asks whether the research is soun
 2.  Update the interactive Mermaid visual in the dashboard.
 3.  Ensure all deliverables are correctly linked and accessible.
 
-**Full definition**: [`skills/research housekeep/SKILL.md`](../skills/research housekeep/SKILL.md), invoked as `/research housekeep`
+**Full definition**: [`skills/research/references/housekeep.md`](../skills/research/references/housekeep.md), invoked as `/research housekeep`

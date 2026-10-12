@@ -91,8 +91,8 @@ if need.get("research_yaml", True):
         shown = os.path.relpath(config, os.getcwd())
     if not root or not os.path.isfile(config):
         where = f"RMS_ROOT={os.environ.get('RMS_ROOT')}" if via else f"{os.getcwd()} or above"
-        problems.append(f"research.yaml: not found in {where}. Run the AI-Assisted Research installer in "
-                        f"the workspace root, or copy the research skill's assets/research.yaml.example there.")
+        problems.append(f"research.yaml: not found in {where}. Run /research start (or /research init), "
+                        f"which creates it, or copy the research skill's assets/research.yaml.example to the workspace root.")
     else:
         try:
             cfg = read_config(config)

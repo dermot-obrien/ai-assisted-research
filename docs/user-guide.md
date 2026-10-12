@@ -1,7 +1,7 @@
 # User guide
 
 The full research cycle, step by step, for human researchers and the agents working with
-them. It assumes AAR and AAW are installed in the workspace; the
+them. It assumes the research skills and AAW's `work` skill are installed in the workspace; the
 [quick start](quick-start.md) does that and tries the tools on a two-node DAG. The
 [concepts](concepts.md) page explains the terms used here.
 
@@ -76,7 +76,7 @@ Before the DAG, fix the testing environment every node will be measured in:
 
 ### Step 1.3: Create the DAG
 
-`/research start` writes `research/hypothesis-dag.yaml` with:
+`/research start` creates `research.yaml` from the research skill's `assets/research.yaml.example` when the workspace has none, and the research folder, then writes `research/hypothesis-dag.yaml` with:
 
 - `metadata.primary_metric`: the metric every node is measured by.
 - H-000: the baseline, external state of the art or your current system, with its

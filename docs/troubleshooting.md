@@ -10,59 +10,37 @@ see.
 
 ## Installing
 
-### `depends on "aaw" which is not installed — install it first`
+AAR has no installer of its own; AI-Assisted Work's `bin/skills.mjs` installs the skills. Its messages start `skills:` or name the skill; AAW's [Installing the skills](https://github.com/dermot-obrien/ai-assisted-work/blob/main/DEPLOYMENT.md) covers the installer itself.
 
-`aar install` found AAW's engine but AAW is not installed in this workspace. The skills
-were still installed, but the command exits 1. Run `npx aaw install --yes` (or
-`node .ai-assisted-work/bin/aaw.js install --yes`), then `npx aar install` again.
+### `note: research says it needs work, which is not installed`
 
-### `AAR requires AAW (it provides the shared install engine)`
+`research` was installed, but the `work` skill it hands work items to is not in `.agents/skills/`. Install it with `node <aaw>/bin/skills.mjs install work`, or add AI-Assisted Work's bundle with `"skills": ["work"]` to `.agents/skills.json` and run `sync`.
 
-The launcher could not find AAW at all. Install it with
-`npm i github:dermot-obrien/ai-assisted-work`, or clone it to `.ai-assisted-work`, then
-re-run. Installing AAR with `npm i github:dermot-obrien/ai-assisted-research` fetches AAW
-as its dependency.
+### `skills: no bundle at .../bundle.json`
 
-### `Unknown command: ...`
+`--bundle` takes a path to a clone of this repository (or its `bundle.json`), not a URL. Clone it first, or name the repository's URL in `.agents/skills.json` and run `sync`.
 
-`aar` takes only `install` (or nothing) and `--help`. Exit 2.
+### `aar: command not found`, or `npx aar install` fails
+
+`aar install` was removed in 3.0.0. Install with `skills.mjs` as in the [README](../README.md#install). To keep the old installer with AI-Assisted Work 4.0.0, pin this repository at the `v2.0.0` tag.
 
 ### The skills do not appear in Claude Code
 
-The installer links `.claude/skills/<name>` only when `.claude/` exists in the workspace.
-Create it and run `npx aar install` again; the output should include
-`claude: linked 12 → .claude\skills/`. Other agents read `.agents/skills/` directly.
+The installer links `.claude/skills/<name>` only when `.claude/` exists in the workspace. Create it and install again; each `installed` line should end `(.claude/skills linked)`. Other agents read `.agents/skills/` directly.
 
-### `claude: copied 12 → .claude/skills/ (links unavailable)`
+### `ModuleNotFoundError: No module named 'yaml'` (or `requests`)
 
-The filesystem refused both a symlink and a junction, so the skills were copied. It works,
-but an edit under `.claude/skills/` does not reach `.agents/skills/`. Re-install after
-upgrading rather than editing either copy.
+The installer does not install Python packages. Run `python -m pip install -r requirements.txt` from a clone of this repository, with the same Python the tools run under. If pip fails, its own output says why, often a proxy.
 
-### `python not found on PATH — skipped dependency install`
+### Old `aar-*` or `research-dag` folders are still in `.agents/skills`
 
-The installer could not run pip. Install Python 3.10 or newer, then
-`python -m pip install -r node_modules/ai-assisted-research/requirements.txt` (or the
-path the message gives).
-
-### `pip install failed (exit N) for requirements.txt`
-
-pip could not install PyYAML or requests; its own output above says why, often a proxy.
-Fix that and run `python -m pip install pyyaml requests`.
-
-### Red `NativeCommandError` text in PowerShell during install
-
-Windows PowerShell 5.1 shows anything pip writes to stderr, such as
-`WARNING: Ignoring invalid distribution`, as a red error record. If the install ends with
-`Done. aar@... — 2 skill(s).` and exits 0, it worked.
+`skills.mjs sync` removes only skills it installed itself. Folders left by `aar install` from 2.0.0 or earlier are not in its lock, so delete them from `.agents/skills/` and `.claude/skills/` by hand. The `research` skill answers to their names.
 
 ## Post-install check (bin/check.py)
 
 ### `research.yaml: not found in ... or above`
 
-No `research.yaml` in the working directory or any parent (or at `RMS_ROOT`). Run the
-check from the workspace root, run `npx aar install` there, or copy
-`research/assets/research.yaml.example` to `research.yaml`.
+No `research.yaml` in the working directory or any parent (or at `RMS_ROOT`). No installer creates it. Run the check from the workspace root, run `/research start` or `/research init` there, or copy the research skill's `assets/research.yaml.example` to `research.yaml`.
 
 ### `research.yaml: dag_path ... is in ..., which does not exist`
 
@@ -72,7 +50,7 @@ the path. The same applies to `node_index_path`.
 ### `warning: research.yaml: dag_path ... does not exist yet`
 
 Normal in a new workspace: the first hypothesis creates the DAG,
-`generate_node_index.py` writes the index, and AAW creates the work items folder.
+`generate_node_index.py` writes the index, and the `work` skill creates the work items folder.
 
 ### `research.yaml: work_items_path is not set` (or `dag_path`, `node_index_path`)
 
@@ -106,7 +84,7 @@ Printed at the end of a traceback by the tools that need `research.yaml`
 
 ### `research.yaml missing key: dashboard.experiments_dir`
 
-A tool needs a key the file lacks. Add it; the seeded example has every key.
+A tool needs a key the file lacks. Add it; the research skill's `assets/research.yaml.example` has every key.
 
 ### `Error: DAG file not found at hypothesis-dag.yaml`
 
@@ -291,8 +269,7 @@ Pass `--dag` with the DAG's path. Exit 2.
 
 ### `PyYAML is required: python -m pip install -r requirements.txt`
 
-The Python on your PATH lacks PyYAML. Run `python -m pip install PyYAML` with that same
-Python, or re-run `npx aar install` without `--no-python`. Exit 2.
+The Python on your PATH lacks PyYAML. Run `python -m pip install PyYAML` with that same Python. Exit 2.
 
 ### `predicate timed out after 60s`
 
@@ -364,9 +341,7 @@ so move the file to `dag_path` if they differ.
 ### The agent says the `work` skill, or an `/aaw-*` skill, is missing
 
 The research flows that create or run work delegate to AI-Assisted Work's `work` skill
-(`/work start`, `/work progress`, `/work initiative`). Install AI-Assisted Work 4.0.0 or later
-in the workspace (`npx aaw install`) and restart the agent. Before 4.0.0 the same steps were
-five skills named `aaw-start-work`, `aaw-progress-work` and so on; those names are retired.
+(`/work start`, `/work progress`, `/work initiative`). Install it in the workspace (`node <aaw>/bin/skills.mjs install work`) and restart the agent. Before AI-Assisted Work 4.0.0 the same steps were five skills named `aaw-start-work`, `aaw-progress-work` and so on; those names are retired.
 
 ### The agent reads the wrong DAG
 

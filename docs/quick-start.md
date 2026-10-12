@@ -16,9 +16,7 @@ last step.
 
 ## 1. Create a workspace
 
-AAR installs into a git repository, so start with one. Skip `mkdir .claude` unless you use
-Claude Code: the installer links the skills into `.claude/skills/` only when `.claude/`
-exists.
+AAR installs into a git repository, so start with one. Skip `mkdir .claude` unless you use Claude Code: the installer links the skills into `.claude/skills/` only when `.claude/` exists.
 
 ```bash
 mkdir research-demo
@@ -29,43 +27,41 @@ mkdir .claude
 
 The same four lines work in PowerShell.
 
-## 2. Install AI-Assisted Work, then AI-Assisted Research
+## 2. Install the work skill and the research skills
 
-AAR depends on [AI-Assisted Work](https://github.com/dermot-obrien/ai-assisted-work) (AAW),
-which provides the installer and the work-item skills the research skills hand work to.
-One `npm i` fetches both from GitHub; no npm registry access is needed.
+The research skills hand work items to the `work` skill of [AI-Assisted Work](https://github.com/dermot-obrien/ai-assisted-work) (AAW), whose `bin/skills.mjs` is also the installer. Clone both repositories and install from the clones; no npm is involved.
 
 ```bash
-npm i github:dermot-obrien/ai-assisted-research
-npx aaw install --yes --work-items-path .aaw/work-items
-npx aar install
+git clone https://github.com/dermot-obrien/ai-assisted-work.git .ai-assisted-work
+git clone https://github.com/dermot-obrien/ai-assisted-research.git .ai-assisted-research
+node .ai-assisted-work/bin/skills.mjs install work
+node .ai-assisted-work/bin/skills.mjs install --bundle .ai-assisted-research
+python -m pip install -r .ai-assisted-research/requirements.txt
 ```
 
-`--work-items-path .aaw/work-items` keeps AAW's work items inside the repository, where
-the seeded `research.yaml` expects them. Without it AAW puts them under your home folder,
-and you would then change `work_items_path` in `research.yaml` to match.
-
-What you should see: `aaw install` reports `6 skill(s) installed`, and `aar install`
-prints:
+What you should see:
 
 ```text
-▸ Installing AI-Assisted Research (RMS) (aar@1.2.0)
-  ▸ skills: installed 12 → .agents\skills/
-      literature-discovery, research
-  ▸ claude: linked 12 → .claude\skills/
-  ▸ seeded research.yaml
-  ▸ data dir research/
-  ▸ python -m pip install -r requirements.txt
-...
-Done. aar@2.0.0 — 2 skill(s).
+installed work 3.0.0 from bundle ai-assisted-work (.claude/skills linked)
+installed literature-discovery 1.1.3 from bundle ai-assisted-research (.claude/skills linked)
+installed research 3.1.0 from bundle ai-assisted-research (.claude/skills linked)
 ```
 
-Run `aar install` after `aaw install`. The other way round it still installs, but warns
-`depends on "aaw" which is not installed` and exits 1.
+Install `work` first. The other way round it still installs, with `note: research says it needs work, which is not installed`. In a real repository, add `.ai-assisted-work/` and `.ai-assisted-research/` to `.gitignore`, or clone them somewhere else and give their paths.
 
-## 3. Check the installation
+## 3. Create research.yaml and check the installation
 
-Each skill ships a post-install check. Run the engine's:
+The `/research start` and `/research init` flows create `research.yaml` and the research folder for you. This walkthrough uses the tools before any flow, so copy the example by hand, and tell `work` to keep its work items where the example's `work_items_path` expects them:
+
+```bash
+cp .agents/skills/research/assets/research.yaml.example research.yaml
+mkdir research
+echo 'work_items_path: ".aaw/work-items/"' > .aaw-config.yaml
+```
+
+In PowerShell, `cp` and `mkdir` work as written; use `Set-Content -Path .aaw-config.yaml -Value 'work_items_path: ".aaw/work-items/"' -Encoding ascii` for the `echo` line. Without `.aaw-config.yaml`, `work` keeps work items in `change/work-items/`, and you would then change `work_items_path` in `research.yaml` to match.
+
+Each skill ships a post-install check. Run the research skill's:
 
 ```bash
 python .agents/skills/research/bin/check.py
@@ -74,11 +70,11 @@ python .agents/skills/research/bin/check.py
 ```text
 warning: research.yaml: dag_path research/hypothesis-dag.yaml does not exist yet; the first hypothesis creates it.
 warning: research.yaml: node_index_path research/node-index.yaml does not exist yet; generate_node_index.py writes it.
+warning: research.yaml: work_items_path .aaw/work-items/ does not exist yet; starting a research work item creates it.
 research: ok
 ```
 
-The warnings are expected in a new workspace. A line without `warning:` is a problem; see
-[troubleshooting](troubleshooting.md).
+The warnings are expected in a new workspace. A line without `warning:` is a problem; see [troubleshooting](troubleshooting.md). `node .ai-assisted-work/bin/skills.mjs check` confirms the installed copies match what was installed.
 
 ## 4. Write a tiny DAG
 
@@ -228,8 +224,7 @@ runs the experiment and `/research sync H-001 {WI_id}` records the result. The
 
 ## Clean up
 
-Delete the `research-demo` folder. If you installed AAW without `--work-items-path`, also
-delete the work-items folder it created under your home folder (`aaw/local/research-demo`).
+Delete the `research-demo` folder. Everything the walkthrough made, the clones included, is inside it.
 
 ## Next
 

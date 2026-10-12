@@ -3,7 +3,7 @@ version = 1
 # AI-Assisted Research (RMS) is dual-licensed:
 #   - Documentation, Agent Skills, and templates are licensed
 #     under CC BY 4.0.
-#   - Executable code (Python tools, Node.js launcher) is licensed under Apache-2.0.
+#   - Executable code (Python tools, Node.js validation scripts) is licensed under Apache-2.0.
 #
 # This file follows the REUSE Specification 3.3 (https://reuse.software/).
 # It applies bulk licensing rules to files where adding an SPDX header in the
@@ -33,8 +33,6 @@ path = [
   "skills/**/scripts/**.py",
   "tests/**.py",
   "scripts/**.mjs",
-  "bin/**.js",
-  "bin/**.mjs",
 ]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 Dermot O'Brien"
@@ -52,12 +50,9 @@ precedence = "override"
 SPDX-FileCopyrightText = "2026 Dermot O'Brien"
 SPDX-License-Identifier = "CC-BY-4.0"
 
-# --- Node tooling metadata (override the broad **.json/**.yaml rule) ---
+# --- Tooling metadata (override the broad **.txt rule) ---
 [[annotations]]
 path = [
-  "package.json",
-  "package-lock.json",
-  "framework.manifest.yaml",
   "requirements.txt",
 ]
 precedence = "override"

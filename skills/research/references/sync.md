@@ -50,7 +50,7 @@ Usage: `/research sync {node_id} {WI_id}`, for example
 
 Research decides whether to deliver; it does not deliver. Where the node began as an AAW
 inquiry, re-triage its conclusion into AAW, per the AAW inquiry seam
-(`docs/aaw-inquiry-seam.md` in the AI-Assisted Research framework):
+([inquiry-seam.md](inquiry-seam.md)):
 
 | Status | Hand back |
 |--------|-----------|
@@ -75,8 +75,7 @@ recording a result you had to invent.
 
 The workflow is mandatory. The tools are a reference implementation: find better ways to
 execute the steps if you can, provided you follow the process and adhere to the project's
-research principles (`docs/PRINCIPLES.md` in the AI-Assisted Research framework, or the
-workspace's own copy where it governs one).
+research principles ([principles.md](principles.md), or the workspace's own copy where it governs one).
 
 ## Related skills
 

@@ -13,8 +13,11 @@ the state of the art and architect the research search space as a hypothesis DAG
    is not a hypothesis; it is an intention.
 3. **Propose the DAG.** Each node carries its hypothesis text, SOTA target, datasets and
    parent evidence. Parents express what must be resolved before a child can be tested.
-4. **Create the workspace.** The initiative, the root work item holding the DAG, and the
-   signpost that tells anyone arriving in the repository where the research lives.
+4. **Create the workspace.** When the workspace root has no `research.yaml`, copy
+   [assets/research.yaml.example](../assets/research.yaml.example) there, set its paths and
+   create the folder its `dag_path` is in.
+   Then the initiative, the root work item holding the DAG, and the signpost that tells anyone
+   arriving in the repository where the research lives.
 
 Delegate the work-item mechanics to AI-Assisted Work rather than creating folders by hand:
 `/work initiative` for the initiative, `/work start` for the root work item.
@@ -29,8 +32,7 @@ say whether it did.
 
 The workflow is mandatory. The tools are a reference implementation: find better ways to
 execute the steps if you can, provided you follow the process and adhere to the project's
-research principles (`docs/PRINCIPLES.md` in the AI-Assisted Research framework, or the
-workspace's own copy where it governs one).
+research principles ([principles.md](principles.md), or the workspace's own copy where it governs one).
 
 ## Related skills
 

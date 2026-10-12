@@ -54,7 +54,7 @@ How you give back depends on how you took the skills.
 A copy does not track this repository: it stays at the version you copied until you copy again.
 
 1. Keep `LICENSE` and `LICENSES/` with every copy, including a single skill folder, and keep the copyright and licence headers in the files. Add your own attribution beside them rather than replacing them.
-2. Record where the copy came from: this repository, and the tag or commit you took (for example `pattern--v0.10.1`). Release tags are named after the skill, `<skill>--v<version>`.
+2. Record where the copy came from: this repository, and the tag or commit you took (for example `literature-discovery--v1.1.2`). Release tags are named after the skill, `<skill>--v<version>`.
 3. To update, copy a newer release over it, then re-apply any local changes you still need. Keep local changes small and separate, so they are easy to carry forward.
 4. To give a change back, raise an issue here, or apply the change to a fork of this repository and open a pull request. A change made only in the copy is lost at the next update.
 
@@ -113,7 +113,7 @@ What this PR does
 How you tested the changes (e.g., ran a research strand)
 
 ## Checklist
-- [ ] Aligns with RMS Principles (PRINCIPLES.md)
+- [ ] Aligns with RMS Principles (skills/research/references/principles.md)
 - [ ] Domain-agnostic instructions
 - [ ] Follows existing patterns
 - [ ] Documentation updated

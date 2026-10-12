@@ -51,8 +51,7 @@ entirely absent from production, and nothing here would notice. That is `/resear
 
 The workflow is mandatory. The tools are a reference implementation: find better ways to
 execute the steps if you can, provided you follow the process and adhere to the project's
-research principles (`docs/PRINCIPLES.md` in the AI-Assisted Research framework, or the
-workspace's own copy where it governs one).
+research principles ([principles.md](principles.md), or the workspace's own copy where it governs one).
 
 ## Related skills
 
