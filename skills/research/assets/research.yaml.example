@@ -1,5 +1,6 @@
 # Research Management System (RMS) workspace config.
-# Seeded by `aar install` if no research.yaml exists. Edit paths to match your repo.
+# The research skill's start and init flows copy this to the workspace root when no
+# research.yaml exists. Edit paths to match your repo.
 # All paths are relative to this file's directory (the repo root). Read by
 # the research skill (bin/rms_config.py).
 

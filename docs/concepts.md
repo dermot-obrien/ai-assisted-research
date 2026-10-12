@@ -13,9 +13,7 @@ says which skill does what.
 
 AAR works inside a git repository, the workspace. Its root holds `research.yaml`, which
 tells every tool where the research lives: the DAG, the node index, the work items and the
-dashboard. The installer seeds it from
-[`research.yaml.example`](../skills/research/assets/research.yaml.example) and never
-overwrites it. Paths in it are relative to the folder that holds it. Tools find it by
+dashboard. The `/research start` and `/research init` flows create it from [`research.yaml.example`](../skills/research/assets/research.yaml.example) when there is none, and never overwrite it; no installer writes it. Paths in it are relative to the folder that holds it. Tools find it by
 searching upward from the working directory, so you can run them from any subfolder.
 [Configuration](configuration.md) lists every key.
 
@@ -165,11 +163,11 @@ and the day-to-day commands.
 An AAW `inquiry`, work where nobody yet knows what to do, is an AAR hypothesis. AAR frames
 and tests it, and hands the conclusion back to AAW as delivery work or closes it as a
 lesson. A finding that settles an architectural choice can become a decision record in
-AI-Assisted Architecture. [The AAW inquiry seam](aaw-inquiry-seam.md) is the contract.
+AI-Assisted Architecture. [The inquiry seam](../skills/research/references/inquiry-seam.md) is the contract.
 
 ## Principles and model leeway
 
 Every skill ends with the same clause: the workflow is mandatory, the tools are a reference
 implementation. An agent may find a better way to do a step, provided it follows the
-process and the [research principles](PRINCIPLES.md): metric supremacy, lineage
+process and the [research principles](../skills/research/references/principles.md): metric supremacy, lineage
 continuity, one fundamental change per node, and the rest.

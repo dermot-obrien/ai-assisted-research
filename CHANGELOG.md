@@ -5,9 +5,22 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## 3.0.0
 
-### Changed (breaking, 2.0.0)
+### Changed (breaking)
+- AAR is no longer a framework installed through AI-Assisted Work's engine. The repository is a bundle: `bundle.json` lists two standalone Agent Skills, `research` and `literature-discovery`, and each installs on its own with AI-Assisted Work's `bin/skills.mjs` (`node <aaw>/bin/skills.mjs install --bundle <clone of this repository>`, or a committed `.agents/skills.json` declaration run with `skills.mjs sync --locked --copy`). The README has both.
+- `aar install` is gone, with `bin/aar.js`, `framework.manifest.yaml` (its `depends: [aaw]` and `retired_skills`), the `.ai-assisted-work` submodule and `package.json`. There is no npm package and no `npx aar`. To keep installing with `aar install` through AI-Assisted Work 4.0.0, pin this repository at the `v2.0.0` tag, the last commit with the framework layout.
+- No installer seeds `research.yaml` or creates `research/` any more, and none installs the Python packages: run `python -m pip install -r requirements.txt`. No installer removes the retired `aar-*` and `research-dag` skill folders either: `skills.mjs sync` removes skills it installed that the declaration no longer lists, and folders left by `aar install` are deleted by hand. The `research` skill still answers to the old names.
+- The research principles and the inquiry seam are inside the `research` skill: `docs/PRINCIPLES.md` is now [`skills/research/references/principles.md`](skills/research/references/principles.md) and `docs/aaw-inquiry-seam.md` is [`skills/research/references/inquiry-seam.md`](skills/research/references/inquiry-seam.md), so an installed skill carries them.
+
+### Changed
+- `research` 3.1.0: the `/research start` and `/research init` flows create `research.yaml` from the skill's `assets/research.yaml.example`, and the folder its `dag_path` is in, when the workspace has none. The flows link the principles from their new place.
+- `research` 3.1.0 and `literature-discovery` 1.1.3: when `research.yaml` is missing, the check says to run `/research start` or `/research init`, or copy the example, rather than an installer.
+- Documentation describes installing with `skills.mjs`. The installer-only sections (the `aar` launcher in the command reference, `framework.manifest.yaml` in the configuration reference, the `aar install` messages in troubleshooting) are replaced by the `skills.mjs` commands and messages. Links from the documentation to each research flow point at its `references/<flow>.md`.
+
+## 2.0.0
+
+### Changed (breaking)
 - The research skills are one skill, `research` 3.0.0 (WI-005 of AI-Assisted Work). `aar-start-research`,
   `aar-init-research`, `aar-update-lineage`, `aar-progress-research`, `aar-start-hypothesis`,
   `aar-progress-hypothesis`, `aar-sync-research-result`, `aar-run-audit`, `aar-reconcile`,

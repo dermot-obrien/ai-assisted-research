@@ -3,7 +3,7 @@
 This document defines how the Research Management System (RMS / **AAR**) connects to the
 [AI-Assisted Work](https://github.com/dermot-obrien/ai-assisted-work) **work-classification
 standard** (`work-classification.md`). It is the contract that lets one vocabulary flow
-across both frameworks without drift.
+across the work and research skills without drift.
 
 ## The seam in one line
 

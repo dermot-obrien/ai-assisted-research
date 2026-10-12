@@ -22,17 +22,17 @@ Skills.
 | [Configuration](configuration.md) | `research.yaml`, environment variables, precedence, file formats, manifests |
 | [Troubleshooting](troubleshooting.md) | The tools' error and warning messages, and what to do about each |
 | [The shared DAG store](../skills/research/references/dag-store.md) | One DAG changed by several machines and agents at once |
-| [Reconcile finding kinds](../skills/research reconcile/references/finding-kinds.md) | What each `reconcile.py` finding means |
-| [Node selection](../skills/research frame/references/node-selection.md) | How the skills choose work from the node index |
+| [Reconcile finding kinds](../skills/research/references/finding-kinds.md) | What each `reconcile.py` finding means |
+| [Node selection](../skills/research/references/node-selection.md) | How the skills choose work from the node index |
 
 ## Design
 
 | Page | Covers |
 |---|---|
-| [Research principles](PRINCIPLES.md) | The guardrails every skill follows, and the model leeway clause |
+| [Research principles](../skills/research/references/principles.md) | The guardrails every skill follows, and the model leeway clause |
 | [Agent roles](AGENTS.md) | Discovery, Specialist, Worker, Auditor, Reconciler, Housekeeper |
 | [Adoption and drift](adoption-and-drift.md) | The second axis: whether a validated finding is live, and how drift is detected |
-| [AAW inquiry seam](aaw-inquiry-seam.md) | How an AAW inquiry becomes a hypothesis, and how a conclusion returns to delivery |
+| [Inquiry seam](../skills/research/references/inquiry-seam.md) | How an AAW inquiry becomes a hypothesis, and how a conclusion returns to delivery |
 | [Framework design](../change/work-items/WI-001-research-management-system/deliverables/D01-framework-design.md) | The original design work item and its schema |
 | [The research fog and AI lineage](articles/the-research-fog-and-ai-lineage.md) | Why a lineage of ideas matters, as an article |
 

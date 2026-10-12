@@ -15,14 +15,11 @@ repository's own manifests.
 
 ## research.yaml
 
-One per workspace, at its root. The installer seeds it from
-[`skills/research/assets/research.yaml.example`](../skills/research/assets/research.yaml.example)
-if none exists, and never overwrites it. Read by every tool of the `research` skill (through
-`rms_config.py`), by the post-install checks, and by the skills.
+One per workspace, at its root. The `/research start` and `/research init` flows create it from [`skills/research/assets/research.yaml.example`](../skills/research/assets/research.yaml.example) when none exists, and never overwrite it; no installer writes it. To use the tools before running a flow, copy the example yourself. Read by every tool of the `research` skill (through `rms_config.py`), by the post-install checks, and by the skills.
 
 String paths are relative to the folder that holds `research.yaml`.
 
-| Key | Type | Default in the seeded file | Required | What it is |
+| Key | Type | Default in the example | Required | What it is |
 |---|---|---|---|---|
 | `dag_path` | path | `research/hypothesis-dag.yaml` | Yes | The hypothesis DAG. With a DAG store, the view generated from it |
 | `node_index_path` | path | `research/node-index.yaml` | Yes | Where `generate_node_index.py` writes the index |
@@ -207,7 +204,7 @@ Each skill's `SKILL.md` opens with YAML front matter, per the
 | `name` | string | Equals the folder name |
 | `description` | string, at most 1024 characters, quoted | What the skill does and when to use it; agents choose skills by it |
 | `license` | string | `CC-BY-4.0 AND Apache-2.0` with a pointer to `LICENSE` |
-| `compatibility` | string, at most 500 characters | What it needs: `research.yaml`, Python, the AAW skills |
+| `compatibility` | string, at most 500 characters | What it needs: `research.yaml`, Python, the `work` skill |
 | `metadata.author` | string | `dermot-obrien` |
 | `metadata.version` | quoted semver string | The skill's own version, bumped on any change inside its folder |
 | `metadata.homepage` | URL | This repository |
@@ -222,22 +219,6 @@ skill entry: `name`, `path`, `version` and `purl` (both equal to the `SKILL.md`
 version), `requires` (each a `purl` and `range`, as `x-skill-requires` states them) and
 `check` (`command`, `runtime`, `description`).
 
-## framework.manifest.yaml
-
-The AAW install engine's contract, read by `aar install`:
-
-| Key | Value here | Effect |
-|---|---|---|
-| `id`, `name`, `version` | `aar`, `AI-Assisted Research (RMS)`, the framework version | Recorded under `modules.aar` in `.aaw-config.yaml` |
-| `depends` | `[aaw]` | The install warns and exits 1 unless AAW is installed or a `.ai-assisted-work` clone is present |
-| `runtime` | `python` | |
-| `tool_setup.python.requirements` | `requirements.txt` | `pip install -r` unless `--no-python` |
-| `skills.src` | `skills` | Each folder with a `SKILL.md` is copied to `.agents/skills/<name>/` |
-| `config` | `research.yaml` from the example | Seeded only when absent |
-| `data_dirs` | `[research/]` | Created in the workspace |
-
 ## .aaw-config.yaml
 
-Written by AAW, not AAR. AAR's launcher reads `modules.aaw.source_root` to find the
-install engine, and the research skills expect `work_items_path` there to match the one in
-`research.yaml`.
+A workspace file the `work` skill reads, not AAR's. The research skills expect its `work_items_path` (default `./change/work-items/`) to match the one in `research.yaml`.

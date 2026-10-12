@@ -2,15 +2,15 @@
   "$schema": "pkg:generic/dermot-obrien/ai-assisted-work/bundle-schema@1.0.0",
   "name": "ai-assisted-research",
   "owner": "dermot-obrien",
-  "description": "AI-Assisted Research: hypothesis-driven research as Agent Skills, on a shared hypothesis DAG, with literature discovery, audits and lineage, handing work to AI-Assisted Work.",
+  "description": "AI-Assisted Research: hypothesis-driven research as Agent Skills, on a shared hypothesis DAG, with literature discovery, audits and lineage, handing work items to the work skill. A bundle of two standalone skills, each installed on its own with AI-Assisted Work's bin/skills.mjs.",
   "license": "CC-BY-4.0 AND Apache-2.0",
   "homepage": "https://github.com/dermot-obrien/ai-assisted-research",
   "skills": [
     {
       "name": "literature-discovery",
       "path": "skills/literature-discovery",
-      "version": "1.1.2",
-      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery@1.1.2",
+      "version": "1.1.3",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/literature-discovery@1.1.3",
       "requires": [],
       "check": {
         "command": ["python", "bin/check.py"],
@@ -21,8 +21,8 @@
     {
       "name": "research",
       "path": "skills/research",
-      "version": "3.0.0",
-      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research@3.0.0",
+      "version": "3.1.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research@3.1.0",
       "requires": [
         { "purl": "pkg:generic/dermot-obrien/ai-assisted-work/work", "range": "^3.0.0" }
       ],

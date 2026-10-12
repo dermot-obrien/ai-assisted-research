@@ -18,8 +18,10 @@ recording it.
    from the real thing once written down.
 4. **Confirm with the user.** Present the discovered lineage alongside its evidence before
    writing it. You are asserting what someone else was thinking; let them correct you.
-5. **Write the DAG** and set up the AAW integration: the initiative, the root work item that
-   holds the lineage, and the workspace signpost.
+5. **Write the DAG** and set up the work integration: a `research.yaml` at the workspace root
+   when there is none (copy [assets/research.yaml.example](../assets/research.yaml.example) and
+   set its paths), the initiative, the root work item that holds the lineage, and the
+   workspace signpost.
 
 ## Where the evidence is thin
 
@@ -31,8 +33,7 @@ it later.
 
 The workflow is mandatory. The tools are a reference implementation: find better ways to
 execute the steps if you can, provided you follow the process and adhere to the project's
-research principles (`docs/PRINCIPLES.md` in the AI-Assisted Research framework, or the
-workspace's own copy where it governs one).
+research principles ([principles.md](principles.md), or the workspace's own copy where it governs one).
 
 ## Related skills
 
