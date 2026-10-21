@@ -26,6 +26,14 @@ Two research-specific obligations on top of the standard loop:
   part that cannot be reconstructed afterwards.
 - **Scientific rigour.** Use the execution loop for the code changes, data processing and
   benchmarking, so the work is claimed, locked and recorded like any other.
+- **Every measured run goes through the vault.** With `vault` set in `research.yaml`, run each
+  experiment whose numbers you will report through the experiment-vault skill, after committing:
+  `vault.py run --node {node_id} --data ... --outputs ... --metrics ... --metric ... --seed ... -- <command>`
+  ([capturing](../../experiment-vault/references/capturing.md)). It keeps the code at its commit,
+  the data, the environment, the command and the outputs as a capsule, and appends the capsule to
+  the node. A number that did not come from a capsule cannot be replayed, so it is not the
+  result; exploratory runs need not be captured. Without a vault configured, say so to the user
+  once, and record the commit, data, seeds and command in the work item.
 
 ## Phase 3: Synthesis and synchronisation
 

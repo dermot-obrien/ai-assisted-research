@@ -24,7 +24,7 @@ from pathlib import Path
 import yaml
 
 REPO = Path(__file__).resolve().parents[1]
-BIN = REPO / "skills" / "research" / "bin"
+BIN = REPO / "skills" / "research-dag" / "bin"
 sys.path.insert(0, str(BIN))
 
 import dag_store  # noqa: E402
@@ -312,6 +312,25 @@ class Concurrency(StoreCase):
         finish_change(b, b_before, b_after)
         a.pull()
         self.assertEqual(a.replay().nodes["H-204"]["notes"], ["from a", "from b"])
+
+    def test_concurrent_appends_to_a_new_list_field_both_survive(self):
+        a = self.seeded("a")
+        b = self.clone("b")
+        a_before, a_after = begin_change(a)
+        b_before, b_after = begin_change(b)
+        dag_update.append_to_field(a_after, "H-204", "capsules", {"id": "one"})
+        dag_update.append_to_field(b_after, "H-204", "capsules", {"id": "two"})
+        finish_change(a, a_before, a_after)
+        finish_change(b, b_before, b_after)
+        a.pull()
+        self.assertEqual(a.replay().nodes["H-204"]["capsules"], [{"id": "one"}, {"id": "two"}])
+
+    def test_append_refuses_a_field_that_is_not_a_list(self):
+        dag = {"nodes": [{"id": "H-001", "evidence": "text"}]}
+        self.assertIn("not a list", dag_update.append_to_field(dag, "H-001", "evidence", "x"))
+        self.assertIsNone(dag_update.append_to_field(dag, "H-001", "capsules", "x"))
+        self.assertIsNone(dag_update.append_to_field(dag, "H-001", "capsules", "x"))
+        self.assertEqual(dag["nodes"][0]["capsules"], ["x"])
 
 
 class Prune(StoreCase):

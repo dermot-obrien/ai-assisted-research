@@ -5,6 +5,20 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.0.0
+
+### Added
+- `experiment-vault` 1.0.0, a new skill: every hypothesis experiment kept as a self-contained, immutable capsule in a Google Cloud Storage bucket (through the gcloud CLI) or a folder, so any later agent can replay it. `vault.py run` runs the command and keeps the exact code (a tar of each repository at its commit, with `exact: true` when the tar's own git tree hash equals the commit's), the data it read, the interpreter, `pip freeze` and optionally every wheel (`--vendor-wheels`), the hardware, the command, seeds and result-changing environment variables, stdout and stderr, the outputs and the metrics. Files are stored once by SHA-256; the manifest is written last, never overwritten, and its id carries its hash. `capture` records a run that already happened; `list`, `show`, `verify` (`--sha256`, `--deep`), `restore` (with `replay.sh` and `replay.ps1`), `replay` (a fresh virtual environment from the lock or the vendored wheels, or `--setup none`, with `--pip` overrides; verdict `identical`, `reproduced`, `drifted` or `failed`, kept as a `retest` capsule), `run --retest-of`, `coverage` (result nodes with no capsule) and `lifecycle` (GCS storage class rules). Capsules are appended to the node's `capsules` field. [Storage](skills/experiment-vault/references/storage.md) covers the bucket: Autoclass with Archive as the terminal class, so old capsules get cheap and stay readable at once, and agents with create and read access only.
+- `research` 4.0.0: the `/research retest` flow replays a node's capsule after a library, data or code change, notes the verdict, and moves a drifted `validated` or `ineffective` node to `contested`. `/research frame` fixes the command, inputs, outputs, seeds and replay tolerance before the run; `/research run` keeps every measured run in the vault; `/research sync` records a result only from a capsule on the node; `/research audit` replays the capsule first; `/research housekeep` runs `vault.py coverage --verify`. Each applies when `vault` is set in `research.yaml`.
+- `research-dag` 2.0.0: `dag_update.py --action append` adds one item to a list field, written in a DAG store as an append event so concurrent appends survive. [Node schema](skills/research-dag/references/node-schema.md) sets out the fields, the status vocabulary and the `capsules` field.
+
+### Changed (breaking)
+- The DAG tools are a skill of their own again, `research-dag` 2.0.0, so an agent or another bundle can use the DAG without the research method: `dag_update.py`, `dag_store.py`, `generate_node_index.py`, `generate_dashboard.py`, `validate_dag_references.py`, `branch_manager.py` and `rms_config.py` move from `skills/research/bin/` to `skills/research-dag/bin/`, with `references/dag.md` (now `tools.md`), `dag-store.md`, the event schema and the DAG tools' argument schemas. `research` requires `research-dag` ^2.0.0 and `experiment-vault` ^1.0.0. Launchers at the old `research/bin/` paths run the new copies, with a note, until 5.0.0. Install the bundle again (`skills.mjs install --bundle`, or `sync` with the declaration) to get the new skills.
+
+### Changed
+- `literature-discovery` 1.1.4: the shared post-install check knows the new skills, and checks `experiment-vault` has git on PATH.
+- `research.yaml.example` has a commented `vault:` block, and ships in `research-dag` too.
+
 ## 3.0.0
 
 ### Changed (breaking)

@@ -21,6 +21,7 @@ checks the copies are identical. What differs by skill is in NEEDS below.
 """
 import importlib.util
 import os
+import shutil
 import sys
 
 if sys.version_info < (3, 10):
@@ -42,6 +43,8 @@ SKILL = os.path.basename(SKILL_DIR)
 # research.yaml. A skill not listed reads research.yaml and imports nothing.
 NEEDS = {
     "research": {"packages": {"yaml": "PyYAML"}},
+    "research-dag": {"packages": {"yaml": "PyYAML"}},
+    "experiment-vault": {"packages": {"yaml": "PyYAML"}, "research_yaml": False, "commands": ["git"]},
     "literature-discovery": {"packages": {"yaml": "PyYAML", "requests": "requests"}, "research_yaml": False},
 }
 need = NEEDS.get(SKILL, {})
@@ -50,6 +53,10 @@ problems, warnings = [], []
 for module, package in need.get("packages", {}).items():
     if importlib.util.find_spec(module) is None:
         problems.append(f"{package} is not installed for this Python. Run: python -m pip install {package}")
+
+for command in need.get("commands", []):
+    if shutil.which(command) is None:
+        problems.append(f"{command} is not on PATH. Install it; {SKILL} runs it.")
 
 
 def read_config(path):
@@ -92,7 +99,7 @@ if need.get("research_yaml", True):
     if not root or not os.path.isfile(config):
         where = f"RMS_ROOT={os.environ.get('RMS_ROOT')}" if via else f"{os.getcwd()} or above"
         problems.append(f"research.yaml: not found in {where}. Run /research start (or /research init), "
-                        f"which creates it, or copy the research skill's assets/research.yaml.example to the workspace root.")
+                        f"which creates it, or copy assets/research.yaml.example from the research or research-dag skill to the workspace root.")
     else:
         try:
             cfg = read_config(config)

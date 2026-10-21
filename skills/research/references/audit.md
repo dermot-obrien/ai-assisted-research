@@ -14,11 +14,16 @@ evaluation code against the branch's own result verifies nothing at all.
 
 ## Protocol
 
-1. **Re-run the benchmark suites** in the clean environment and verify the claimed performance
+1. **Replay the capsule**, where the node has one: `vault.py replay <node>/<capsule id>` restores
+   the exact code, data and environment into a new folder, runs the recorded command and reports
+   `identical`, `reproduced`, `drifted` or `failed`, kept as a retest capsule on the node
+   ([replaying](../../experiment-vault/references/replaying.md)). That proves the result can be
+   made again from what was recorded. It does not prove the evaluation was sound, so go on to 2.
+2. **Re-run the benchmark suites** in the clean environment and verify the claimed performance
    gain reproduces.
-2. **Verify the code changes** are non-destructive and free of artefacts left over from
+3. **Verify the code changes** are non-destructive and free of artefacts left over from
    experimentation.
-3. **Confirm consistency** between the data, the measured performance and the claims made in
+4. **Confirm consistency** between the data, the measured performance and the claims made in
    the article. All three must agree; where they do not, the disagreement is the finding.
 
 The reference verifier is [scripts/audit_verify.py](../scripts/audit_verify.py). It reads the
