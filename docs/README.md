@@ -12,7 +12,7 @@ Skills.
 | [Quick start](quick-start.md) | From an empty folder to a working DAG, index, dashboard and literature search in ten minutes |
 | [Concepts](concepts.md) | The ideas you need, in the order you need them |
 | [User guide](user-guide.md) | The full research cycle, step by step |
-| [Skills](skills.md) | What the two skills and the research flows do, when to use each, what each needs |
+| [Skills](skills.md) | What the four skills and the research flows do, when to use each, what each needs |
 
 ## Reference
 
@@ -21,7 +21,13 @@ Skills.
 | [Commands](commands.md) | Every script, subcommand and flag, and the skill invocations |
 | [Configuration](configuration.md) | `research.yaml`, environment variables, precedence, file formats, manifests |
 | [Troubleshooting](troubleshooting.md) | The tools' error and warning messages, and what to do about each |
-| [The shared DAG store](../skills/research/references/dag-store.md) | One DAG changed by several machines and agents at once |
+| [The DAG tools](../skills/research-dag/references/tools.md) | The research-dag skill's tools, the workspace keys they read, and their rules |
+| [The shared DAG store](../skills/research-dag/references/dag-store.md) | One DAG changed by several machines and agents at once |
+| [Node schema](../skills/research-dag/references/node-schema.md) | The fields a node carries, the status vocabulary, and the `capsules` that make a result reproducible |
+| [Capturing an experiment](../skills/experiment-vault/references/capturing.md) | What `vault.py run` records, and what a capsule cannot pin |
+| [Replaying and retesting](../skills/experiment-vault/references/replaying.md) | Replay verdicts, retesting after a change, restore and verify |
+| [Vault storage](../skills/experiment-vault/references/storage.md) | The Cloud Storage bucket, access, cost and archive classes, and a local vault |
+| [The capsule format](../skills/experiment-vault/references/capsule-format.md) | The vault's layout and every key of a capsule manifest |
 | [Reconcile finding kinds](../skills/research/references/finding-kinds.md) | What each `reconcile.py` finding means |
 | [Node selection](../skills/research/references/node-selection.md) | How the skills choose work from the node index |
 
@@ -42,6 +48,7 @@ Skills.
 |---|---|
 | [`research.yaml.example`](../skills/research/assets/research.yaml.example) | A complete, commented workspace configuration |
 | [Quick start, step 4](quick-start.md#4-write-a-tiny-dag) | The smallest useful DAG |
+| [`tests/test_experiment_vault.py`](../tests/test_experiment_vault.py) | Capturing, verifying, restoring, replaying and retesting capsules in a folder vault, the link to the DAG node, and the `gs://` backend against a fake gcloud |
 | [`tests/test_dag_store.py`](../tests/test_dag_store.py) | A hierarchical DAG with comments, block ids and adoption blocks (`FIXTURE`), and the store's behaviour under concurrent writers |
 | [CI, job "Python tools"](../.github/workflows/ci.yml) | Two end-to-end runs of the tools in a scratch workspace: plain file, and against a DAG store in a local bare repository |
 | [Output templates](../skills/research/assets/templates/) | Blog post, arXiv draft, pivot report and changes log |
@@ -106,7 +113,10 @@ sequenceDiagram
 | `research.yaml` | The workspace configuration at the repository root: where the DAG, index, work items and dashboard live |
 | `research/hypothesis-dag.yaml` | The map of the research solution space |
 | `research/node-index.yaml` | Which nodes are ready, active, framed or blocked, computed from the DAG |
+| The experiment vault (`vault.uri`) | One capsule per measured run and retest, linked from the node's `capsules` |
 | AAW work items (`work_items_path`) | One per research node, created through AI-Assisted Work |
 | `metadata.yaml` | Per-node state in the work item: fixed parent performance and target, measured result, handoffs |
-| `skills/research/` | The research method: one `SKILL.md` routing to a reference per flow (`references/`), the DAG tools (`bin/`: DAG updates, node index, dashboard, reference validation, branches, the optional shared DAG store), the flows' own tools (`scripts/`) and templates (`assets/`) |
+| `skills/research/` | The research method: one `SKILL.md` routing to a reference per flow (`references/`), the flows' own tools (`scripts/`), templates (`assets/`), and launchers at the DAG tools' old paths (`bin/`) until 5.0.0 |
+| `skills/research-dag/` | The DAG tools (`bin/`: DAG updates, node index, dashboard, reference validation, branches, the optional shared DAG store), their references and schemas. Usable without `research` |
+| `skills/experiment-vault/` | `vault.py`: every experiment kept as a replayable capsule in a bucket or a folder, and replayed. Usable on its own |
 | `skills/literature-discovery/` | Literature search: OpenAlex discovery, Semantic Scholar ranking, and a state-of-the-art baseline. Usable on its own |

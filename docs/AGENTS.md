@@ -1,8 +1,8 @@
 # RMS Agent Protocols & Personalities
 
 This document summarises the specialised roles in the Research Management System. Each role is
-now a standalone [Agent Skill](https://agentskills.io) under [`skills/`](../skills/), carrying
-its own protocol; this page is the overview of how they relate.
+now a flow of the `research` [Agent Skill](https://agentskills.io) under [`skills/`](../skills/),
+carrying its own protocol; this page is the overview of how they relate.
 
 The `agents/` directory this page used to point at was retired when the per-tool command shims
 were: a skill is self-contained, so the role definition and the command are one artefact rather

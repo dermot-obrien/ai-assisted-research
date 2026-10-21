@@ -6,7 +6,8 @@ SPDX-License-Identifier: CC-BY-4.0
 # Quick start
 
 From an empty folder to a hypothesis DAG with a ready node, a node index, a dashboard, an
-adoption check and a literature search, in about ten minutes. Every command below was run
+adoption check and a literature search, in about ten minutes, with an optional step that
+keeps an experiment in a local vault and replays it. Every command below was run
 as written on Windows, in PowerShell 5.1 and in Git Bash. Where the two shells differ, both
 are shown.
 
@@ -42,12 +43,17 @@ python -m pip install -r .ai-assisted-research/requirements.txt
 What you should see:
 
 ```text
-installed work 3.0.0 from bundle ai-assisted-work (.claude/skills linked)
-installed literature-discovery 1.1.3 from bundle ai-assisted-research (.claude/skills linked)
-installed research 3.1.0 from bundle ai-assisted-research (.claude/skills linked)
+installed work 3.1.1 from bundle ai-assisted-work (.claude/skills linked)
+installed literature-discovery 1.1.4 from bundle ai-assisted-research (.claude/skills linked)
+installed research-dag 2.0.0 from bundle ai-assisted-research (.claude/skills linked)
+installed experiment-vault 1.0.0 from bundle ai-assisted-research (.claude/skills linked)
+installed research 4.0.0 from bundle ai-assisted-research (.claude/skills linked)
 ```
 
-Install `work` first. The other way round it still installs, with `note: research says it needs work, which is not installed`. In a real repository, add `.ai-assisted-work/` and `.ai-assisted-research/` to `.gitignore`, or clone them somewhere else and give their paths.
+The bundle is four skills: `research` (the flows), `research-dag` (the DAG tools the steps
+below run), `experiment-vault` (step 10) and `literature-discovery` (step 9).
+
+Install `work` first. The other way round it still installs, with `note: research says it needs work, which is not installed`. The work version may be newer than shown. In a real repository, add `.ai-assisted-work/` and `.ai-assisted-research/` to `.gitignore`, or clone them somewhere else and give their paths.
 
 ## 3. Create research.yaml and check the installation
 
@@ -74,7 +80,7 @@ warning: research.yaml: work_items_path .aaw/work-items/ does not exist yet; sta
 research: ok
 ```
 
-The warnings are expected in a new workspace. A line without `warning:` is a problem; see [troubleshooting](troubleshooting.md). `node .ai-assisted-work/bin/skills.mjs check` confirms the installed copies match what was installed.
+The warnings are expected in a new workspace. A line without `warning:` is a problem; see [troubleshooting](troubleshooting.md). The `research-dag` check prints the same, and `experiment-vault`'s prints `experiment-vault: ok`. `node .ai-assisted-work/bin/skills.mjs check` confirms the installed copies match what was installed.
 
 ## 4. Write a tiny DAG
 
@@ -118,7 +124,7 @@ Change the DAG through `dag_update.py`, never by hand, so ids, parents and statu
 consistent:
 
 ```bash
-python .agents/skills/research/bin/dag_update.py --dag research/hypothesis-dag.yaml --action add --parent H-000 --hypothesis "Adding day-of-week features lifts accuracy by at least 0.03" --target 0.03 --metric accuracy
+python .agents/skills/research-dag/bin/dag_update.py --dag research/hypothesis-dag.yaml --action add --parent H-000 --hypothesis "Adding day-of-week features lifts accuracy by at least 0.03" --target 0.03 --metric accuracy
 ```
 
 ```text
@@ -133,7 +139,7 @@ block at `not_assessed`, and H-000 lists it under `avenues`.
 The research skills read readiness from the node index rather than walking the DAG:
 
 ```bash
-python .agents/skills/research/bin/generate_node_index.py
+python .agents/skills/research-dag/bin/generate_node_index.py
 ```
 
 ```text
@@ -150,8 +156,8 @@ H-001 is `ready` because its parent is resolved (`validated`).
 ## 7. Check references and build the dashboard
 
 ```bash
-python .agents/skills/research/bin/validate_dag_references.py
-python .agents/skills/research/bin/generate_dashboard.py
+python .agents/skills/research-dag/bin/validate_dag_references.py
+python .agents/skills/research-dag/bin/generate_dashboard.py
 ```
 
 ```text
@@ -207,7 +213,58 @@ Set `OPENALEX_EMAIL` to an address you read to use OpenAlex's polite pool. The
 `sota_baseline.py` tool in the same folder also asks Semantic Scholar, which often answers
 `429` without an `S2_API_KEY`; see [troubleshooting](troubleshooting.md#literature-discovery).
 
-## 10. Hand a hypothesis to your agent
+## 10. Keep the run in a local vault (optional)
+
+The experiment vault keeps a run's code, data, environment, command and outputs as a capsule
+that can be run again. A folder inside the workspace serves for a try. A capsule pins a
+commit, so commit first, with the clones and the folders the run writes git-ignored. This
+step was checked in Bash; in PowerShell, write the two files with an editor and run the
+`git` and `python` lines as they are.
+
+```bash
+cat > evaluate.py <<'EOF'
+import json, os
+os.makedirs("out", exist_ok=True)
+json.dump({"accuracy": 0.845}, open("out/metrics.json", "w"))
+EOF
+printf '.ai-assisted-*/\nvault/\nout/\n.vault-replay/\n' > .gitignore
+git add -A
+git commit -m "Day-of-week experiment"
+python .agents/skills/experiment-vault/bin/vault.py --vault vault --project demo init
+python .agents/skills/experiment-vault/bin/vault.py --vault vault --project demo run --node H-001 --outputs out --metrics out/metrics.json --metric accuracy -- python evaluate.py
+```
+
+```text
+Initialised .../research-demo/vault
+note: PYTHONHASHSEED is not set, so set and dict-of-str iteration order can differ between runs; set it for bit-identical replays
+Capsule H-001/20261021T044351Z-b8c8403bcd39: 4 files, 851.5 KB, 4 new to the vault
+  .../research-demo/vault/capsules/demo/H-001/20261021T044351Z-b8c8403bcd39.json
+Recorded on H-001: capsules += 20261021T044351Z-b8c8403bcd39
+```
+
+H-001 now has a `capsules` list naming the capsule and its hash. Replay it with the capsule
+id your run printed; `--setup none` uses this Python as it is instead of building a fresh
+environment from the capsule's package list:
+
+```bash
+python .agents/skills/experiment-vault/bin/vault.py --vault vault --project demo replay H-001/<capsule id> --setup none
+```
+
+```text
+Restored H-001/20261021T044351Z-b8c8403bcd39 into .../research-demo/.vault-replay/20261021T044351Z-b8c8403bcd39
+Verdict: identical (rtol 1e-09, atol 1e-12)
+  ok  accuracy: was 0.845, now 0.845 (delta +0)
+  outputs: 1 identical, 0 changed
+Capsule H-001/20261021T044352Z-ce56c6437fda: 4 files, 851.5 KB, 0 new to the vault
+  ...
+Recorded on H-001: capsules += 20261021T044352Z-ce56c6437fda
+```
+
+The replay is itself kept, as a `retest` capsule. In a real workspace, set `vault.uri` in
+`research.yaml` instead of passing `--vault`; see
+[configuration](configuration.md#the-experiment-vault).
+
+## 11. Hand a hypothesis to your agent
 
 Everything so far ran without an agent. The `research` skill's flows are the workflows an agent runs
 on top of these tools. Open the folder in your agent and ask:

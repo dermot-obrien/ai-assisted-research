@@ -1,7 +1,8 @@
 # User guide
 
 The full research cycle, step by step, for human researchers and the agents working with
-them. It assumes the research skills and AAW's `work` skill are installed in the workspace; the
+them. It assumes the four research skills (`research`, `research-dag`, `experiment-vault` and
+`literature-discovery`) and AAW's `work` skill are installed in the workspace; the
 [quick start](quick-start.md) does that and tries the tools on a two-node DAG. The
 [concepts](concepts.md) page explains the terms used here.
 
@@ -73,6 +74,14 @@ Before the DAG, fix the testing environment every node will be measured in:
    The audit's clean-room check compares this folder with `main`.
 3. Baseline: run the benchmark against the current code and confirm it reproduces the
    figure you will record on H-000.
+4. Vault: set `vault.uri` (and `vault.project`, or `dag_project`) in `research.yaml`, so
+   every measured run is kept as a capsule; see
+   [configuration](configuration.md#the-experiment-vault). For a bucket, a person creates it
+   once, as the experiment-vault skill's
+   [storage reference](../skills/experiment-vault/references/storage.md) shows, then runs
+   `python <skills>/experiment-vault/bin/vault.py init`. A folder works for a start. Keep
+   the data inside the repository (git-ignored if large), since a capsule records data by
+   its path there.
 
 ### Step 1.3: Create the DAG
 
@@ -99,8 +108,8 @@ start from the [quick start's example](quick-start.md#4-write-a-tiny-dag).
 or directly:
 
 ```bash
-python <skills>/research/bin/dag_update.py --action add --parent H-001 --hypothesis "New variant description" --target 0.05 --metric accuracy
-python <skills>/research/bin/generate_node_index.py
+python <skills>/research-dag/bin/dag_update.py --action add --parent H-001 --hypothesis "New variant description" --target 0.05 --metric accuracy
+python <skills>/research-dag/bin/generate_node_index.py
 ```
 
 `dag_update.py` edits the DAG at `dag_path` from `research.yaml`; pass `--dag` to name
@@ -112,7 +121,7 @@ When more than one machine or agent works on the DAG, keep it in a shared DAG st
 `dag_store.py import`. The same `dag_update.py` commands then write events to the store
 and regenerate `hypothesis-dag.yaml` as a view. Use the id the command reports for a new
 node, which carries a letter suffix if a concurrent writer took the id first. See
-[the shared DAG store](../skills/research/references/dag-store.md).
+[the shared DAG store](../skills/research-dag/references/dag-store.md).
 
 ### Step 2.2: Frame a hypothesis (design phase)
 
@@ -123,6 +132,10 @@ node, which carries a letter suffix if a concurrent writer took the id first. Se
 - Checks the node is `ready` in the node index, and warns if it is `blocked`.
 - Delegates to AAW `/work start` to create a research work item with `scope.md`,
   `research.md` and `plan.md`.
+- With a vault, writes into the plan what the run will capture: the command, the inputs
+  and outputs by path, the seeds, the metric key and the tolerance a replay must meet
+  (`--rtol`, `--atol`). Fixing them now, like the target, is what lets a later agent replay
+  the experiment.
 - Records the work item on the node and moves it from `pending` to `framed`.
 
 Framing is worth doing even if the experiment waits: the design is captured while the idea
@@ -141,17 +154,33 @@ is fresh.
 - First call: creates the branch `research/{node_id}-{topic}`, writes the work item's
   `metadata.yaml` with the parent's performance and the target, and moves the node to
   `in_progress`. The helper behind this is
-  `python <skills>/research/bin/branch_manager.py --action init --node-id H-001 --topic "day of week" --agent-id me --parent-perf 0.81 --target-imp 0.03 --target-dir <work item folder>`.
+  `python <skills>/research-dag/bin/branch_manager.py --action init --node-id H-001 --topic "day of week" --agent-id me --parent-perf 0.81 --target-imp 0.03 --target-dir <work item folder>`.
 - Then: delegates to AAW `/work progress` to execute the tasks, recording a finding
   and what prompted it for each activity.
 
 `/research progress` does steps 2.2 and 3.1 for the next ready node without you naming
 it.
 
-### Step 3.2: Write it up
+### Step 3.2: Capture every measured run
+
+With a vault configured, every run whose numbers you will report goes through the
+experiment vault, after committing:
+
+```bash
+python <skills>/experiment-vault/bin/vault.py run --node H-001 --data performance/data/demo --outputs out/ --metrics out/metrics.json --metric accuracy --seed numpy=7 --work-item WI-042 -- python performance/benchmarks/evaluate_accuracy.py --seed 7
+```
+
+It keeps the code at its commit, the data, the environment, the command, its console output
+and the outputs as a capsule, and appends the capsule to the node's `capsules`. Set
+`PYTHONHASHSEED` first for a bit-identical replay. Exploratory runs need not be captured,
+but a number that did not come from a capsule cannot be replayed, so it is not the result.
+For a run that already happened, `vault.py capture --cmd "..."` keeps its outputs; say so in
+`--note`.
+
+### Step 3.3: Write it up
 
 When the work is done, write the outputs in the work item's `deliverables/` from the
-templates in `<skills>/research run/assets/templates/`:
+templates in `<skills>/research/assets/templates/`:
 
 - `blog_template.md` to `deliverables/{node_id}-blog.md`
 - `arxiv_template.md` to `deliverables/{node_id}-arxiv.md`
@@ -168,8 +197,17 @@ templates in `<skills>/research run/assets/templates/`:
 /research audit
 ```
 
-The Auditor re-runs the benchmark in a clean room. From the work item folder that holds
-`metadata.yaml`:
+The Auditor first replays the node's capsule, where it has one:
+
+```bash
+python <skills>/experiment-vault/bin/vault.py replay H-001/<capsule id>
+```
+
+It restores the exact code, data and environment into a new folder, runs the recorded
+command and reports `identical`, `reproduced`, `drifted` or `failed` (exit 0, 0, 3 or 1),
+kept as a retest capsule on the node. That proves the result can be made again from what was
+recorded, not that the evaluation was sound, so the Auditor then re-runs the benchmark in a
+clean room. From the work item folder that holds `metadata.yaml`:
 
 ```bash
 python <skills>/research/scripts/audit_verify.py --action verify --clean-room
@@ -192,7 +230,16 @@ Once the AAW work item is `done`:
 /research sync {node_id} {WI_id}
 ```
 
-It sets the node to `validated` or `ineffective` against the target fixed in step 3.1 (or
+With a vault configured, it first checks the node names the capsule the metric came from,
+with that metric as its `result.value`, and that it is intact:
+
+```bash
+python <skills>/experiment-vault/bin/vault.py verify H-001/<capsule id> --sha256 <sha256 from the node>
+```
+
+With no capsule, it captures the run now if it can still be run, or from its outputs with
+`vault.py capture`; a result with neither stays `in_progress`. Then it sets the node to
+`validated` or `ineffective` against the target fixed in step 3.1 (or
 `discarded` if the work stopped), links the deliverables, regenerates the index so
 unblocked children become `ready`, and proposes the hand-back to AAW.
 
@@ -206,9 +253,31 @@ Merge the research branch into `main`, with the updated `hypothesis-dag.yaml`.
 
 | When | Run |
 |---|---|
-| After a batch of changes | `/research housekeep`: index, reference check, dashboard |
+| After a batch of changes | `/research housekeep`: index, capsule coverage (`vault.py coverage --verify`), reference check, dashboard |
+| A library, the environment, the code or the data a result rests on changes | `/research retest {node_id} [what changed]`; see below |
 | Regularly, or before a merge | `/research reconcile`: adoption drift. `reconcile.py` exits 1 on drift |
 | A new avenue appears | `/research lineage` |
+
+### Retesting a result
+
+```text
+/research retest H-001 "numpy 2.1"
+```
+
+The flow takes the node's newest `run` capsule, verifies it, and replays it with the change:
+
+| What changed | It runs |
+|---|---|
+| Nothing, or "does it still reproduce" | `vault.py replay <capsule>` |
+| A library | `vault.py replay <capsule> --pip numpy==2.1.0` |
+| The environment as a whole | `vault.py replay <capsule> --setup none`, in the new environment |
+| The code or the data | After a commit, `vault.py run --node H-001 --retest-of <capsule> ... -- <the same command>` |
+
+`identical` and `reproduced` add a note and leave the status. `drifted` adds a note with each
+metric that moved and, for a `validated` or `ineffective` node, sets it to `contested`, for
+you to decide: a new child hypothesis that explains the change, or an audit. `failed` adds a
+note only. `--all-validated "<what changed>"` retests every validated node the change
+touches.
 
 ---
 
@@ -221,6 +290,7 @@ Merge the research branch into `main`, with the updated `hypothesis-dag.yaml`.
 | `generate_node_index.py` | All | Which nodes are ready |
 | `branch_manager.py` | Worker | Research branches and `metadata.yaml` (used by `/research run`) |
 | `audit_verify.py` | Auditor | Verification with the clean-room check |
+| `vault.py` | Worker, Auditor, Housekeeper | Capturing runs as capsules, replaying and retesting them, checking coverage |
 | `reconcile.py` | Reconciler | The DAG against the running system; reports drift, proposes nothing |
 | `validate_dag_references.py`, `generate_dashboard.py` | Housekeeper | Orphaned ids and the dashboard |
 | `dag_store.py` | All | The shared DAG store |
