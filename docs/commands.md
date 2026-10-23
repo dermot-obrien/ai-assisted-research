@@ -283,7 +283,7 @@ Exit codes:
 
 | Command | Exit |
 |---|---|
-| `run` | The command's own exit code; a failed run is still recorded |
+| `run` | The command's own exit code; a failed run is still recorded. With `--retest-of`, 3 when the command succeeded and the result drifted |
 | `replay` | 0 `identical` or `reproduced`; 3 `drifted` (a metric moved beyond the tolerance, or is missing); 1 `failed` (the command exited non-zero) |
 | `verify` | 0 when every capsule checked is intact, 1 when any fails (each printed `FAIL`) |
 | `coverage` | 1 when `--verify` finds a capsule that fails, or `--strict` finds a result node with no capsule; otherwise 0 |

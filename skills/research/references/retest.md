@@ -27,7 +27,7 @@ Pass `--note "<what changed>"` and your `--agent` handle. Each records a `retest
 | Verdict | On the node |
 |---|---|
 | `identical` or `reproduced` | `dag_update.py --action note --node-id <node> --note "Retest <date> (<what changed>): <verdict>, capsule <id>"`. The status stays. |
-| `drifted` | The note, with each metric that moved, was and now. Then, for a `validated` or `ineffective` node, `dag_update.py --action update --node-id <node> --status contested`, and `--action set --field contested_by --value <retest capsule id>`. |
+| `drifted` | The note, with each metric that moved, was and now. Then, for a `validated` or `ineffective` node, `dag_update.py --action update --node-id <node> --status contested`. The retest capsule, already in `capsules`, is the evidence; `contested_by` names contesting nodes only, so append to it (`--action append --field contested_by --value <node id>`) only when a later node is what disagrees. |
 | `failed` | The note, with the error from the capsule's stderr. Leave the status: a retest that cannot run says nothing about the claim. Fix the replay (a missing system library, a moved data path) and retest again. |
 
 Then recompute the node index. A `contested` node is a question for the user, not a conclusion: say which result moved, by how much, under which change, and propose either a new child hypothesis that explains the change or `/research audit`. Do not set the node back to `validated` yourself.

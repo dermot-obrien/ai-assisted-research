@@ -197,7 +197,7 @@ Does a recorded result still hold now that something changed?
   capsule on the node with its verdict.
 - Leaves: a note on the node for every verdict. A `drifted` retest of a `validated` or
   `ineffective` node also moves it to `contested`, with the retest capsule in
-  `contested_by`, and proposes a child hypothesis or an audit; it never sets the node back
+  `capsules` as the evidence, and proposes a child hypothesis or an audit; it never sets the node back
   to `validated` itself. A `failed` retest leaves the status alone, since a run that cannot
   start says nothing about the claim.
 - Needs: the experiment-vault skill and `vault` set in `research.yaml`. A node with no

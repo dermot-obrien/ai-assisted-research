@@ -171,6 +171,8 @@ class Settings:
         if self.research_yaml:
             try:
                 cfg = read_yaml(self.research_yaml) or {}
+            except VaultError:
+                raise
             except Exception as e:  # noqa: BLE001 - an unreadable research.yaml is reported, not fatal
                 print(f"warning: {self.research_yaml} could not be read ({e}); ignoring it", file=sys.stderr)
         self.root = self.research_yaml.parent if self.research_yaml else None
@@ -657,7 +659,8 @@ def node_snapshot(settings: Settings, node_id: str) -> dict:
         return snap
     for node in dag.get("nodes", []) if isinstance(dag, dict) else []:
         if isinstance(node, dict) and node.get("id") == node_id:
-            keep = ("hypothesis", "status", "target", "metric", "parent", "parents", "work_item")
+            keep = ("hypothesis", "status", "target_improvement", "target", "metric", "parent", "parents",
+                    "work_item_id", "work_item")
             snap["snapshot"] = json.loads(json.dumps({k: node[k] for k in keep if k in node}, default=str))
             break
     else:
@@ -765,6 +768,8 @@ def resolve(backend: Backend, settings: Settings, ref: str, node: str | None = N
         project = settings.project
     else:
         cid, project = ref, settings.project
+        if not CAPSULE_RE.match(cid):
+            raise VaultError(f"{cid!r} is not a capsule id (<stamp>-<hash12>)")
         if not node:
             hits = [k for k in backend.list(f"capsules/{project}/") if k.endswith(f"/{cid}.json")]
             if not hits:
@@ -889,7 +894,8 @@ def build_manifest(settings: Settings, args, node: str, kind: str, code: list[di
         result = {"metric": args.metric, "value": value}
         target = getattr(args, "target", None)
         if target is None:
-            target = (manifest["node"].get("snapshot") or {}).get("target")
+            snap = manifest["node"].get("snapshot") or {}
+            target = snap.get("target_improvement", snap.get("target"))
         if target is not None:
             result["target"] = target
         manifest["result"] = result
@@ -905,8 +911,6 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
     argv = args.command if observed else (args.cmd_argv or [])
     if observed and not argv:
         raise VaultError("give the command after --, for example: vault.py run --node H-001 -- python train.py")
-    if not observed and not argv:
-        raise VaultError("capture needs --cmd, the command the outputs came from")
     prior = None
     if args.retest_of:
         _, prior_id, prior, _ = resolve(backend, settings, args.retest_of, node)
@@ -958,6 +962,8 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         print_comparison(manifest["comparison"])
     if not args.no_link:
         link_to_dag(settings, node, ref)
+    if code_rc == 0 and prior and manifest["comparison"]["verdict"] == "drifted":
+        return 3
     return code_rc
 
 
@@ -1084,8 +1090,17 @@ def setup_venv(dest: Path, manifest: dict, python: str, pip_extra: list[str]) ->
 def cmd_replay(settings: Settings, args) -> int:
     settings.need()
     backend = open_backend(settings.uri)
+    if args.pip and args.setup != "venv":
+        raise VaultError("--pip needs --setup venv, so the overrides do not change your own environment")
     node, cid, manifest, _ = resolve(backend, settings, args.capsule, args.node)
-    dest = Path(args.to or Path.cwd() / ".vault-replay" / cid).resolve()
+    if args.to:
+        dest = Path(args.to).resolve()
+    else:
+        dest = (Path.cwd() / ".vault-replay" / cid).resolve()
+        n = 2
+        while dest.exists() and any(dest.iterdir()):
+            dest = (Path.cwd() / ".vault-replay" / f"{cid}-{n}").resolve()
+            n += 1
     run_dir = restore(backend, manifest, dest)
     print(f"Restored {node}/{cid} into {dest}")
     recorded_py = (manifest.get("environment", {}).get("python") or {})
@@ -1094,8 +1109,6 @@ def cmd_replay(settings: Settings, args) -> int:
         py = setup_venv(dest, manifest, base_python, args.pip or [])
     else:
         py = base_python
-        if args.pip:
-            raise VaultError("--pip needs --setup venv, so the overrides do not change your own environment")
     probe = json.loads(run_cmd([py, "-c", INTERPRETER_PROBE]).stdout)
     if recorded_py.get("version") and probe["version"] != recorded_py["version"]:
         print(f"warning: Python {probe['version']} replays a run made with {recorded_py['version']}", file=sys.stderr)
@@ -1227,6 +1240,8 @@ def cmd_verify(settings: Settings, args) -> int:
             raise VaultError("name a capsule, or pass --node or --all")
         prefix = f"capsules/{settings.project}/" + (f"{check_node_id(args.node)}/" if args.node else "")
         targets = [k for k in backend.list(prefix) if k.endswith(".json")]
+    if args.sha256 and len(targets) != 1:
+        raise VaultError("--sha256 checks one capsule; name it")
     bad = 0
     for t in targets:
         try:
@@ -1397,8 +1412,8 @@ def main(argv: list[str] | None = None) -> int:
     if getattr(args, "cmd", None):
         import shlex
         args.cmd_argv = shlex.split(args.cmd, posix=os.name != "nt")
-    settings = Settings(args)
     try:
+        settings = Settings(args)
         if args.command_name == "init":
             return cmd_init(settings, args)
         if args.command_name == "run":

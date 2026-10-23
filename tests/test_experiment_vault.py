@@ -295,6 +295,35 @@ class TestVerifyRestoreReplay(VaultTestCase):
         self.assertEqual(m["comparison"]["verdict"], "identical")
 
 
+class TestFixes(VaultTestCase):
+    def test_retest_of_exits_3_when_the_result_drifts(self):
+        ref = self.run_experiment()
+        self.env["DRIFT"] = "1"
+        p = self.vault("run", "--node", "H-001", "--data", "data", "--outputs", "out", "--metrics", "out/metrics.json",
+                       "--no-link", "--retest-of", ref, "--", sys.executable, "train.py", "--seed", "7", check=False)
+        self.assertEqual(p.returncode, 3)
+        self.assertIn("Verdict: drifted", p.stdout)
+
+    def test_a_malformed_id_is_named_as_such(self):
+        p = self.vault("show", "nonsense", check=False)
+        self.assertEqual(p.returncode, 2)
+        self.assertIn("is not a capsule id", p.stderr)
+
+    def test_pip_without_a_venv_is_refused_before_restoring(self):
+        ref = self.run_experiment()
+        dest = self.base / "never"
+        p = self.vault("replay", ref, "--setup", "none", "--pip", "six==1.16.0", "--to", str(dest), check=False)
+        self.assertEqual(p.returncode, 2)
+        self.assertFalse(dest.exists())
+
+    def test_a_second_replay_takes_a_fresh_folder(self):
+        ref = self.run_experiment()
+        for _ in range(2):
+            self.vault("replay", ref, "--setup", "none", "--no-record")
+        cid = ref.split("/")[1]
+        self.assertTrue((self.exp / ".vault-replay" / f"{cid}-2").is_dir())
+
+
 class TestComparison(unittest.TestCase):
     def test_tolerances(self):
         original = {"metrics": {"a": 1.0, "b": {"c": 2.0}, "label": "x"},
@@ -333,7 +362,7 @@ class TestDagLink(VaultTestCase):
                                           'node_index_path: "research/node-index.yaml"\n'
                                           'work_items_path: "work/"\n', encoding="utf-8")
         (ws / "research" / "hypothesis-dag.yaml").write_text(
-            "nodes:\n- id: H-001\n  hypothesis: Seeds matter\n  status: in_progress\n  parent: null\n  target: 0.5\n",
+            "nodes:\n- id: H-001\n  hypothesis: Seeds matter\n  status: in_progress\n  parent: null\n  target_improvement: 0.5\n",
             encoding="utf-8")
         with open(ws / ".gitignore", "a", encoding="utf-8") as f:
             f.write("research/\nresearch.yaml\n")

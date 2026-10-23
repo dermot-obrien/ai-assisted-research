@@ -370,9 +370,8 @@ so `vault.py` never replaces one. Run again; the new capsule gets its own id.
 
 ### `Error: ... is not empty`
 
-`replay` and `restore` need an empty or new folder, and a second replay of the same capsule
-finds the first in `.vault-replay/<capsule id>`. Pass `--to` with a new folder, or delete
-the old replay folder (it is a copy, not part of the vault).
+`restore`, and `replay --to`, need an empty or new folder. Pass a new one. Without `--to`,
+`replay` picks a fresh folder itself (`.vault-replay/<capsule id>`, then `-2`, `-3` and so on).
 
 ### `Error: --pip needs --setup venv, so the overrides do not change your own environment`
 

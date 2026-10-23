@@ -170,7 +170,7 @@ The fields `dag_update.py --action add` writes on a new node:
 | `notes` | list or string | `[]` | Appended by `--action note` |
 | `adoption` | map | see below | Whether the finding is live |
 | `blocked_by` | list of ids | `[]` | Unrecorded preconditions: nodes that must land first |
-| `contested_by` | list of ids | `[]` | Nodes whose findings challenge this one. `/research retest` writes a drifted retest's capsule id here |
+| `contested_by` | list of ids | `[]` | Nodes whose findings challenge this one; a drifted retest is recorded in `capsules`, not here |
 | `avenues` | list of ids | added to the parent | The node's children |
 
 Other fields the tools read when present: `work_item_id`, `evidence`, `audit_findings`,
