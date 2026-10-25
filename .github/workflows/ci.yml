@@ -36,6 +36,10 @@ jobs:
             cmp skills/research/bin/check.py "$f" || { echo "::error::$f differs from skills/research/bin/check.py"; exit 1; }
           done
 
+      # research (for its start and init flows) and research-dag (whose tools read it) both ship the workspace example.
+      - name: The research.yaml examples are one file
+        run: cmp skills/research/assets/research.yaml.example skills/research-dag/assets/research.yaml.example
+
   # The reference validator from the Agent Skills specification. Its YAML parser is
   # strict, so it catches frontmatter that the zero-dependency validator above reads
   # leniently (an unquoted description containing ": ", for one).
@@ -107,7 +111,7 @@ jobs:
       - name: Check the installed skills resolve
         run: |
           node "$GITHUB_WORKSPACE/aar/scripts/validate-skills.mjs" /tmp/ws/.agents/skills
-          for s in /tmp/ws/.claude/skills/research /tmp/ws/.claude/skills/literature-discovery; do
+          for s in /tmp/ws/.claude/skills/research /tmp/ws/.claude/skills/research-dag /tmp/ws/.claude/skills/experiment-vault /tmp/ws/.claude/skills/literature-discovery; do
             test -f "$s/SKILL.md" || { echo "::error::$s does not resolve"; exit 1; }
           done
           test -f /tmp/ws/.claude/skills/work/SKILL.md || { echo "::error::work, which research requires, does not resolve"; exit 1; }
@@ -143,7 +147,7 @@ jobs:
 
       - name: The research skill's tools run against a scratch workspace
         run: |
-          B="$GITHUB_WORKSPACE/skills/research/bin"
+          B="$GITHUB_WORKSPACE/skills/research-dag/bin"
           mkdir -p /tmp/rws/research && cd /tmp/rws
           cp "$GITHUB_WORKSPACE/skills/research/assets/research.yaml.example" research.yaml
           printf 'nodes:\n- id: H-001\n  hypothesis: Root idea\n  status: framed\n  parents: []\n  target: 0.1\n  metric: accuracy\n' > research/hypothesis-dag.yaml
@@ -152,6 +156,8 @@ jobs:
           python "$B/validate_dag_references.py"
           python "$B/generate_dashboard.py"
           python "$GITHUB_WORKSPACE/skills/research/scripts/reconcile.py" --dag research/hypothesis-dag.yaml --migrate
+          # The old paths still work, through the research skill's launchers.
+          python "$GITHUB_WORKSPACE/skills/research/bin/dag_update.py" --dag research/hypothesis-dag.yaml --action note --node-id H-002 --note "via the old path"
 
       - name: Unit tests
         run: python -m unittest discover -s tests -v
@@ -163,7 +169,7 @@ jobs:
         env:
           RESEARCH_DAG_HOME: /tmp/dag-home
         run: |
-          B="$GITHUB_WORKSPACE/skills/research/bin"
+          B="$GITHUB_WORKSPACE/skills/research-dag/bin"
           git init --quiet --bare -b main /tmp/dags.git
           printf 'nodes:\n- id: H-001\n  hypothesis: Root idea\n  status: validated\n  parent: null\n' > /tmp/seed.yaml
           mkdir -p /tmp/sws/research && cd /tmp/sws
@@ -181,6 +187,31 @@ jobs:
           python "$B/dag_store.py" report
           python "$B/dag_store.py" prune --days 0 --dry-run
           test "$(git --git-dir=/tmp/dags.git rev-list --count main)" -ge 3
+
+      # An experiment kept in a local vault, linked to its node, verified, and replayed in a fresh
+      # virtual environment built from the capsule's vendored wheels, with no package index.
+      - name: The experiment vault captures, links, verifies and replays
+        env:
+          PYTHONHASHSEED: "0"
+        run: |
+          V="$GITHUB_WORKSPACE/skills/experiment-vault/bin/vault.py"
+          mkdir -p /tmp/xws/research /tmp/xws/data && cd /tmp/xws && git init -q -b main .
+          cp "$GITHUB_WORKSPACE/skills/research/assets/research.yaml.example" research.yaml
+          printf 'vault:\n  uri: "/tmp/vault"\n  project: demo\n' >> research.yaml
+          printf 'nodes:\n- id: H-001\n  hypothesis: Seeded mean\n  status: in_progress\n  parent: null\n  target: 0.5\n' > research/hypothesis-dag.yaml
+          printf '1\n2\n3\n' > data/raw.csv && printf 'data/\nout/\n' > .gitignore
+          printf 'import json, os, random\nrandom.seed(7)\nv = [float(x) for x in open("data/raw.csv").read().split()]\nos.makedirs("out", exist_ok=True)\njson.dump({"score": sum(x * random.random() for x in v) / len(v)}, open("out/metrics.json", "w"))\n' > train.py
+          git add -A && git -c user.email=ci@example.com -c user.name=ci commit -qm experiment
+          python -m venv /tmp/xvenv && /tmp/xvenv/bin/pip install -q six==1.16.0
+          python "$V" init
+          python "$V" run --node H-001 --python /tmp/xvenv/bin/python --vendor-wheels --data data --outputs out \
+            --metrics out/metrics.json --metric score --seed random=7 -- /tmp/xvenv/bin/python train.py
+          grep -q "capsules:" research/hypothesis-dag.yaml
+          ID=$(python "$V" list --node H-001 | head -1)
+          python "$V" verify "$ID" --deep
+          python "$V" replay "$ID" --python /tmp/xvenv/bin/python --to /tmp/xreplay
+          python "$V" list --node H-001 --long | grep -q identical
+          python "$V" coverage --verify
 
       # No network calls in CI: the literature APIs are rate-limited. Each tool must load.
       - name: The literature-discovery tools load

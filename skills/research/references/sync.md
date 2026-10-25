@@ -17,8 +17,13 @@ Usage: `/research sync {node_id} {WI_id}`, for example
 ## Phase 2: Extract the results
 
 1. **Metrics**: `actual_performance` from the work item's `metadata.yaml`.
-2. **Findings**: the latest `finding` from the `activities` list in `progress.yaml`.
-3. **Deliverables**: confirm the work item's products include the required research outputs,
+2. **The capsule.** With `vault` set in `research.yaml`, the node must name the capsule the metric
+   came from in `capsules`, and its `result.value` must be the metric being recorded. Check it is
+   intact: `vault.py verify <node>/<capsule id> --sha256 <hash>`. With no capsule, capture the run
+   now if it can still be run (`vault.py run`), or with `vault.py capture` if only its outputs remain,
+   noting that in `--note`; a result with neither stays `in_progress`.
+3. **Findings**: the latest `finding` from the `activities` list in `progress.yaml`.
+4. **Deliverables**: confirm the work item's products include the required research outputs,
    whether blog, arXiv draft or pivot report.
 
 ## Phase 3: Update the lineage

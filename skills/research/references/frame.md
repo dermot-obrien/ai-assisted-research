@@ -37,6 +37,14 @@ hypothesis; the experiment that tests it is known work.
 Do not create work item folders or documents by hand. AAW owns that mechanism, and a
 hand-rolled work item will not be found by the tools that expect one.
 
+## Phase 2b: Fix what will be captured
+
+Write into the work item's plan, before anything runs: the command that produces the result, the
+inputs (`--data`) and outputs (`--outputs`, `--metrics`) by path inside the repository, the
+seeds, the metric key, and the tolerance a replay must meet (`--rtol`, `--atol`). These are the
+arguments of `vault.py run` in the experiment-vault skill. Fixing them now, like the target, is
+what lets a later agent replay the experiment and know whether it held.
+
 ## Phase 3: Update the lineage
 
 1. Record the generated `WI-{NNN}` in the DAG node's metadata.

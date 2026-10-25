@@ -51,7 +51,7 @@ built from leaked features is a faithfully implemented wrong answer.
 4. **Record**, one node at a time:
 
    ```bash
-   python <skills>/research/bin/dag_update.py --action adopt --node-id H-204.4.24 \
+   python <skills>/research-dag/bin/dag_update.py --action adopt --node-id H-204.4.24 \
      --adoption adopted \
      --artefact "path/to/Classifier.java" \
      --verification "grep -q 'channelFactor = 0.02' path/to/Classifier.java"
@@ -72,7 +72,7 @@ python <skills>/research/scripts/reconcile.py --dag research/hypothesis-dag.yaml
 python <skills>/research/scripts/reconcile.py --dag research/hypothesis-dag.yaml --cwd .
 
 # Record a verdict
-python <skills>/research/bin/dag_update.py --action adopt --node-id H-001 \
+python <skills>/research-dag/bin/dag_update.py --action adopt --node-id H-001 \
   --adoption adopted --artefact "src/Thing.java" \
   --verification "grep -q 'thing = 0.02' src/Thing.java"
 ```

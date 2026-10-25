@@ -2,7 +2,7 @@
 # The research skill's start and init flows copy this to the workspace root when no
 # research.yaml exists. Edit paths to match your repo.
 # All paths are relative to this file's directory (the repo root). Read by
-# the research skill (bin/rms_config.py).
+# the research-dag skill (bin/rms_config.py), the research skill and the experiment-vault skill.
 
 # The hypothesis DAG (lineage of ideas) and its computed index.
 dag_path: "research/hypothesis-dag.yaml"
@@ -13,9 +13,20 @@ node_index_path: "research/node-index.yaml"
 # from the store; leave them unset to keep the DAG as the plain file above.
 # dag_store is a clone's path, or a git URL (or bare repository) to clone into
 # ~/.research-dags/. dag_project is this project's folder in the store.
-# See the research skill's references/dag-store.md.
+# See the research-dag skill's references/dag-store.md.
 # dag_store: "https://example.com/you/research-dags.git"
 # dag_project: "my-project"
+
+# Optional: the experiment vault (the experiment-vault skill), where every experiment's
+# code, data, environment, command and outputs are kept as a capsule that a later agent can
+# replay. uri is a folder or gs://bucket/prefix; project defaults to dag_project.
+# See the experiment-vault skill's references/storage.md.
+# vault:
+#   uri: "gs://your-research-vault/vault"
+#   project: "my-project"
+#   vendor_wheels: true     # also keep every package's wheel, for replay with no package index
+#   rtol: 1.0e-9            # how close a replay's metrics must be, unless a run sets its own
+#   atol: 1.0e-12
 
 # Where AAW work items for research nodes live (your .aaw-config.yaml work_items_path).
 work_items_path: ".aaw/work-items/"

@@ -23,8 +23,8 @@ dag_project: "my-project"
 Create the store once, as an empty private repository, then import the existing DAG:
 
 ```bash
-python <skills>/research/bin/dag_store.py import --from research/hypothesis-dag.yaml
-python <skills>/research/bin/dag_store.py view
+python <skills>/research-dag/bin/dag_store.py import --from research/hypothesis-dag.yaml
+python <skills>/research-dag/bin/dag_store.py view
 ```
 
 `import` writes one `doc` event for the file's top-level keys and one `add` event per node, preserving every field and the order of nodes and fields, then replays them and refuses to commit unless replay reproduces the file's content. It only seeds an empty project. `verify --against <file>` repeats that check later.

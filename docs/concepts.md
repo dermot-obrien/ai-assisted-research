@@ -48,7 +48,7 @@ its id first; see [the shared DAG store](#the-shared-dag-store).
 | `framed` | Experiment designed and a work item created; not yet running |
 | `in_progress` | Running, on its own research branch |
 | `partially_tested` | Some evidence, not yet conclusive |
-| `contested` | A finding is challenged and unresolved |
+| `contested` | A retest, an audit or a later node disagrees with the recorded result, unresolved |
 | `validated` | Met or beat its target |
 | `ineffective` | Tested and missed its target. A result, not a failure |
 | `discarded` | Stopped before a result, with the reason recorded |
@@ -89,10 +89,11 @@ any skills-compatible agent reads. Each plays a role:
 | Reconciler, the drift detector | `/research reconcile` checks a result is live |
 | Housekeeper, the curator | `/research housekeep` keeps the index and dashboard true |
 
-Every role is a flow of the one `research` skill. Its DAG tools (`/research dag`) are the
-engine: the Python every flow uses to change and read the DAG. `literature-discovery`, the
-other skill, searches the literature and works on its own, without the rest of AAR. [AGENTS.md](AGENTS.md) describes
-the roles in more depth.
+Every role is a flow of the `research` skill, one of four. `research-dag` is the engine: the
+Python every flow uses to change and read the DAG (`/research dag` points to it).
+`experiment-vault` keeps each measured run so it can be replayed. Both work without
+`research`. `literature-discovery` searches the literature and works on its own, without
+the rest of AAR. [AGENTS.md](AGENTS.md) describes the roles in more depth.
 
 ## The three phases of a hypothesis, and AAW
 
@@ -109,6 +110,10 @@ Research splits into phases so the experimental design is fixed before the resul
    node to `validated`, `ineffective` or `discarded` against the target fixed in step 2,
    links the deliverables and regenerates the index.
 
+With an [experiment vault](#the-experiment-vault) configured, design also fixes what the run
+will capture, execution runs every measured experiment through `vault.py run`, and
+homecoming records no result whose node does not name the capsule it came from.
+
 AAW owns the work: work items, activities, claiming and locking. AAR owns the research:
 the hypothesis, the metric and the finding. That is why the research flows that create or
 run work need AAW's `work` skill installed. `/research progress` drives the three phases
@@ -121,9 +126,49 @@ templates in [`research/assets/templates/`](../skills/research/assets/templates/
 a blog post and an arXiv-style draft for a result that held, or a pivot report for one that
 did not. `changes_template.md` records the research changes log.
 
+## The experiment vault
+
+A result is only as good as the ability to make it again. The DAG records what a hypothesis
+claimed and what it showed; the experiment vault, set as `vault` in `research.yaml`, keeps
+what the result was made from, in a Google Cloud Storage bucket or a folder.
+
+- A capsule is one run: the exact code at its commit, the data it read, the Python
+  environment (the lock and, optionally, every wheel), the hardware, the command, its seeds,
+  the console output, the outputs and the metrics. `vault.py run` runs the experiment and
+  records all of it, so nothing is described afterwards from memory.
+- Content addressing: every file is stored once, named by the SHA-256 of its bytes, so a
+  dataset or a wheel shared by a hundred capsules costs one copy. The capsule's id carries the
+  first 12 digits of its manifest's hash, and the node records the full hash in its
+  `capsules` list, so the DAG, which is in git, proves which capsule a result rests on.
+- Write-once: blobs are uploaded first and the manifest last, and nothing is ever
+  overwritten, edited or deleted by an agent. A wrong capsule is superseded by a new one,
+  never replaced.
+- Exact code: the capsule keeps a tar of the commit, and checks the tar's own git tree hash
+  against the commit's tree. When they match (`exact: true`) the restored code is the
+  commit, bit for bit, even if the repository is later rewritten or lost.
+
+`vault.py replay` restores a capsule into a fresh environment, runs the recorded command
+and compares the metrics within the tolerance fixed at capture:
+
+| Verdict | Means |
+|---|---|
+| `identical` | Every metric within tolerance and every output file byte-identical |
+| `reproduced` | Every metric within tolerance; some output files differ |
+| `drifted` | A metric moved beyond the tolerance, or is missing |
+| `failed` | The command exited non-zero |
+
+Each replay is itself kept as a `retest` capsule on the node. `/research retest` replays a
+result after a library, the environment, the code or the data changed: a drift moves a
+`validated` or `ineffective` node to `contested`, for a person to decide, and a failure
+leaves the status alone, since a run that cannot start says nothing about the claim. The
+experiment-vault skill's [replaying](../skills/experiment-vault/references/replaying.md) and
+[storage](../skills/experiment-vault/references/storage.md) references go further.
+
 ## Audit: is it sound?
 
-`/research audit` re-runs the benchmark in a clean room: the evaluation scripts under
+`/research audit` first replays the node's capsule, where it has one, which shows the
+result can be made again from what was recorded but not that the evaluation was sound. Then
+it re-runs the benchmark in a clean room: the evaluation scripts under
 `performance/benchmarks/` come from `main`, never from the branch under audit, because a
 worker optimising against a benchmark can change the benchmark instead of the system.
 [`audit_verify.py`](../skills/research/scripts/audit_verify.py) checks the recorded
@@ -141,7 +186,8 @@ proposing fixes. [Adoption and drift](adoption-and-drift.md) is the full design.
 
 ## Housekeeping and the dashboard
 
-`/research housekeep` regenerates the node index, checks that every hypothesis id mentioned in
+`/research housekeep` regenerates the node index, checks every result node has an intact
+capsule when a vault is configured, checks that every hypothesis id mentioned in
 code and docs exists in the DAG, and rebuilds `research/dashboard.html`: an interactive
 graph of the DAG coloured by status, with experiments, breakthroughs, papers and
 cross-node findings when those files exist.
@@ -155,7 +201,7 @@ conflict. `dag_update.py` pulls, writes events, pushes with a retry, and regener
 at `dag_path` as a view that every other tool reads unchanged. Concurrent edits to one field:
 the later wins and the replaced value is reported. Concurrent adds under one id: the later
 takes a letter suffix, recorded as an alias.
-[The shared DAG store](../skills/research/references/dag-store.md) has the event format
+[The shared DAG store](../skills/research-dag/references/dag-store.md) has the event format
 and the day-to-day commands.
 
 ## Where AAR meets AAW, and AAA
