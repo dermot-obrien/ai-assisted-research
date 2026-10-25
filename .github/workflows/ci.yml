@@ -141,7 +141,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install -r requirements.txt
+      # jsonschema lets the tests check every manifest they read against the published schema;
+      # without it they fail under CI rather than skip the check.
+      - run: python -m pip install -r requirements.txt jsonschema
       - name: Byte-compile the skills' tools
         run: python -m compileall -q skills
 
@@ -216,6 +218,27 @@ jobs:
       # No network calls in CI: the literature APIs are rate-limited. Each tool must load.
       - name: The literature-discovery tools load
         run: for t in skills/literature-discovery/bin/*.py; do python "$t" --help > /dev/null; done
+
+  # The vault and the DAG store are relied on from Windows and macOS as well as Linux, so the
+  # unit tests run on all three. The Cloud Storage test uses a POSIX stand-in for gcloud and
+  # skips itself on Windows.
+  tests:
+    name: Unit tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt jsonschema
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
 
   reuse:
     name: REUSE compliance

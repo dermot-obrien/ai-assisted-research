@@ -315,6 +315,18 @@ listed under `environment.unpinnable`. Install them from a commit instead, or ad
 repository to the capture with `--repo`. With `--strict` an environment that cannot be
 captured fully is an error rather than a warning.
 
+### `Error: submodule ... of ... is not checked out, so its code would be missing`
+
+The repository has a submodule whose files are not there, so the capsule could not hold its code. Run the `git submodule update --init --recursive` the message names, then capture again.
+
+### `warning: N file(s) under --outputs were not written by this run and are not kept as its outputs: ...`
+
+An output folder held files from an earlier run. `run` keeps only the files the run wrote, so the capsule is right; empty output folders before a run so the warning, and the confusion, do not recur.
+
+### `PROBLEM ...` and `not ready: N problem(s)`
+
+`--dry-run` found these problems; each line is one of the messages on this page. Fix them all, and run `--dry-run` again until it prints `ready`.
+
 ### `warning: ... is a shallow clone, so its history cannot be bundled; keeping a compressed snapshot ...`
 
 The repository was cloned with `--depth`, so git has no history to bundle. The capsule keeps a compressed tar of the commit instead, which restores the same code but stores the whole tree again for every commit. Run `git fetch --unshallow` (or clone without `--depth`) before the next capture.

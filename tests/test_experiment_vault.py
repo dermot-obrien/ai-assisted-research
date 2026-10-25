@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -97,6 +98,20 @@ FAKE_GCLOUD = textwrap.dedent("""\
     """)
 
 
+SCHEMA = json.loads((VAULT.parents[1] / "schemas" / "capsule.schema.json").read_text(encoding="utf-8"))
+
+
+def validate_schema(case, manifest):
+    """Every manifest a test reads must match the published schema (CI installs jsonschema)."""
+    try:
+        import jsonschema
+    except ImportError:
+        if os.environ.get("CI"):
+            case.fail("jsonschema is not installed, so manifests are not being checked against the schema")
+        return
+    jsonschema.validate(manifest, SCHEMA)
+
+
 def sh(args, cwd, env=None, check=True):
     p = subprocess.run(args, cwd=cwd, capture_output=True, text=True, env=env)
     if check and p.returncode != 0:
@@ -136,7 +151,9 @@ class VaultTestCase(unittest.TestCase):
         return p.stdout.split("Capsule ", 1)[1].split(":", 1)[0]
 
     def manifest(self, ref):
-        return json.loads(self.vault("show", ref, "--json").stdout)
+        m = json.loads(self.vault("show", ref, "--json").stdout)
+        validate_schema(self, m)
+        return m
 
 
 class TestCapture(VaultTestCase):
@@ -205,6 +222,17 @@ class TestCapture(VaultTestCase):
                        sys.executable, "train.py", "--seed", "1", check=False)
         self.assertEqual(p.returncode, 2)
         self.assertIn("outside", p.stderr)
+
+    def test_outputs_left_by_an_earlier_run_are_not_kept(self):
+        (self.exp / "out").mkdir()
+        stale = self.exp / "out" / "old-result.txt"
+        stale.write_text("from yesterday\n", encoding="utf-8")
+        os.utime(stale, (1_000_000_000, 1_000_000_000))
+        p = self.vault("run", "--node", "H-001", "--data", "data", "--outputs", "out", "--metrics", "out/metrics.json",
+                       "--no-link", "--", sys.executable, "train.py", "--seed", "7")
+        self.assertIn("were not written by this run", p.stderr)
+        ref = p.stdout.split("Capsule ", 1)[1].split(":", 1)[0]
+        self.assertEqual(sorted(o["path"] for o in self.manifest(ref)["outputs"]), ["out/metrics.json", "out/pred.txt"])
 
     def test_capture_records_a_run_that_already_happened(self):
         sh([sys.executable, "train.py", "--seed", "7"], self.exp, self.env)
@@ -413,7 +441,7 @@ class TestCodeBundles(VaultTestCase):
     def test_a_shallow_clone_is_kept_as_a_compressed_snapshot(self):
         self.commit("more", "second")
         shallow = self.base / "shallow"
-        sh(["git", "clone", "-q", "--depth", "1", f"file://{self.exp}", str(shallow)], self.base)
+        sh(["git", "clone", "-q", "--depth", "1", self.exp.as_uri(), str(shallow)], self.base)
         (shallow / "data").mkdir()
         (shallow / "data" / "raw.csv").write_text("1\n2\n", encoding="utf-8")
         p = self.vault("run", "--node", "H-001", "--data", "data", "--outputs", "out", "--metrics", "out/metrics.json",
@@ -431,6 +459,299 @@ class TestCodeBundles(VaultTestCase):
         b = self.manifest(self.run_experiment("H-002", "--code-storage", "archive"))["code"][0]
         self.assertEqual(a["archive"]["sha256"], b["archive"]["sha256"])
         self.assertEqual(self.bundles(), [])
+
+
+class TestCodeEdges(VaultTestCase):
+    """The ways code reaches a run besides one clean repository."""
+
+    def git_c(self, *args, cwd):
+        return sh(["git", "-c", "protocol.file.allow=always", *args], cwd, self.env)
+
+    def test_submodules_are_captured_and_restored(self):
+        lib = self.base / "lib"
+        lib.mkdir()
+        sh(["git", "init", "-q", "-b", "main", "."], lib)
+        (lib / "value.txt").write_text("41\n", encoding="utf-8")
+        sh(["git", "add", "-A"], lib)
+        sh(["git", "-c", "user.email=t@e", "-c", "user.name=t", "commit", "-q", "-m", "lib"], lib)
+        self.git_c("submodule", "add", "-q", str(lib), "vendor/lib", cwd=self.exp)
+        (self.exp / "use_lib.py").write_text(
+            "import json, os\nv = int(open('vendor/lib/value.txt').read()) + 1\nos.makedirs('out', exist_ok=True)\n"
+            "json.dump({'score': v}, open('out/metrics.json', 'w'))\n", encoding="utf-8")
+        sh(["git", "add", "-A"], self.exp)
+        sh(["git", "commit", "-q", "-m", "use a submodule"], self.exp)
+        p = self.vault("run", "--node", "H-001", "--outputs", "out", "--metrics", "out/metrics.json", "--no-link",
+                       "--", sys.executable, "use_lib.py")
+        ref = p.stdout.split("Capsule ", 1)[1].split(":", 1)[0]
+        code = self.manifest(ref)["code"]
+        self.assertEqual([c["name"] for c in code], ["exp", "exp--vendor-lib"])
+        self.assertEqual(code[1]["path"], "vendor/lib")
+        self.assertEqual(code[0]["submodules"]["vendor/lib"], code[1]["commit"])
+        dest = self.base / "restored"
+        self.vault("restore", ref, "--to", str(dest))
+        self.assertEqual((dest / "repos" / "exp" / "vendor" / "lib" / "value.txt").read_text(encoding="utf-8"), "41\n")
+        r = self.vault("replay", ref, "--setup", "none", "--to", str(self.base / "r"), "--no-record")
+        self.assertIn("Verdict: identical", r.stdout)
+
+    def test_a_submodule_that_is_not_checked_out_is_refused(self):
+        lib = self.base / "lib"
+        lib.mkdir()
+        sh(["git", "init", "-q", "-b", "main", "."], lib)
+        (lib / "value.txt").write_text("1\n", encoding="utf-8")
+        sh(["git", "add", "-A"], lib)
+        sh(["git", "-c", "user.email=t@e", "-c", "user.name=t", "commit", "-q", "-m", "lib"], lib)
+        self.git_c("submodule", "add", "-q", str(lib), "vendor/lib", cwd=self.exp)
+        sh(["git", "commit", "-q", "-m", "submodule"], self.exp)
+        clone = self.base / "clone"
+        sh(["git", "clone", "-q", self.exp.as_uri(), str(clone)], self.base)
+        (clone / "data").mkdir()
+        (clone / "data" / "raw.csv").write_text("1\n", encoding="utf-8")
+        p = self.vault("run", "--node", "H-001", "--no-link", "--", sys.executable, "train.py", "--seed", "1",
+                       cwd=clone, check=False)
+        self.assertEqual(p.returncode, 2)
+        self.assertIn("submodule vendor/lib of clone is not checked out", p.stderr)
+
+    def test_a_second_repository_restores_beside_the_first(self):
+        other = self.base / "shared"
+        other.mkdir()
+        sh(["git", "init", "-q", "-b", "main", "."], other)
+        (other / "const.txt").write_text("3\n", encoding="utf-8")
+        sh(["git", "add", "-A"], other)
+        sh(["git", "-c", "user.email=t@e", "-c", "user.name=t", "commit", "-q", "-m", "shared"], other)
+        (self.exp / "use_other.py").write_text(
+            "import json, os\nv = int(open('../shared/const.txt').read())\nos.makedirs('out', exist_ok=True)\n"
+            "json.dump({'score': v}, open('out/metrics.json', 'w'))\n", encoding="utf-8")
+        sh(["git", "add", "-A"], self.exp)
+        sh(["git", "commit", "-q", "-m", "use another repository"], self.exp)
+        p = self.vault("run", "--node", "H-001", "--repo", str(other), "--outputs", "out", "--metrics",
+                       "out/metrics.json", "--no-link", "--", sys.executable, "use_other.py")
+        ref = p.stdout.split("Capsule ", 1)[1].split(":", 1)[0]
+        code = self.manifest(ref)["code"]
+        self.assertEqual((code[1]["name"], code[1]["path"]), ("shared", "../shared"))
+        r = self.vault("replay", ref, "--setup", "none", "--to", str(self.base / "r"), "--no-record")
+        self.assertIn("Verdict: identical", r.stdout)
+        self.assertTrue((self.base / "r" / "repos" / "shared" / "const.txt").is_file())
+
+    def test_a_dirty_capture_restores_the_patch_and_untracked_files(self):
+        with open(self.exp / "train.py", "a", encoding="utf-8") as f:
+            f.write("# an uncommitted line\n")
+        (self.exp / "notes.txt").write_text("untracked\n", encoding="utf-8")
+        ref = self.run_experiment("H-001", "--allow-dirty")
+        dest = self.base / "restored"
+        self.vault("restore", ref, "--to", str(dest))
+        restored = dest / "repos" / "exp"
+        self.assertTrue((restored / "train.py").read_text(encoding="utf-8").endswith("# an uncommitted line\n"))
+        self.assertEqual((restored / "notes.txt").read_text(encoding="utf-8"), "untracked\n")
+
+    def test_restore_ignores_the_users_line_ending_settings(self):
+        sh(["git", "config", "core.autocrlf", "false"], self.exp)
+        ref = self.run_experiment()
+        cfg = self.base / "gitconfig"
+        cfg.write_text("[core]\n\tautocrlf = true\n", encoding="utf-8")
+        self.env["GIT_CONFIG_GLOBAL"] = str(cfg)
+        dest = self.base / "restored"
+        self.vault("restore", ref, "--to", str(dest))
+        self.assertNotIn(b"\r\n", (dest / "repos" / "exp" / "train.py").read_bytes())
+
+    def test_restore_writes_the_line_endings_the_run_read(self):
+        """A run on a machine that checks files out with CRLF (Windows) restores with CRLF."""
+        sh(["git", "config", "core.autocrlf", "true"], self.exp)
+        (self.exp / "train.py").unlink()
+        sh(["git", "checkout", "--", "train.py"], self.exp)
+        self.assertIn(b"\r\n", (self.exp / "train.py").read_bytes())
+        ref = self.run_experiment()
+        self.assertEqual(self.manifest(ref)["code"][0]["checkout"]["core.autocrlf"], "true")
+        dest = self.base / "restored"
+        self.vault("restore", ref, "--to", str(dest))
+        restored = dest / "repos" / "exp" / "train.py"
+        self.assertEqual(restored.read_bytes(), (self.exp / "train.py").read_bytes())
+
+    def test_two_clones_share_one_vault(self):
+        self.run_experiment()
+        clone = self.base / "clone"
+        sh(["git", "clone", "-q", self.exp.as_uri(), str(clone)], self.base)
+        sh(["git", "config", "user.email", "c@example.com"], clone)
+        sh(["git", "config", "user.name", "Clone"], clone)
+        (clone / "data").mkdir()
+        (clone / "data" / "raw.csv").write_text("5\n6\n", encoding="utf-8")
+        with open(clone / "train.py", "a", encoding="utf-8") as f:
+            f.write("# from the clone\n")
+        sh(["git", "commit", "-q", "-am", "clone work"], clone)
+        with open(self.exp / "train.py", "a", encoding="utf-8") as f:
+            f.write("# from the original\n")
+        sh(["git", "commit", "-q", "-am", "original work"], self.exp)
+        refs = []
+        for where in (clone, self.exp):
+            p = self.vault("run", "--node", "H-002", "--data", "data", "--outputs", "out", "--metrics",
+                           "out/metrics.json", "--no-link", "--no-push-tag", "--",
+                           sys.executable, "train.py", "--seed", "3", cwd=where)
+            refs.append(p.stdout.split("Capsule ", 1)[1].split(":", 1)[0])
+        for ref in refs:
+            self.assertEqual(self.vault("verify", ref, "--deep").returncode, 0)
+            r = self.vault("replay", ref, "--setup", "none", "--to", str(self.base / ref.replace("/", "_")),
+                           "--no-record")
+            self.assertIn("Verdict: identical", r.stdout)
+
+    def test_a_tag_name_taken_by_another_commit_falls_back_to_the_full_id(self):
+        head = sh(["git", "rev-parse", "HEAD"], self.exp).stdout.strip()
+        with open(self.exp / "train.py", "a", encoding="utf-8") as f:
+            f.write("# next\n")
+        sh(["git", "commit", "-q", "-am", "next"], self.exp)
+        new = sh(["git", "rev-parse", "HEAD"], self.exp).stdout.strip()
+        sh(["git", "tag", f"vault/{new[:12]}", head], self.exp)
+        code = self.manifest(self.run_experiment())["code"][0]
+        self.assertEqual(code["tag"], f"vault/{new}")
+        self.assertEqual(sh(["git", "rev-parse", f"refs/tags/vault/{new}"], self.exp).stdout.strip(), new)
+
+    def test_an_unreachable_remote_still_keeps_the_capsule(self):
+        sh(["git", "remote", "add", "origin", str(self.base / "no-such-remote.git")], self.exp)
+        p = self.vault("run", "--node", "H-001", "--data", "data", "--no-link", "--",
+                       sys.executable, "train.py", "--seed", "1")
+        self.assertIn("could not push tag", p.stderr)
+        ref = p.stdout.split("Capsule ", 1)[1].split(":", 1)[0]
+        self.assertFalse(self.manifest(ref)["code"][0]["tag_pushed"])
+        self.assertEqual(self.vault("verify", ref, "--deep").returncode, 0)
+
+
+class TestIntegrity(VaultTestCase):
+    """Damage to the vault is found, never replayed."""
+
+    def bundle_paths(self):
+        return sorted((self.base / "vault" / "repos").rglob("*.bundle"), key=lambda b: b.stat().st_mtime)
+
+    def test_a_corrupt_bundle_is_detected(self):
+        ref = self.run_experiment()
+        b = self.bundle_paths()[0]
+        os.chmod(b, stat.S_IWUSR | stat.S_IRUSR)
+        data = bytearray(b.read_bytes())
+        data[len(data) // 2] ^= 0xFF
+        b.write_bytes(bytes(data))
+        p = self.vault("verify", ref, "--deep", check=False)
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("FAIL", p.stdout)
+        r = self.vault("restore", ref, "--to", str(self.base / "r"), check=False)
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_a_missing_bundle_in_the_chain_is_named(self):
+        self.run_experiment()
+        with open(self.exp / "train.py", "a", encoding="utf-8") as f:
+            f.write("# second\n")
+        sh(["git", "commit", "-q", "-am", "second"], self.exp)
+        ref = self.run_experiment()
+        first = self.bundle_paths()[0]
+        os.chmod(first, stat.S_IWUSR | stat.S_IRUSR)
+        first.unlink()
+        p = self.vault("restore", ref, "--to", str(self.base / "r"), check=False)
+        self.assertEqual(p.returncode, 2)
+        self.assertIn("missing from", p.stderr)
+
+    def test_restored_code_whose_tree_differs_from_the_record_is_refused(self):
+        ref = self.run_experiment()
+        m = self.manifest(ref)
+        m["code"][0]["tree"] = "0" * 40
+        data = vault.canonical(m)
+        import hashlib as _hashlib
+        cid = f"{m['created_at'].replace('-', '').replace(':', '')}-{_hashlib.sha256(data).hexdigest()[:12]}"
+        (self.base / "vault" / "capsules" / "demo" / "H-001" / f"{cid}.json").write_bytes(data)
+        p = self.vault("restore", f"H-001/{cid}", "--to", str(self.base / "r"), check=False)
+        self.assertEqual(p.returncode, 2)
+        self.assertIn("not the recorded", p.stderr)
+
+    def test_a_format_1_capsule_still_restores(self):
+        """A capsule written by experiment-vault 1.0.0: format 1, code as a plain tar."""
+        ref = self.run_experiment("H-001", "--code-storage", "archive")
+        m = self.manifest(ref)
+        repo = m["code"][0]
+        blobs = self.base / "vault" / "blobs" / "sha256"
+        import gzip as _gzip
+        import hashlib as _hashlib
+        tar = _gzip.decompress((blobs / repo["archive"]["sha256"]).read_bytes())
+        tar_hex = _hashlib.sha256(tar).hexdigest()
+        (blobs / tar_hex).write_bytes(tar)
+        repo.pop("storage")
+        repo["archive"] = {"sha256": tar_hex, "size": len(tar), "format": "tar"}
+        m["format"] = "experiment-vault/1"
+        data = vault.canonical(m)
+        cid = f"{m['created_at'].replace('-', '').replace(':', '')}-{_hashlib.sha256(data).hexdigest()[:12]}"
+        (self.base / "vault" / "capsules" / "demo" / "H-001" / f"{cid}.json").write_bytes(data)
+        r = self.vault("replay", f"H-001/{cid}", "--setup", "none", "--to", str(self.base / "r"), "--no-record")
+        self.assertIn("Verdict: identical", r.stdout)
+
+    def test_a_newer_format_is_refused(self):
+        ref = self.run_experiment()
+        m = self.manifest(ref)
+        m["format"] = "experiment-vault/99"
+        data = vault.canonical(m)
+        import hashlib as _hashlib
+        cid = f"{m['created_at'].replace('-', '').replace(':', '')}-{_hashlib.sha256(data).hexdigest()[:12]}"
+        (self.base / "vault" / "capsules" / "demo" / "H-001" / f"{cid}.json").write_bytes(data)
+        p = self.vault("show", f"H-001/{cid}", check=False)
+        self.assertEqual(p.returncode, 2)
+        self.assertIn("cannot read; update the skill", p.stderr)
+
+    def test_the_vault_never_replaces_a_stored_file(self):
+        backend = vault.LocalBackend(self.base / "vault")
+        one, two = self.base / "one", self.base / "two"
+        one.write_text("one", encoding="utf-8")
+        two.write_text("two", encoding="utf-8")
+        self.assertEqual(backend.put_files({"repos/r/x.bundle": one}), 1)
+        self.assertEqual(backend.put_files({"repos/r/x.bundle": two}), 0)
+        self.assertEqual(backend.read("repos/r/x.bundle"), b"one")
+
+
+class TestPreflight(VaultTestCase):
+    """--dry-run checks everything and changes nothing."""
+
+    def snapshot(self):
+        vault_files = sorted(str(p) for p in (self.base / "vault").rglob("*")) if (self.base / "vault").exists() else []
+        tags = sh(["git", "tag"], self.exp).stdout
+        return vault_files, tags
+
+    def test_a_ready_capture_changes_nothing(self):
+        self.vault("init")
+        before = self.snapshot()
+        p = self.vault("run", "--node", "H-001", "--data", "data", "--outputs", "out", "--metrics", "out/metrics.json",
+                       "--dry-run", "--", sys.executable, "train.py", "--seed", "1")
+        self.assertIn("ready: nothing was run, tagged or uploaded", p.stdout)
+        self.assertIn("as bundle", p.stdout)
+        self.assertIn("data: 1 files", p.stdout)
+        self.assertEqual(self.snapshot(), before)
+        self.assertFalse((self.exp / "out").exists(), "the command must not run")
+
+    def test_every_problem_is_named(self):
+        with open(self.exp / "train.py", "a", encoding="utf-8") as f:
+            f.write("# dirty\n")
+        self.env["API_SECRET"] = "x"
+        p = self.vault("run", "--node", "bad id!", "--data", "../elsewhere", "--outputs", "../out", "--env",
+                       "API_SECRET", "--dry-run", "--", sys.executable, "train.py", check=False)
+        self.assertEqual(p.returncode, 2)
+        for expected in ("not initialised", "node id", "uncommitted changes", "data ../elsewhere does not exist",
+                         "output ../out is outside", "looks like a secret"):
+            self.assertIn(expected, p.stdout)
+
+
+class TestGuarantees(unittest.TestCase):
+    """references/guarantees.md names the tests that prove each guarantee; they must exist."""
+
+    def test_every_guarantee_names_tests_that_exist(self):
+        page = (VAULT.parents[1] / "references" / "guarantees.md").read_text(encoding="utf-8")
+        rows = [line for line in page.splitlines() if re.match(r"^\| G\d+ \|", line)]
+        self.assertGreaterEqual(len(rows), 20)
+        sources = "".join((REPO / "tests" / f).read_text(encoding="utf-8")
+                          for f in ("test_experiment_vault.py", "test_dag_store.py"))
+        ci = (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        ids = []
+        for row in rows:
+            gid, _, proof = [c.strip() for c in row.strip("|").split("|")]
+            ids.append(gid)
+            named = re.findall(r"`(test_\w+)`", proof)
+            step = re.search(r"ci: (.+)$", proof)
+            self.assertTrue(named or step, f"{gid} names no test")
+            for t in named:
+                self.assertIn(f"def {t}(", sources, f"{gid} names {t}, which does not exist")
+            if step:
+                self.assertIn(f"name: {step.group(1).strip()}", ci, f"{gid} names a CI step that does not exist")
+        self.assertEqual(ids, [f"G{i}" for i in range(1, len(ids) + 1)], "guarantee ids must run G1, G2, ...")
 
 
 class TestComparison(unittest.TestCase):
@@ -451,15 +772,17 @@ class TestComparison(unittest.TestCase):
             d = Path(td)
             sh(["git", "init", "-q", "."], d)
             (d / "a").mkdir()
-            (d / "a" / "x.txt").write_text("hello\n", encoding="utf-8")
-            (d / "run.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+            sh(["git", "config", "core.autocrlf", "false"], d)
+            (d / "a" / "x.txt").write_text("hello\n", encoding="utf-8", newline="\n")
+            (d / "run.sh").write_text("#!/bin/sh\n", encoding="utf-8", newline="\n")
             os.chmod(d / "run.sh", 0o755)
             sh(["git", "add", "-A"], d)
             tree = sh(["git", "write-tree"], d).stdout.strip()
             tar = d / "t.tar"
             sh(["git", "-c", "user.email=t@e", "-c", "user.name=t", "commit", "-q", "-m", "x"], d)
             with open(tar, "wb") as f:
-                subprocess.run(["git", "archive", "--format=tar", "HEAD"], cwd=d, stdout=f, check=True)
+                subprocess.run(["git", "-c", "core.autocrlf=false", "archive", "--format=tar", "HEAD"], cwd=d,
+                               stdout=f, check=True)
             self.assertEqual(vault.tar_tree_hash(tar, {}, "sha1"), tree)
 
 

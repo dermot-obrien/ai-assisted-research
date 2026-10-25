@@ -198,6 +198,13 @@
           },
           "tag_pushed": {
             "type": "boolean"
+          },
+          "checkout": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "git settings that decide the checked-out bytes (core.autocrlf, core.eol), applied on restore"
           }
         },
         "oneOf": [

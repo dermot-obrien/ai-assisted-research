@@ -10,6 +10,12 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 - `experiment-vault` 1.1.0 keeps code as git history instead of a copy of the tree per capsule. `vault.py run` tags the commit `vault/<commit12>` and pushes the tag to `origin`, so a deleted branch or git's garbage collection cannot drop it (`--no-push-tag` keeps it local). The vault holds each repository's history as git bundles under `repos/<root commit>/<tip commit>.bundle`, each with only the commits the vault lacked. The first capsule of a repository stores its history once, at about git's own packed size, and each later commit adds kilobytes rather than the whole tree: on this repository, three commits took 3.7 MB as bundles against 9.6 MB as snapshots. Restore rebuilds the repository from the bundles, checks out the commit and checks its git tree, with no need for the original repository or its remote, and leaves a git checkout. `verify` checks the bundles are present, and `--deep` rebuilds the code.
 - A shallow clone, or `--code-storage archive` (`vault.code_storage`), keeps a snapshot of the commit as before, now gzip-compressed and byte-identical for the same commit.
+- Every submodule is captured as its own repository, and restored in place; a submodule that is not checked out stops the capture, since its code would be missing.
+- The end-of-line settings the files were checked out with (`core.autocrlf`, `core.eol`) are recorded and applied on restore, so a run made on Windows restores with the bytes it read, whatever the restoring machine's settings.
+- `run` keeps as outputs only the files the run wrote, and warns about any older file in an output folder.
+- `run --dry-run` (and `capture --dry-run`) checks everything a capture needs and prints the plan, changing nothing.
+- [Protocol](skills/experiment-vault/references/protocol.md): the procedure every agent follows, in MUST and MUST NOT steps, with the report format and what to do for each error. [Guarantees](skills/experiment-vault/references/guarantees.md): what the vault promises, each with the tests that prove it; a test fails when a named test does not exist.
+- The unit tests run on Linux, Windows and macOS in CI, and check every manifest they read against the schema.
 - Manifests are `experiment-vault/2`. Format 1 capsules, with their plain tar, still verify, restore and replay, and a newer format is refused with a message rather than misread.
 
 ## 4.0.0

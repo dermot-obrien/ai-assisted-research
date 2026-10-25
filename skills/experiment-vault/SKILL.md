@@ -16,13 +16,17 @@ A result is only as good as the ability to make it again. The DAG records what a
 
 `<skills>` below is the directory the skills are installed in, so the tool is `<skills>/experiment-vault/bin/vault.py`.
 
+## Follow the protocol
+
+Every capture and replay follows [references/protocol.md](references/protocol.md), step by step: when a capsule is required, the checks before a run (ending with the same command and `--dry-run`, which must print `ready`), the run, what to verify and how to report it, how to replay and retest, and what to do for each error. It is short; read it before the first run in a session. [references/guarantees.md](references/guarantees.md) says what the vault promises, each promise with the tests that prove it.
+
 ## When to use which command
 
 | The user or flow | Command | Read |
 |---|---|---|
-| "set up the vault", a new bucket | `vault.py init`, after creating the bucket | [references/storage.md](references/storage.md) |
-| Run an experiment for a node | `vault.py run --node <id> --data <in> --outputs <out> --metrics <json> --metric <key> --seed name=value -- <command>` | [references/capturing.md](references/capturing.md) |
-| Record a run that already happened | `vault.py capture --node <id> --cmd "<command>" --outputs ... --metrics ...` | [references/capturing.md](references/capturing.md) |
+| "set up the vault", a new bucket | `vault.py init`, after a person creates the bucket | [references/storage.md](references/storage.md) |
+| Run an experiment for a node | `vault.py run ... --dry-run -- <command>`, then the same without `--dry-run` | [references/protocol.md](references/protocol.md), [references/capturing.md](references/capturing.md) |
+| Record a run that already happened | `vault.py capture --node <id> --cmd "<command>" --outputs ... --metrics ...` | [references/protocol.md](references/protocol.md) 1.3 |
 | "reproduce", "replay", "re-run" a prior experiment | `vault.py replay <capsule>` | [references/replaying.md](references/replaying.md) |
 | "does it still hold" after a library, data or code change | `vault.py replay <capsule> --setup none` or `--pip <pkg>==<v>`, or `vault.py run ... --retest-of <capsule>` | [references/replaying.md](references/replaying.md) |
 | Look at what a result was made from | `vault.py list --node <id> --long`, `vault.py show <capsule>`, `vault.py restore <capsule> --to <dir>` | [references/capsule-format.md](references/capsule-format.md) |
@@ -31,18 +35,16 @@ A result is only as good as the ability to make it again. The DAG records what a
 
 ## Rules
 
-1. Commit before you run. A capsule pins a commit; `run` refuses uncommitted changes unless `--allow-dirty`, which stores the difference as a patch and marks the capsule dirty. `run` tags the commit `vault/<commit12>` and pushes the tag, so the commit outlives its branch; the vault also keeps it as git bundles, so it outlives the repository. Work in a full clone: a shallow clone is kept as a whole snapshot instead.
-2. Run the experiment through `vault.py run`, so the command, its console output, its environment and its outputs are recorded by the tool rather than described afterwards. Use `capture` only for a run that already happened, and say so in `--note`.
-3. Name every input with `--data` and every output with `--outputs`, inside the repository (git-ignored if large; a symlink is followed). Name the seeds with `--seed`, and set `PYTHONHASHSEED`.
-4. Fix the tolerance a replay must meet (`--rtol`, `--atol`) when you run, as you fix the target before the result is known.
-5. Never record secrets: `--env` refuses names that look like keys, tokens or passwords.
-6. Never delete, overwrite or edit anything in the vault. A wrong capsule is superseded by a new one with a `--note`, never replaced. Agents get create and read access only ([references/storage.md](references/storage.md)).
-7. A replay that drifts is a finding, not an error to retry away: record it (the default), report the metrics that moved, and let the research flow decide whether the node becomes `contested`.
+1. Follow [the protocol](references/protocol.md). Its MUST and MUST NOT lines are not optional.
+2. A number is a result only with the capsule it came from, verified against the hash on the node, and cited by its id.
+3. Commit, in a full clone with submodules checked out, before you run, and run through `vault.py run`; `--dry-run` first must print `ready`.
+4. Never edit, overwrite or delete anything in the vault or a `vault/*` tag, and never record a secret. A wrong capsule is superseded by a new one with a `--note`.
+5. A replay that drifts is a finding, not an error to retry away: report the metrics that moved, and let the research flow decide whether the node becomes `contested`.
 
 ## What is in this skill
 
 | Folder | Holds |
 |---|---|
 | `bin/` | `vault.py`, and the post-install check |
-| `references/` | Capturing, replaying, the capsule format, and storage (buckets, cost, archive) |
+| `references/` | The protocol agents follow, the guarantees and the tests behind them, capturing, replaying, the capsule format, and storage (buckets, cost, archive) |
 | `schemas/` | The capsule manifest's JSON Schema |
