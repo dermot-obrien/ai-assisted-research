@@ -51,7 +51,10 @@
   },
   "properties": {
     "format": {
-      "const": "experiment-vault/1"
+      "enum": [
+        "experiment-vault/1",
+        "experiment-vault/2"
+      ]
     },
     "tool": {
       "type": "string"
@@ -107,8 +110,6 @@
           "name",
           "commit",
           "tree",
-          "archive",
-          "exact",
           "dirty"
         ],
         "properties": {
@@ -150,7 +151,10 @@
             ],
             "properties": {
               "format": {
-                "const": "tar"
+                "enum": [
+                  "tar",
+                  "tar.gz"
+                ]
               }
             }
           },
@@ -171,8 +175,44 @@
           },
           "path": {
             "type": "string"
+          },
+          "storage": {
+            "enum": [
+              "bundle",
+              "archive"
+            ]
+          },
+          "root": {
+            "type": "string",
+            "description": "The repository's root commit, its folder in the vault: repos/<root>/"
+          },
+          "bundles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tip commits of the bundles repos/<root>/<tip>.bundle that together hold the commit"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "tag_pushed": {
+            "type": "boolean"
           }
-        }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "archive"
+            ]
+          },
+          {
+            "required": [
+              "root",
+              "bundles"
+            ]
+          }
+        ]
       }
     },
     "data": {

@@ -1,11 +1,11 @@
 ---
 name: experiment-vault
-description: "Keep every hypothesis experiment as a self-contained, immutable capsule in cheap cloud storage (a Google Cloud Storage bucket or a folder), so any later agent can restore it and run it again: the exact code at its commit, checked against the git tree, the data the run read, the Python environment and optionally its wheels, the hardware, the command, its seeds, console output, outputs and metrics, linked to the hypothesis node by hash. Replays a capsule in a fresh environment and says whether the result is identical, reproduced within tolerance or drifted, and records the retest. Use when running or recording an experiment for a hypothesis, when asked to reproduce, replay, retest or re-run a prior experiment, to check whether a result still holds after code, data or a library changed, to verify or audit what a result was made from, or to set up or archive the vault."
+description: "Keep every hypothesis experiment as a self-contained, immutable capsule in cheap cloud storage (a Google Cloud Storage bucket or a folder), so any later agent can restore it and run it again: the exact code at its commit, tagged and kept as incremental git bundles and checked against the git tree on restore, the data the run read, the Python environment and optionally its wheels, the hardware, the command, its seeds, console output, outputs and metrics, linked to the hypothesis node by hash. Replays a capsule in a fresh environment and says whether the result is identical, reproduced within tolerance or drifted, and records the retest. Use when running or recording an experiment for a hypothesis, when asked to reproduce, replay, retest or re-run a prior experiment, to check whether a result still holds after code, data or a library changed, to verify or audit what a result was made from, or to set up or archive the vault."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Python 3.10 or newer with PyYAML, and git. A gs:// vault needs the gcloud CLI, signed in with write access to the bucket. Reads research.yaml when there is one (vault.uri, vault.project or dag_project, dag_path); without it, pass --vault and --project. Records each capsule on the DAG node through the research-dag skill when it is installed beside this one.
 metadata:
   author: dermot-obrien
-  version: "1.0.0"
+  version: "1.1.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: ""
 ---
@@ -31,7 +31,7 @@ A result is only as good as the ability to make it again. The DAG records what a
 
 ## Rules
 
-1. Commit before you run. A capsule pins a commit; `run` refuses uncommitted changes unless `--allow-dirty`, which stores the difference as a patch and marks the capsule dirty. Push the commit too: `show` flags a commit that is on no remote branch.
+1. Commit before you run. A capsule pins a commit; `run` refuses uncommitted changes unless `--allow-dirty`, which stores the difference as a patch and marks the capsule dirty. `run` tags the commit `vault/<commit12>` and pushes the tag, so the commit outlives its branch; the vault also keeps it as git bundles, so it outlives the repository. Work in a full clone: a shallow clone is kept as a whole snapshot instead.
 2. Run the experiment through `vault.py run`, so the command, its console output, its environment and its outputs are recorded by the tool rather than described afterwards. Use `capture` only for a run that already happened, and say so in `--note`.
 3. Name every input with `--data` and every output with `--outputs`, inside the repository (git-ignored if large; a symlink is followed). Name the seeds with `--seed`, and set `PYTHONHASHSEED`.
 4. Fix the tolerance a replay must meet (`--rtol`, `--atol`) when you run, as you fix the target before the result is known.

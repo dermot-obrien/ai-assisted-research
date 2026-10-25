@@ -324,6 +324,115 @@ class TestFixes(VaultTestCase):
         self.assertTrue((self.exp / ".vault-replay" / f"{cid}-2").is_dir())
 
 
+class TestCodeBundles(VaultTestCase):
+    def commit(self, text, msg):
+        with open(self.exp / "train.py", "a", encoding="utf-8") as f:
+            f.write(f"# {text}\n")
+        sh(["git", "commit", "-q", "-am", msg], self.exp)
+        return sh(["git", "rev-parse", "HEAD"], self.exp).stdout.strip()
+
+    def bundles(self):
+        return sorted((self.base / "vault" / "repos").rglob("*.bundle"))
+
+    def test_code_is_kept_as_tagged_incremental_bundles(self):
+        first = self.manifest(self.run_experiment())["code"][0]
+        self.assertEqual(first["storage"], "bundle")
+        self.assertEqual(len(first["bundles"]), 1)
+        self.assertNotIn("archive", first)
+        tag = sh(["git", "rev-parse", f"refs/tags/{first['tag']}"], self.exp).stdout.strip()
+        self.assertEqual(tag, first["commit"])
+        # The same commit again adds no bundle.
+        self.run_experiment()
+        self.assertEqual(len(self.bundles()), 1)
+        # A new commit adds a bundle of just that commit.
+        self.commit("change", "second")
+        second = self.manifest(self.run_experiment())["code"][0]
+        self.assertEqual(len(second["bundles"]), 2)
+        self.assertEqual(len(self.bundles()), 2)
+        newest = self.base / "vault" / "repos" / second["root"] / f"{second['commit']}.bundle"
+        oldest = self.base / "vault" / "repos" / second["root"] / f"{first['commit']}.bundle"
+        prereq = sh(["git", "bundle", "list-heads", str(newest)], self.exp).stdout
+        self.assertIn(second["tag"], prereq)
+        verify = sh(["git", "bundle", "verify", str(newest)], self.exp).stdout + \
+            sh(["git", "bundle", "verify", str(newest)], self.exp).stderr
+        self.assertIn("requires", verify)
+        self.assertLess(newest.stat().st_size, oldest.stat().st_size)
+
+    def test_restore_rebuilds_the_repository_without_the_original(self):
+        ref = self.run_experiment()
+        m = self.manifest(ref)
+        import shutil as _shutil
+        _shutil.rmtree(self.exp)
+        dest = self.base / "restored"
+        sh([sys.executable, str(VAULT), "restore", ref, "--to", str(dest)], self.base, self.env)
+        repo = dest / "repos" / "exp"
+        self.assertEqual(sh(["git", "rev-parse", "HEAD"], repo).stdout.strip(), m["code"][0]["commit"])
+        self.assertEqual(sh(["git", "rev-parse", "HEAD^{tree}"], repo).stdout.strip(), m["code"][0]["tree"])
+        self.assertEqual((repo / "train.py").read_text(encoding="utf-8"), TRAIN)
+        self.assertEqual((repo / "data" / "raw.csv").read_text(encoding="utf-8"), "1\n2\n3\n4\n")
+
+    def test_a_split_history_restores_from_every_branch(self):
+        self.run_experiment()
+        sh(["git", "checkout", "-q", "-b", "side"], self.exp)
+        self.commit("side", "side work")
+        self.run_experiment()
+        sh(["git", "checkout", "-q", "main"], self.exp)
+        self.commit("main", "main work")
+        ref = self.run_experiment()
+        m = self.manifest(ref)
+        self.assertEqual(len(m["code"][0]["bundles"]), 3)
+        dest = self.base / "restored"
+        self.vault("restore", ref, "--to", str(dest))
+        self.assertEqual(sh(["git", "rev-parse", "HEAD"], dest / "repos" / "exp").stdout.strip(),
+                         m["code"][0]["commit"])
+        self.assertEqual(self.vault("verify", ref, "--deep").returncode, 0)
+
+    def test_the_tag_is_pushed_and_keeps_a_deleted_branch(self):
+        remote = self.base / "remote.git"
+        sh(["git", "init", "-q", "--bare", str(remote)], self.base)
+        sh(["git", "remote", "add", "origin", str(remote)], self.exp)
+        sh(["git", "push", "-q", "origin", "main"], self.exp)
+        sh(["git", "checkout", "-q", "-b", "experiment"], self.exp)
+        commit = self.commit("try", "an experiment")
+        sh(["git", "push", "-q", "origin", "experiment"], self.exp)
+        m = self.manifest(self.run_experiment())
+        self.assertTrue(m["code"][0]["tag_pushed"])
+        sh(["git", "push", "-q", "origin", "--delete", "experiment"], self.exp)
+        tags = sh(["git", "ls-remote", "--tags", str(remote)], self.base).stdout
+        self.assertIn(commit, tags)
+
+    def test_a_missing_bundle_fails_verification(self):
+        ref = self.run_experiment()
+        for b in self.bundles():
+            os.chmod(b, stat.S_IWUSR | stat.S_IRUSR)
+            b.unlink()
+        p = self.vault("verify", ref, check=False)
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("code bundles missing", p.stdout)
+
+    def test_a_shallow_clone_is_kept_as_a_compressed_snapshot(self):
+        self.commit("more", "second")
+        shallow = self.base / "shallow"
+        sh(["git", "clone", "-q", "--depth", "1", f"file://{self.exp}", str(shallow)], self.base)
+        (shallow / "data").mkdir()
+        (shallow / "data" / "raw.csv").write_text("1\n2\n", encoding="utf-8")
+        p = self.vault("run", "--node", "H-001", "--data", "data", "--outputs", "out", "--metrics", "out/metrics.json",
+                       "--no-link", "--no-push-tag", "--", sys.executable, "train.py", "--seed", "1", cwd=shallow)
+        self.assertIn("shallow clone", p.stderr)
+        ref = p.stdout.split("Capsule ", 1)[1].split(":", 1)[0]
+        code = self.manifest(ref)["code"][0]
+        self.assertEqual((code["storage"], code["archive"]["format"], code["exact"]), ("archive", "tar.gz", True))
+        dest = self.base / "restored"
+        self.vault("restore", ref, "--to", str(dest))
+        self.assertTrue((dest / "repos" / "shallow" / "train.py").is_file())
+
+    def test_archive_storage_on_request_is_deterministic(self):
+        a = self.manifest(self.run_experiment("H-001", "--code-storage", "archive"))["code"][0]
+        b = self.manifest(self.run_experiment("H-002", "--code-storage", "archive"))["code"][0]
+        self.assertEqual(a["archive"]["sha256"], b["archive"]["sha256"])
+        self.assertEqual(self.bundles(), [])
+
+
 class TestComparison(unittest.TestCase):
     def test_tolerances(self):
         original = {"metrics": {"a": 1.0, "b": {"c": 2.0}, "label": "x"},

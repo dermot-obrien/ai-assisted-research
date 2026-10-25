@@ -315,6 +315,30 @@ listed under `environment.unpinnable`. Install them from a commit instead, or ad
 repository to the capture with `--repo`. With `--strict` an environment that cannot be
 captured fully is an error rather than a warning.
 
+### `warning: ... is a shallow clone, so its history cannot be bundled; keeping a compressed snapshot ...`
+
+The repository was cloned with `--depth`, so git has no history to bundle. The capsule keeps a compressed tar of the commit instead, which restores the same code but stores the whole tree again for every commit. Run `git fetch --unshallow` (or clone without `--depth`) before the next capture.
+
+### `warning: could not push tag vault/... to origin (...); the vault's bundles still hold the commit`
+
+The tag that protects the commit on the remote could not be pushed, usually for lack of push rights or network. The capsule is still complete: its bundles hold the commit. Push the tag later with `git push origin refs/tags/vault/<commit12>`, or pass `--no-push-tag` to skip the attempt.
+
+### `Error: git bundle failed in ...`
+
+`git bundle create` failed, usually on a corrupt local repository or a missing object; its message follows. Run `git fsck` in the repository named.
+
+### `Error: N bundle(s) of ... need commits the vault does not hold`
+
+A bundle builds on commits that no other bundle in the capsule provides, so the repository cannot be rebuilt. This means a bundle was deleted from `repos/<root>/`. Run `vault.py verify <capsule>`; recover the bundle from the bucket's soft delete if it is recent.
+
+### `Error: ... restored to tree ..., not the recorded ...`
+
+The rebuilt commit's tree is not the one the capsule recorded, so the code is not what ran. Do not trust a replay from it; report the capsule.
+
+### `Error: ... code bundles missing`
+
+`verify` found that bundles the capsule names are gone from `repos/<root>/`. As above, recover them from soft delete, or the capsule's code can no longer be restored from the vault (the tag may still hold it on the remote).
+
 ### `warning: the archive of ... differs from commit ...'s tree (export-ignore, export-subst or eol attributes); the commit is still recorded`
 
 `.gitattributes` changes what `git archive` writes, so the tar in the capsule is not the
