@@ -891,12 +891,26 @@ class TestGcsBackend(VaultTestCase):
         self.assertNotIn("NOT-A-REAL-KEY", json.dumps(m))
         self.assertNotIn("RESEARCH_VAULT_GCP_KEY", json.dumps(m))
 
+    def test_a_key_given_as_one_line_json_or_base64_is_used(self):
+        import base64
+        pretty = json.dumps(self.FAKE_KEY, indent=2)
+        for value in (json.dumps(self.FAKE_KEY), base64.b64encode(pretty.encode()).decode()):
+            log = self.base / "gcs" / "auth.log"
+            if log.exists():
+                log.unlink()
+            self.env["RESEARCH_VAULT_GCP_KEY"] = value
+            self.vault("init")
+            self.assertIn(self.FAKE_KEY["client_email"], log.read_text(encoding="utf-8"))
+
     def test_a_malformed_key_is_named_without_printing_it(self):
         self.env["RESEARCH_VAULT_GCP_KEY"] = "secret-but-not-json"
         p = self.vault("init", check=False)
         self.assertEqual(p.returncode, 2)
-        self.assertIn("RESEARCH_VAULT_GCP_KEY is not JSON", p.stderr)
+        self.assertIn("RESEARCH_VAULT_GCP_KEY is neither JSON nor base64 JSON", p.stderr)
         self.assertNotIn("secret-but-not-json", p.stdout + p.stderr)
+        self.env["RESEARCH_VAULT_GCP_KEY"] = "{not json"
+        p = self.vault("init", check=False)
+        self.assertIn("RESEARCH_VAULT_GCP_KEY is not JSON", p.stderr)
         self.env["RESEARCH_VAULT_GCP_KEY"] = json.dumps({"type": "authorized_user"})
         p = self.vault("init", check=False)
         self.assertIn("is not a service account key", p.stderr)

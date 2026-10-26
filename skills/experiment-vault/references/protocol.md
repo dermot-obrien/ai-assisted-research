@@ -78,7 +78,7 @@ export PYTHONHASHSEED=0
 | `no research.yaml with the research-dag skill beside this one` | Record the capsule by hand (4.1) |
 | `is corrupt`, `missing from`, `bundles missing`, `not the recorded` | Stop. Report the capsule and the message to the person. Never repair, rewrite or delete anything in the vault |
 | `cannot read; update the skill` | Update experiment-vault; never edit the manifest |
-| `RESEARCH_VAULT_GCP_KEY is not JSON`, `is not a service account key` | The environment's key variable is wrong. Tell the person; never print, echo or edit the variable |
+| `RESEARCH_VAULT_GCP_KEY is not JSON`, `neither JSON nor base64 JSON`, `is not a service account key` | The environment's key variable is wrong. Tell the person; never print, echo or edit the variable |
 | `not initialised, or not reachable` | Check `vault.uri` and the gcloud sign-in; a person creates the bucket ([storage](storage.md)) |
 
 ## 7. Never

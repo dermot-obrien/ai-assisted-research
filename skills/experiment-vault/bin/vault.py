@@ -437,11 +437,21 @@ def gcloud_env() -> dict | None:
             raise VaultError(f"RESEARCH_VAULT_GCP_KEY_FILE names {path}, which does not exist")
         key_file = path
     else:
+        text = text.strip()
+        if not text.startswith("{"):
+            # Base64 of the key file: one line, with no characters a settings field can mangle.
+            import base64
+            import binascii
+            try:
+                text = base64.b64decode(text, validate=True).decode("utf-8")
+            except (binascii.Error, UnicodeDecodeError):
+                raise VaultError("RESEARCH_VAULT_GCP_KEY is neither JSON nor base64 JSON: set it to the service "
+                                 "account key file's JSON on one line, or to the file in base64") from None
         try:
             key = json.loads(text)
         except json.JSONDecodeError:
-            raise VaultError("RESEARCH_VAULT_GCP_KEY is not JSON: set it to the whole service account key file, "
-                             "from { to }") from None
+            raise VaultError("RESEARCH_VAULT_GCP_KEY is not JSON: set it to the service account key file's JSON "
+                             "on one line, or to the file in base64") from None
         if not isinstance(key, dict) or key.get("type") != "service_account" or "private_key" not in key:
             raise VaultError("RESEARCH_VAULT_GCP_KEY is not a service account key (its type must be "
                              "service_account)")

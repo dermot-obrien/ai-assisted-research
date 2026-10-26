@@ -315,9 +315,9 @@ listed under `environment.unpinnable`. Install them from a commit instead, or ad
 repository to the capture with `--repo`. With `--strict` an environment that cannot be
 captured fully is an error rather than a warning.
 
-### `Error: RESEARCH_VAULT_GCP_KEY is not JSON: ...` or `... is not a service account key`
+### `Error: RESEARCH_VAULT_GCP_KEY is not JSON`, `... is neither JSON nor base64 JSON` or `... is not a service account key`
 
-The cloud environment's `RESEARCH_VAULT_GCP_KEY` variable must hold a service account key file's whole JSON, from `{` to `}`, of `type: service_account`. Fix it in the environment's settings; the message never shows the value. A key file on disk goes in `RESEARCH_VAULT_GCP_KEY_FILE` instead.
+The cloud environment's `RESEARCH_VAULT_GCP_KEY` variable must hold a service account key of `type: service_account`, as the key file's JSON on one line or the whole file in base64 ([storage](../skills/experiment-vault/references/storage.md#6-a-key-for-cloud-sessions) has the PowerShell for each). Fix it in the environment's settings; the message never shows the value. A key file on disk goes in `RESEARCH_VAULT_GCP_KEY_FILE` instead.
 
 ### `Error: RESEARCH_VAULT_GCP_KEY_FILE names ..., which does not exist`
 

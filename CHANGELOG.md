@@ -8,7 +8,7 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## 4.2.0
 
 ### Added
-- `experiment-vault` 1.2.0: cloud sessions reach a `gs://` vault with a service account key in the environment variable `RESEARCH_VAULT_GCP_KEY` (the key file's whole JSON), or a key file named by `RESEARCH_VAULT_GCP_KEY_FILE`. A session's setup script cannot read saved variables, so `vault.py` reads the key itself. It writes the key to a private temporary file, deleted when the command ends, and points only its own gcloud calls at it (`CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE`). The machine's gcloud sign-in is left alone, the experiment runs without either variable, and the key is never printed or recorded. A malformed key is named without showing it.
+- `experiment-vault` 1.2.0: cloud sessions reach a `gs://` vault with a service account key in the environment variable `RESEARCH_VAULT_GCP_KEY` (the key file's JSON on one line, or the file in base64, since environment variables take one line), or a key file named by `RESEARCH_VAULT_GCP_KEY_FILE`. A session's setup script cannot read saved variables, so `vault.py` reads the key itself. It writes the key to a private temporary file, deleted when the command ends, and points only its own gcloud calls at it (`CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE`). The machine's gcloud sign-in is left alone, the experiment runs without either variable, and the key is never printed or recorded. A malformed key is named without showing it.
 
 ### Changed
 - [Storage](skills/experiment-vault/references/storage.md) now gives the whole setup as it was run and checked:
