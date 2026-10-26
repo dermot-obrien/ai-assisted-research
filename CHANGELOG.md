@@ -5,6 +5,22 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.2.0
+
+### Added
+- `experiment-vault` 1.2.0: cloud sessions reach a `gs://` vault with a service account key in the environment variable `RESEARCH_VAULT_GCP_KEY` (the key file's JSON on one line, or the file in base64, since environment variables take one line), or a key file named by `RESEARCH_VAULT_GCP_KEY_FILE`. A session's setup script cannot read saved variables, so `vault.py` reads the key itself. It writes the key to a private temporary file, deleted when the command ends, and points only its own gcloud calls at it (`CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE`). The machine's gcloud sign-in is left alone, the experiment runs without either variable, and the key is never printed or recorded. Its gcloud calls also run without `CLOUDSDK_AUTH_ACCESS_TOKEN`, which a cloud session presets as a placeholder for its proxy and which gcloud prefers to a key file: left in, every call was refused with `401 Invalid Credentials` (found by the first cloud-session test). A malformed key is named without showing it.
+
+### Changed
+- [Storage](skills/experiment-vault/references/storage.md) now gives the whole setup as it was run and checked:
+  - a dedicated project, with a budget in the billing account's currency;
+  - the bucket;
+  - the agents' account, granted add and read on the bucket only;
+  - initialising the vault;
+  - a round trip, and proof that the account cannot delete or overwrite;
+  - the key, including lifting the 2024 organisation key block for the one project and putting it back.
+
+  It also covers the errors met on the way: billing quota, budget currency, the Application Default Credentials warning, and impersonation rights.
+
 ## 4.1.0
 
 ### Changed

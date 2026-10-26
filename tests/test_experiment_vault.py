@@ -52,6 +52,13 @@ FAKE_GCLOUD = textwrap.dedent("""\
     def local(url):
         return ROOT / url[len("gs://"):]
     args = sys.argv[1:]
+    override = os.environ.get("CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE")
+    if override:
+        import json
+        with open(ROOT / "auth.log", "a") as log:
+            log.write(f"{override} {json.load(open(override))['client_email']} "
+                      f"{'leaked' if 'RESEARCH_VAULT_GCP_KEY' in os.environ else 'clean'} "
+                      f"{'token' if 'CLOUDSDK_AUTH_ACCESS_TOKEN' in os.environ else 'notoken'}\\n")
     assert args[0] == "storage", args
     cmd, rest = args[1], args[2:]
     flags = [a for a in rest if a.startswith("-")]
@@ -857,6 +864,71 @@ class TestGcsBackend(VaultTestCase):
         self.env["FAKE_GCS"] = str(self.base / "gcs")
         self.env["PATH"] = f"{bindir}{os.pathsep}{self.env['PATH']}"
         self.env["RESEARCH_VAULT"] = "gs://bucket/vault"
+
+    FAKE_KEY = {"type": "service_account", "client_email": "research-agents@p.iam.gserviceaccount.com",
+                "private_key": "-----BEGIN PRIVATE KEY-----\nNOT-A-REAL-KEY\n-----END PRIVATE KEY-----\n"}
+
+    def test_a_key_in_the_environment_authenticates_only_the_vaults_gcloud_calls(self):
+        self.env["RESEARCH_VAULT_GCP_KEY"] = json.dumps(self.FAKE_KEY)
+        (self.exp / "leak.py").write_text(
+            "import json, os\nos.makedirs('out', exist_ok=True)\n"
+            "json.dump({'score': 1, 'saw_key': 'RESEARCH_VAULT_GCP_KEY' in os.environ}, open('out/metrics.json', 'w'))\n",
+            encoding="utf-8")
+        sh(["git", "add", "-A"], self.exp)
+        sh(["git", "commit", "-q", "-m", "leak check"], self.exp)
+        self.vault("init")
+        p = self.vault("run", "--node", "H-001", "--outputs", "out", "--metrics", "out/metrics.json", "--no-link",
+                       "--", sys.executable, "leak.py")
+        ref = p.stdout.split("Capsule ", 1)[1].split(":", 1)[0]
+        log = (self.base / "gcs" / "auth.log").read_text(encoding="utf-8").splitlines()
+        self.assertTrue(log, "gcloud was never given the key")
+        paths = {line.split()[0] for line in log}
+        self.assertEqual({line.split()[1] for line in log}, {self.FAKE_KEY["client_email"]})
+        self.assertEqual({line.split()[2] for line in log}, {"clean"}, "gcloud's environment kept the key variable")
+        for path in paths:
+            self.assertFalse(os.path.exists(path), "the key file outlived the run")
+        m = self.manifest(ref)
+        self.assertFalse(m["metrics"]["saw_key"], "the experiment was given the vault's key")
+        self.assertNotIn("NOT-A-REAL-KEY", json.dumps(m))
+        self.assertNotIn("RESEARCH_VAULT_GCP_KEY", json.dumps(m))
+
+    def test_a_key_given_as_one_line_json_or_base64_is_used(self):
+        import base64
+        pretty = json.dumps(self.FAKE_KEY, indent=2)
+        for value in (json.dumps(self.FAKE_KEY), base64.b64encode(pretty.encode()).decode()):
+            log = self.base / "gcs" / "auth.log"
+            if log.exists():
+                log.unlink()
+            self.env["RESEARCH_VAULT_GCP_KEY"] = value
+            self.vault("init")
+            self.assertIn(self.FAKE_KEY["client_email"], log.read_text(encoding="utf-8"))
+
+    def test_a_preset_access_token_does_not_override_the_key(self):
+        """A cloud session presets CLOUDSDK_AUTH_ACCESS_TOKEN for its proxy; gcloud prefers it to a key file."""
+        self.env["CLOUDSDK_AUTH_ACCESS_TOKEN"] = "placeholder-14"
+        self.env["RESEARCH_VAULT_GCP_KEY"] = json.dumps(self.FAKE_KEY)
+        self.vault("init")
+        log = (self.base / "gcs" / "auth.log").read_text(encoding="utf-8").splitlines()
+        self.assertTrue(log)
+        self.assertEqual({line.split()[3] for line in log}, {"notoken"},
+                         "gcloud was given the preset access token, which it would use instead of the key")
+
+    def test_a_malformed_key_is_named_without_printing_it(self):
+        self.env["RESEARCH_VAULT_GCP_KEY"] = "secret-but-not-json"
+        p = self.vault("init", check=False)
+        self.assertEqual(p.returncode, 2)
+        self.assertIn("RESEARCH_VAULT_GCP_KEY is neither JSON nor base64 JSON", p.stderr)
+        self.assertNotIn("secret-but-not-json", p.stdout + p.stderr)
+        self.env["RESEARCH_VAULT_GCP_KEY"] = "{not json"
+        p = self.vault("init", check=False)
+        self.assertIn("RESEARCH_VAULT_GCP_KEY is not JSON", p.stderr)
+        self.env["RESEARCH_VAULT_GCP_KEY"] = json.dumps({"type": "authorized_user"})
+        p = self.vault("init", check=False)
+        self.assertIn("is not a service account key", p.stderr)
+
+    def test_without_a_key_gcloud_uses_the_signed_in_account(self):
+        self.vault("init")
+        self.assertFalse((self.base / "gcs" / "auth.log").exists())
 
     def test_round_trip_through_gcs(self):
         self.vault("init")

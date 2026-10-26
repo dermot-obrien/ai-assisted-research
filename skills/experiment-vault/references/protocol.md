@@ -78,6 +78,7 @@ export PYTHONHASHSEED=0
 | `no research.yaml with the research-dag skill beside this one` | Record the capsule by hand (4.1) |
 | `is corrupt`, `missing from`, `bundles missing`, `not the recorded` | Stop. Report the capsule and the message to the person. Never repair, rewrite or delete anything in the vault |
 | `cannot read; update the skill` | Update experiment-vault; never edit the manifest |
+| `RESEARCH_VAULT_GCP_KEY is not JSON`, `neither JSON nor base64 JSON`, `is not a service account key` | The environment's key variable is wrong. Tell the person; never print, echo or edit the variable |
 | `not initialised, or not reachable` | Check `vault.uri` and the gcloud sign-in; a person creates the bucket ([storage](storage.md)) |
 
 ## 7. Never
@@ -85,5 +86,5 @@ export PYTHONHASHSEED=0
 - Never edit, overwrite, move or delete anything in the vault, or a `vault/*` tag.
 - Never record a number as a result without the capsule it came from.
 - Never report a retest that was run with `--no-record`, or a `drifted` replay re-run until it passed.
-- Never pass a secret with `--env`, or put one in the command line or the console output.
+- Never pass a secret with `--env`, or put one in the command line or the console output. Never print, copy or write out `RESEARCH_VAULT_GCP_KEY`; the tool reads it.
 - Never hand-write a manifest or a `capsules` entry: copy the one the tool printed.

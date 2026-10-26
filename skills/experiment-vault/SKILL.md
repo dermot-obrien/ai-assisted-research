@@ -2,10 +2,10 @@
 name: experiment-vault
 description: "Keep every hypothesis experiment as a self-contained, immutable capsule in cheap cloud storage (a Google Cloud Storage bucket or a folder), so any later agent can restore it and run it again: the exact code at its commit, tagged and kept as incremental git bundles and checked against the git tree on restore, the data the run read, the Python environment and optionally its wheels, the hardware, the command, its seeds, console output, outputs and metrics, linked to the hypothesis node by hash. Replays a capsule in a fresh environment and says whether the result is identical, reproduced within tolerance or drifted, and records the retest. Use when running or recording an experiment for a hypothesis, when asked to reproduce, replay, retest or re-run a prior experiment, to check whether a result still holds after code, data or a library changed, to verify or audit what a result was made from, or to set up or archive the vault."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
-compatibility: Python 3.10 or newer with PyYAML, and git. A gs:// vault needs the gcloud CLI, signed in with write access to the bucket. Reads research.yaml when there is one (vault.uri, vault.project or dag_project, dag_path); without it, pass --vault and --project. Records each capsule on the DAG node through the research-dag skill when it is installed beside this one.
+compatibility: Python 3.10 or newer with PyYAML, and git. A gs:// vault needs the gcloud CLI, signed in with write access to the bucket, or a service account key in RESEARCH_VAULT_GCP_KEY (cloud sessions). Reads research.yaml when there is one (vault.uri, vault.project or dag_project, dag_path); without it, pass --vault and --project. Records each capsule on the DAG node through the research-dag skill when it is installed beside this one.
 metadata:
   author: dermot-obrien
-  version: "1.1.0"
+  version: "1.2.1"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: ""
 ---
