@@ -10,6 +10,7 @@ The vault is a folder layout ([capsule-format.md](capsule-format.md)), so it can
 | Always available, never "thawed" | Every class, Archive included, is read immediately with the same API. There is no restore job, unlike S3 Glacier Flexible Retrieval and Deep Archive, which take hours |
 | Pulled forward when worked on again | Autoclass moves an object back to Standard when it is read, so a replayed capsule is warm again with no command |
 | One copy of shared data | Blobs are named by their SHA-256, so the same dataset or wheel in many capsules is one object |
+| Code that costs its changes, not its size | Code is kept as git bundles per repository: the history once, then only the commits each capture adds |
 | Already in use | Dermot's systems already run on Google Cloud and the gcloud CLI, so no new account or credentials |
 
 Prices are approximate (October 2026, a single US region); check the [Cloud Storage pricing page](https://cloud.google.com/storage/pricing). Reading from colder classes costs a retrieval fee per GB (highest for Archive, around $0.05), and Autoclass charges a small monthly management fee per object over 128 KiB; manifests are smaller and stay in Standard. A capsule of a few hundred megabytes in Archive costs well under a cent a month.

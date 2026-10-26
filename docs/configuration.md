@@ -34,6 +34,7 @@ String paths are relative to the folder that holds `research.yaml`.
 | `dag_project` | string | unset | No | This project's folder in the store. A plain folder name. Also the vault project when `vault.project` is unset |
 | `vault.uri` | string | unset (commented out) | For the experiment vault | The vault: a folder, `file://`, or `gs://bucket/prefix`. A relative folder resolves against the folder holding `research.yaml` |
 | `vault.project` | string | unset | No | This project's folder in the vault; defaults to `dag_project`. Letters, digits, `.`, `_` or `-` |
+| `vault.code_storage` | `bundle` or `archive` | not in the example; the tool's default is `bundle` | No | How code is kept, as `vault.py run --code-storage` takes it |
 | `vault.vendor_wheels` | boolean | `true`, commented out; the tool's default is `false` | No | Also keep every pinned package's wheel, as `vault.py run --vendor-wheels` does |
 | `vault.rtol` | number | `1.0e-9` | No | Relative tolerance a replay's metrics must meet, unless a run sets its own |
 | `vault.atol` | number | `1.0e-12` | No | Absolute tolerance, likewise |
@@ -96,6 +97,7 @@ with `gcloud storage rsync`:
 |---|---|
 | `VAULT.md` | The format, for a reader without the tool; written by `vault.py init` |
 | `blobs/sha256/<hex>` | Every file a capsule names, stored once under the SHA-256 of its content, never overwritten |
+| `repos/<root commit>/<tip commit>.bundle` | A repository's history as git bundles, each holding only the commits the vault lacked when it was written; the root commit names the repository wherever it is cloned |
 | `capsules/<project>/<node>/<stamp>-<hash12>.json` | One manifest per run or retest. `<stamp>` is its creation time as `YYYYMMDDTHHMMSSZ`, `<hash12>` the first 12 hex digits of the manifest's SHA-256; the two together are the capsule id |
 
 [The capsule format](../skills/experiment-vault/references/capsule-format.md) describes the
@@ -146,6 +148,7 @@ Never commit `S2_API_KEY` or put it in `research.yaml`.
 | Replay tolerance | `vault.py replay --rtol`, `--atol` | the tolerance recorded in the capsule at capture | `vault.rtol`, `vault.atol`, then 1e-9 and 1e-12 |
 | Tolerance recorded at capture | `vault.py run --rtol`, `--atol` | `vault.rtol`, `vault.atol` | 1e-9 and 1e-12 |
 | Vendoring wheels | `vault.py run --vendor-wheels` | `vault.vendor_wheels` | off |
+| How code is kept | `vault.py run --code-storage` | `vault.code_storage` | `bundle` |
 | Where `dag_update.py` is for recording capsules | `RESEARCH_DAG_BIN` | `research-dag/bin/` beside the experiment-vault skill | none: the entry is printed to record by hand |
 
 ## hypothesis-dag.yaml

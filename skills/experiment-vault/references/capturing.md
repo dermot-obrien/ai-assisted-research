@@ -1,5 +1,7 @@
 # Capturing an experiment
 
+The steps an agent follows, in order, are in [the protocol](protocol.md); this page explains what a capture records and why. Before a real run, run the same command with `--dry-run`: it checks everything below and changes nothing.
+
 `vault.py run` runs the experiment and keeps everything it used and produced. Run it from the repository the experiment lives in (or pass `--cwd`), after committing.
 
 ```bash
@@ -17,11 +19,11 @@ PowerShell is the same with `$env:PYTHONHASHSEED = "0"` and a backtick for each 
 
 | Recorded | How |
 |---|---|
-| The code | The main repository's commit, tree, branch and remote, and a tar of the commit (`git archive`). The tar's own git tree hash is compared with the commit's: `exact: true` means the bytes restored later are the commit, bit for bit. Add `--repo <path>` for every other repository the run imports. |
+| The code | The main repository's commit, tree, branch and remote. The commit is tagged `vault/<commit12>` and the tag pushed to `origin` (`--no-push-tag` keeps it local), and the vault gets a git bundle of only the commits it does not hold yet, so a new capture of a known repository costs kilobytes. Restore rebuilds the repository from the bundles and proves the tree. A shallow clone, or `--code-storage archive`, keeps a compressed snapshot instead ([capsule format](capsule-format.md#how-the-code-is-kept)). Every submodule is captured too, as its own entry, and must be checked out. Add `--repo <path>` for every other repository the run imports. The end-of-line settings the files were checked out with are recorded, so a restore writes the same bytes. |
 | The data | Every file under each `--data` path, by SHA-256. Data must sit inside the main repository so its path is the same on replay; put large data in a git-ignored folder, or symlink it there. |
 | The environment | The interpreter (`--python`, default the one running `vault.py`): version, implementation, platform; `pip freeze --all` as the lock; a conda export when a conda environment is active; the CPU, cores, memory and GPUs. With `--vendor-wheels` (or `vault.vendor_wheels: true`), the wheel of every pinned package too, so a replay installs with no package index at all. |
 | The run | The command, the directory it ran in, `--seed` values, the environment variables that change results (`PYTHONHASHSEED`, thread counts, `CUDA_VISIBLE_DEVICES`, `TZ`, locale, and any `--env NAME`), start time, duration, exit code, and stdout and stderr in full. |
-| The outputs | Every file under each `--outputs` path, and the `--metrics` JSON, parsed. `--metric` names the key (dotted for nested) that is the node's result; the target comes from the node, or `--target`. |
+| The outputs | Every file under each `--outputs` path that the run wrote (a file left from an earlier run is skipped, with a warning), and the `--metrics` JSON, parsed. `--metric` names the key (dotted for nested) that is the node's result; the target comes from the node, or `--target`. |
 | The node | The node's id, a snapshot of its hypothesis, status, target and metric, and the DAG store commit the view was generated from. |
 
 A failed run is still recorded, with its exit code: a crash is part of the history. `run` exits with the command's own exit code.

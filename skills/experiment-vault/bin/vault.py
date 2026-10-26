@@ -6,8 +6,9 @@ The experiment vault: everything a hypothesis test used and produced, kept as on
 self-contained, immutable capsule in cheap cloud storage, so any later agent can
 restore it and run the experiment again.
 
-A capsule holds the exact code (a tar of every repository at its commit, checked
-against the commit's git tree), the data the run read, the Python environment (the
+A capsule holds the exact code (every repository at its commit, tagged vault/<commit12>,
+with the vault keeping each repository's history as incremental git bundles, so a new
+commit costs only its changes; restore checks the commit's git tree), the data the run read, the Python environment (the
 interpreter, a frozen package list and, optionally, the wheels themselves), the
 hardware, the command, its seeds and settings, its console output, the outputs it
 wrote and the metrics it reported. Files are stored once by their SHA-256, so data
@@ -16,6 +17,7 @@ last and never overwritten, and its id carries the manifest's hash.
 
     <vault>/VAULT.md                                       the format, for a reader without this tool
     <vault>/blobs/sha256/<hex>                             every file, by content, never overwritten
+    <vault>/repos/<root commit>/<tip commit>.bundle        a repository's history, in increments
     <vault>/capsules/<project>/<node>/<stamp>-<hash12>.json one manifest per run or retest
 
 The vault is a folder (a path or file://) or a Google Cloud Storage prefix
@@ -42,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import gzip
 import hashlib
 import io
 import json
@@ -60,8 +63,9 @@ import time
 from pathlib import Path
 from typing import Any, Iterable
 
-FORMAT = "experiment-vault/1"
-TOOL_VERSION = "1.0.0"
+FORMAT = "experiment-vault/2"
+FORMATS = ("experiment-vault/1", "experiment-vault/2")
+TOOL_VERSION = "1.1.0"
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 CAPSULE_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{12}$")
@@ -81,23 +85,27 @@ Written by the experiment-vault skill (`vault.py`); nothing here is edited or ov
 ## Format (for an agent without the skill)
 
     blobs/sha256/<hex>                               a file, named by the SHA-256 of its content
+    repos/<root commit>/<tip commit>.bundle          a repository's history, as incremental git bundles
     capsules/<project>/<node>/<stamp>-<hash12>.json  a manifest, one per run or retest
 
-A manifest is JSON (`format: experiment-vault/1`). `<hash12>` is the first 12 hex digits of the
+A manifest is JSON (`format: experiment-vault/2`; 1 is read too). `<hash12>` is the first 12 hex digits of the
 SHA-256 of the manifest file's bytes, so a manifest proves its own integrity, and the hypothesis
 DAG records the full hash beside the capsule id. Every file the manifest names is a blob:
 
 | Section | Holds |
 |---|---|
 | `node` | The hypothesis node id, a snapshot of the node and the DAG store commit at capture |
-| `code` | Per repository: remote, commit, tree, and `archive`, a tar of the commit; `exact` is true when the tar's own git tree hash equals `tree` |
+| `code` | Per repository: remote, commit, tree, and either `bundles` (the tip commits of the bundles under `repos/<root>/` that hold the commit) or `archive`, a tar.gz of the commit |
 | `data` | Files the run read: `path` relative to the main repository, `sha256`, `size` |
 | `environment` | Interpreter, platform, `lock` (pip freeze), optional `wheels`, hardware |
 | `run` | `argv`, `cwd`, recorded `env`, `seeds`, times, `exit_code`, `stdout` and `stderr` blobs |
 | `outputs`, `metrics` | Files the run wrote, and the metrics it reported |
 | `comparison` | On a retest: the capsule it retested and whether the result reproduced |
 
-To restore by hand: untar each `code[].archive` blob into `repos/<name>/`, copy each `data[]`
+To restore by hand: for each `code[]` entry with `bundles`, `git init repos/<name>`, then
+`git fetch <bundle> '+refs/tags/*:refs/tags/*'` for each bundle (a bundle whose prerequisites
+are missing waits for the others) and `git checkout --detach <commit>`; or untar its `archive`.
+Then copy each `data[]`
 blob to `repos/<main>/<path>`, install `environment.lock` (from `environment.wheels` with
 `pip install --no-index --find-links`), and run `run.argv` in `repos/<main>/<run.cwd>`.
 """
@@ -186,6 +194,9 @@ class Settings:
         self.project = (getattr(args, "project", None) or os.environ.get("RESEARCH_VAULT_PROJECT")
                         or vault.get("project") or cfg.get("dag_project"))
         self.vendor_wheels = bool(vault.get("vendor_wheels", False))
+        self.code_storage = str(vault.get("code_storage", "bundle"))
+        if self.code_storage not in ("bundle", "archive"):
+            raise VaultError(f"vault.code_storage is {self.code_storage!r}; use bundle or archive")
         self.rtol = float(vault.get("rtol", 1e-9))
         self.atol = float(vault.get("atol", 1e-12))
         self.dag_path = (self.root / cfg["dag_path"]) if self.root and cfg.get("dag_path") else None
@@ -220,16 +231,27 @@ class Backend:
         """Write data at key unless the key exists. True when this call wrote it."""
         raise NotImplementedError
 
+    def put_files(self, files: dict[str, Path]) -> int:
+        """Upload {key: local path}, skipping keys already there. Returns the count sent."""
+        raise NotImplementedError
+
+    def get_keys(self, keys: Iterable[str], into: Path) -> None:
+        """Download keys into the folder `into`, each named by the last part of its key."""
+        raise NotImplementedError
+
+    def missing(self, keys: Iterable[str]) -> list[str]:
+        raise NotImplementedError
+
     def put_blobs(self, files: dict[str, Path]) -> int:
         """Upload {hex: local path} into blobs/sha256/, skipping blobs already there. Returns the count sent."""
-        raise NotImplementedError
+        return self.put_files({f"blobs/sha256/{h}": p for h, p in files.items()})
 
     def get_blobs(self, hexes: Iterable[str], into: Path) -> None:
         """Download blobs into the folder `into`, each named by its hex."""
-        raise NotImplementedError
+        self.get_keys([f"blobs/sha256/{h}" for h in set(hexes)], into)
 
     def missing_blobs(self, hexes: Iterable[str]) -> list[str]:
-        raise NotImplementedError
+        return sorted(k.rsplit("/", 1)[1] for k in self.missing(f"blobs/sha256/{h}" for h in set(hexes)))
 
     def list(self, prefix: str) -> list[str]:
         raise NotImplementedError
@@ -258,15 +280,14 @@ class LocalBackend(Backend):
             f.write(data)
         return True
 
-    def put_blobs(self, files: dict[str, Path]) -> int:
-        d = self.root / "blobs" / "sha256"
-        d.mkdir(parents=True, exist_ok=True)
+    def put_files(self, files: dict[str, Path]) -> int:
         sent = 0
-        for hexd, src in files.items():
-            dest = d / hexd
+        for key, src in files.items():
+            dest = self.root / key
             if dest.exists():
                 continue
-            tmp = d / f".{hexd}.{secrets.token_hex(4)}.tmp"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dest.parent / f".{dest.name}.{secrets.token_hex(4)}.tmp"
             shutil.copyfile(src, tmp)
             os.chmod(tmp, 0o444)
             try:
@@ -277,16 +298,16 @@ class LocalBackend(Backend):
             sent += 1
         return sent
 
-    def get_blobs(self, hexes: Iterable[str], into: Path) -> None:
+    def get_keys(self, keys: Iterable[str], into: Path) -> None:
         into.mkdir(parents=True, exist_ok=True)
-        for hexd in set(hexes):
-            src = self.root / "blobs" / "sha256" / hexd
+        for key in set(keys):
+            src = self.root / key
             if not src.is_file():
-                raise VaultError(f"blob {hexd} is missing from {self.uri}")
-            shutil.copyfile(src, into / hexd)
+                raise VaultError(f"{key} is missing from {self.uri}")
+            shutil.copyfile(src, into / key.rsplit("/", 1)[-1])
 
-    def missing_blobs(self, hexes: Iterable[str]) -> list[str]:
-        return sorted(h for h in set(hexes) if not (self.root / "blobs" / "sha256" / h).is_file())
+    def missing(self, keys: Iterable[str]) -> list[str]:
+        return sorted(k for k in set(keys) if not (self.root / k).is_file())
 
     def list(self, prefix: str) -> list[str]:
         base = self.root / prefix
@@ -333,52 +354,54 @@ class GCSBackend(Backend):
             return False
         raise VaultError(f"could not write {self.url(key)}: {(p.stderr or p.stdout).strip()[:300]}")
 
-    def put_blobs(self, files: dict[str, Path]) -> int:
-        # --no-clobber skips every blob already in the bucket, so nothing is listed first.
-        todo = dict(files)
-        if not todo:
-            return 0
-        with tempfile.TemporaryDirectory() as td:
-            staged = []
-            for hexd, src in todo.items():
-                dest = Path(td) / hexd
-                try:
-                    os.link(src, dest)
-                except OSError:
-                    shutil.copyfile(src, dest)
-                staged.append(str(dest))
-            p = run_cmd(["gcloud", "storage", "cp", "--no-clobber", "-I", self.url("blobs/sha256/")],
-                        input_text="\n".join(staged) + "\n")
-        skipped = len(re.findall(r"(?i)skipping existing", p.stdout + p.stderr))
-        return len(todo) - skipped
+    def put_files(self, files: dict[str, Path]) -> int:
+        # --no-clobber skips every object already in the bucket, so nothing is listed first.
+        # One copy per destination folder, so a capsule's blobs go up in one call.
+        by_dir: dict[str, dict[str, Path]] = {}
+        for key, src in files.items():
+            folder, _, name = key.rpartition("/")
+            by_dir.setdefault(folder, {})[name] = src
+        sent = 0
+        for folder, named in by_dir.items():
+            with tempfile.TemporaryDirectory() as td:
+                staged = []
+                for name, src in named.items():
+                    dest = Path(td) / name
+                    try:
+                        os.link(src, dest)
+                    except OSError:
+                        shutil.copyfile(src, dest)
+                    staged.append(str(dest))
+                p = run_cmd(["gcloud", "storage", "cp", "--no-clobber", "-I", self.url(folder + "/")],
+                            input_text="\n".join(staged) + "\n")
+            sent += len(named) - len(re.findall(r"(?i)skipping existing", p.stdout + p.stderr))
+        return sent
 
-    def existing(self, hexes: Iterable[str]) -> list[str]:
+    def existing(self, keys: Iterable[str]) -> list[str]:
         found: list[str] = []
-        hexes = sorted(set(hexes))
-        for i in range(0, len(hexes), self.CHUNK):
-            urls = [self.url(f"blobs/sha256/{h}") for h in hexes[i:i + self.CHUNK]]
-            p = run_cmd(["gcloud", "storage", "ls", *urls], check=False)
-            chunk = []
-            for line in p.stdout.splitlines():
-                name = line.strip().rsplit("/", 1)[-1]
-                if HEX_RE.match(name):
-                    chunk.append(name)
+        keys = sorted(set(keys))
+        for i in range(0, len(keys), self.CHUNK):
+            chunk_keys = keys[i:i + self.CHUNK]
+            p = run_cmd(["gcloud", "storage", "ls", *[self.url(k) for k in chunk_keys]], check=False)
+            listed = {line.strip()[len(self.base):] for line in p.stdout.splitlines()
+                      if line.strip().startswith(self.base)}
+            chunk = [k for k in chunk_keys if k in listed]
             if p.returncode != 0:
                 # ls may stop at the first missing URL; ask about the rest one at a time.
-                for h in hexes[i:i + self.CHUNK]:
-                    if h not in chunk and run_cmd(["gcloud", "storage", "objects", "describe",
-                                                   self.url(f"blobs/sha256/{h}")], check=False).returncode == 0:
-                        chunk.append(h)
+                for k in chunk_keys:
+                    if k not in listed and run_cmd(["gcloud", "storage", "objects", "describe", self.url(k)],
+                                                   check=False).returncode == 0:
+                        chunk.append(k)
             found.extend(chunk)
         return found
 
-    def missing_blobs(self, hexes: Iterable[str]) -> list[str]:
-        hexes = set(hexes)
-        return sorted(hexes - set(self.existing(hexes)))
+    def missing(self, keys: Iterable[str]) -> list[str]:
+        keys = set(keys)
+        return sorted(keys - set(self.existing(keys)))
 
-    def get_blobs(self, hexes: Iterable[str], into: Path) -> None:
+    def get_keys(self, keys: Iterable[str], into: Path) -> None:
         into.mkdir(parents=True, exist_ok=True)
-        urls = [self.url(f"blobs/sha256/{h}") for h in sorted(set(hexes))]
+        urls = [self.url(k) for k in sorted(set(keys))]
         if urls:
             run_cmd(["gcloud", "storage", "cp", "-I", str(into) + os.sep], input_text="\n".join(urls) + "\n")
 
@@ -455,7 +478,17 @@ def tar_tree_hash(tar_path: Path, gitlinks: dict[str, str], algo: str) -> str:
 
 
 def capture_repo(path: Path, name: str, allow_dirty: bool, work: Path, blobs: dict[str, Path],
-                 managed: set[Path] = frozenset()) -> dict:
+                 managed: set[Path] = frozenset(), backend: Backend | None = None,
+                 files: dict[str, Path] | None = None, storage: str = "bundle", push_tag: bool = True,
+                 dry: bool = False) -> dict:
+    """Pin one repository at its commit.
+
+    storage "bundle" (the default) keeps the code as git history: the commit is tagged
+    vault/<commit12> (and the tag pushed to origin, so a deleted branch cannot lose it), and
+    the vault holds incremental git bundles per repository, under repos/<root commit>/, so a
+    new capsule adds only the commits the vault lacks. storage "archive", and any shallow
+    clone, keeps a compressed tar of the commit instead.
+    """
     top = Path(git(["rev-parse", "--show-toplevel"], path))
     commit = git(["rev-parse", "HEAD"], top)
     tree = git(["rev-parse", "HEAD^{tree}"], top)
@@ -470,18 +503,17 @@ def capture_repo(path: Path, name: str, allow_dirty: bool, work: Path, blobs: di
     if remote:
         contains = git(["branch", "-r", "--contains", commit], top, check=False)
         entry["pushed"] = bool(contains.strip())
+    # The settings that decide the bytes git checks out, so a restore writes the files the run read.
+    checkout = {k: v for k in ("core.autocrlf", "core.eol")
+                if (v := git(["config", "--get", k], top, check=False))}
+    if checkout:
+        entry["checkout"] = checkout
     status = "\n".join(line for line in run_cmd(["git", "status", "--porcelain", "--untracked-files=normal"], cwd=top).stdout.splitlines()
                        if (top / line[3:].strip('"')).resolve() not in managed)
     entry["dirty"] = bool(status)
     if status and not allow_dirty:
         raise VaultError(f"{top} has uncommitted changes. Commit them (the capsule pins a commit), "
                          f"or pass --allow-dirty to store the difference as a patch.")
-    tar_path = work / f"{name}.tar"
-    with open(tar_path, "wb") as f:
-        p = subprocess.run([shutil.which("git") or "git", "-c", "core.autocrlf=false", "archive",
-                            "--format=tar", commit], cwd=top, stdout=f, stderr=subprocess.PIPE)
-    if p.returncode != 0:
-        raise VaultError(f"git archive failed in {top}: {p.stderr.decode('utf-8', 'replace')[:300]}")
     gitlinks = {}
     for line in git(["ls-tree", "-r", commit], top).splitlines():
         meta, _, path_ = line.partition("\t")
@@ -490,13 +522,20 @@ def capture_repo(path: Path, name: str, allow_dirty: bool, work: Path, blobs: di
             gitlinks[path_] = sha
     if gitlinks:
         entry["submodules"] = gitlinks
-    hexd, size = sha256_file(tar_path)
-    blobs[hexd] = tar_path
-    entry["archive"] = {"sha256": hexd, "size": size, "format": "tar"}
-    entry["exact"] = tar_tree_hash(tar_path, gitlinks, algo) == tree
-    if not entry["exact"]:
-        print(f"warning: the archive of {name} differs from commit {commit[:12]}'s tree "
-              f"(export-ignore, export-subst or eol attributes); the commit is still recorded", file=sys.stderr)
+    if storage == "bundle" and git(["rev-parse", "--is-shallow-repository"], top, check=False) == "true":
+        print(f"warning: {top} is a shallow clone, so its history cannot be bundled; keeping a compressed "
+              f"snapshot of {commit[:12]} instead. Run `git fetch --unshallow` to store history next time.",
+              file=sys.stderr)
+        storage = "archive"
+    if dry:
+        entry["storage"] = storage
+        if storage == "bundle" and backend is not None:
+            entry["new_commits"] = commits_to_bundle(top, commit, backend)
+        return entry
+    if storage == "bundle" and backend is not None and files is not None:
+        entry.update(bundle_repo(top, commit, backend, files, work, push_tag and bool(remote)))
+    else:
+        entry.update(archive_repo(top, name, commit, tree, algo, gitlinks, work, blobs))
     if status:
         diff_path = work / f"{name}.patch"
         diff_path.write_bytes(subprocess.run([shutil.which("git") or "git", "diff", "--binary", "HEAD"],
@@ -515,9 +554,152 @@ def capture_repo(path: Path, name: str, allow_dirty: bool, work: Path, blobs: di
     return entry
 
 
+def archive_repo(top: Path, name: str, commit: str, tree: str, algo: str, gitlinks: dict[str, str],
+                 work: Path, blobs: dict[str, Path]) -> dict:
+    """A gzip-compressed tar of the commit, with exact: true when its git tree hash is the commit's."""
+    tar_path = work / f"{name}.tar"
+    with open(tar_path, "wb") as f:
+        p = subprocess.run([shutil.which("git") or "git", "-c", "core.autocrlf=false", "archive",
+                            "--format=tar", commit], cwd=top, stdout=f, stderr=subprocess.PIPE)
+    if p.returncode != 0:
+        raise VaultError(f"git archive failed in {top}: {p.stderr.decode('utf-8', 'replace')[:300]}")
+    exact = tar_tree_hash(tar_path, gitlinks, algo) == tree
+    gz_path = work / f"{name}.tar.gz"
+    # mtime 0 and no file name, so the same commit always compresses to the same bytes.
+    with open(tar_path, "rb") as src, open(gz_path, "wb") as raw, \
+            gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as gz:
+        shutil.copyfileobj(src, gz)
+    tar_path.unlink()
+    if not exact:
+        print(f"warning: the archive of {name} differs from commit {commit[:12]}'s tree "
+              f"(export-ignore, export-subst or eol attributes); the commit is still recorded", file=sys.stderr)
+    hexd, size = sha256_file(gz_path)
+    blobs[hexd] = gz_path
+    return {"storage": "archive", "archive": {"sha256": hexd, "size": size, "format": "tar.gz"}, "exact": exact}
+
+
+def bundle_key(root: str, tip: str) -> str:
+    return f"repos/{root}/{tip}.bundle"
+
+
+def vault_tips(top: Path, commit: str, backend: Backend) -> tuple[str, list[str], list[str]]:
+    """(root commit, tips the vault holds for this repository, those of them present locally)."""
+    root = sorted(git(["rev-list", "--max-parents=0", commit], top).split())[0]
+    prefix = f"repos/{root}/"
+    known = sorted({k[len(prefix):-len(".bundle")] for k in backend.list(prefix) if k.endswith(".bundle")})
+    local = [t for t in known if run_cmd(["git", "cat-file", "-e", f"{t}^{{commit}}"], cwd=top,
+                                          check=False).returncode == 0]
+    return root, known, local
+
+
+def commits_to_bundle(top: Path, commit: str, backend: Backend) -> int:
+    """How many commits a capture of this commit would add to the vault."""
+    _, known, local = vault_tips(top, commit, backend)
+    if commit in known:
+        return 0
+    return int(git(["rev-list", "--count", commit, *[f"^{t}" for t in local]], top) or 0)
+
+
+def bundle_repo(top: Path, commit: str, backend: Backend, files: dict[str, Path], work: Path,
+                push: bool) -> dict:
+    """Tag the commit and add a git bundle of the commits the vault does not hold yet."""
+    root, known, local = vault_tips(top, commit, backend)
+    tag = f"vault/{commit[:12]}"
+    at = git(["rev-parse", "-q", "--verify", f"refs/tags/{tag}^{{commit}}"], top, check=False)
+    if at and at != commit:
+        tag = f"vault/{commit}"
+        at = git(["rev-parse", "-q", "--verify", f"refs/tags/{tag}^{{commit}}"], top, check=False)
+    if not at:
+        git(["tag", tag, commit], top)
+    covered = commit in known or (local and not git(["rev-list", "-n", "1", commit, "--not", *local], top))
+    if not covered:
+        path = work / f"{commit}.bundle"
+        p = run_cmd(["git", "bundle", "create", str(path), f"refs/tags/{tag}", *[f"^{t}" for t in local]],
+                    cwd=top, check=False)
+        if p.returncode != 0:
+            raise VaultError(f"git bundle failed in {top}: {(p.stderr or p.stdout).strip()[:300]}")
+        files[bundle_key(root, commit)] = path
+        known = sorted({*known, commit})
+    entry: dict[str, Any] = {"storage": "bundle", "root": root, "bundles": known, "tag": tag, "exact": True}
+    if push:
+        p = run_cmd(["git", "push", "-q", "origin", f"refs/tags/{tag}"], cwd=top, check=False)
+        entry["tag_pushed"] = p.returncode == 0
+        if p.returncode != 0:
+            print(f"warning: could not push tag {tag} to origin ({(p.stderr or p.stdout).strip()[:200]}); "
+                  f"the vault's bundles still hold the commit", file=sys.stderr)
+    return entry
+
+
+def restore_bundled(backend: Backend, repo: dict, target: Path, cache: Path) -> None:
+    """Rebuild the repository from its bundles, check out the commit, and prove its tree."""
+    folder = cache / "bundles" / repo["root"]
+    backend.get_keys([bundle_key(repo["root"], t) for t in repo["bundles"]], folder)
+    init = ["git", "init", "-q"]
+    if repo.get("object_format") == "sha256":
+        init.append("--object-format=sha256")
+    run_cmd([*init, str(target)])
+    pending = sorted(folder.glob("*.bundle"))
+    while pending:
+        # A bundle applies once the commits it builds on are in place; repeat until all have.
+        ready = [b for b in pending if run_cmd(["git", "bundle", "verify", "-q", str(b)], cwd=target,
+                                                check=False).returncode == 0]
+        if not ready:
+            raise VaultError(f"{len(pending)} bundle(s) of {repo['name']} need commits the vault does not hold: "
+                             f"{', '.join(b.stem[:12] for b in pending[:3])}")
+        for b in ready:
+            run_cmd(["git", "fetch", "-q", str(b), "+refs/tags/*:refs/tags/*"], cwd=target)
+            pending.remove(b)
+    # The capture machine's end-of-line settings, never the restoring machine's.
+    settings = {"core.autocrlf": "false", **repo.get("checkout", {})}
+    config = [arg for k, v in settings.items() for arg in ("-c", f"{k}={v}")]
+    run_cmd(["git", *config, "-c", "advice.detachedHead=false", "checkout", "-q", "--detach", repo["commit"]],
+            cwd=target)
+    # Keep the settings in the restored repository, so git status agrees with the files.
+    for k, v in settings.items():
+        run_cmd(["git", "config", k, v], cwd=target)
+    tree = git(["rev-parse", f"{repo['commit']}^{{tree}}"], target)
+    if tree != repo["tree"]:
+        raise VaultError(f"{repo['name']} restored to tree {tree[:12]}, not the recorded {repo['tree'][:12]}")
+
+
+def iter_bundle_keys(manifest: dict) -> Iterable[str]:
+    for repo in manifest.get("code", []):
+        for tip in repo.get("bundles", []):
+            yield bundle_key(repo["root"], tip)
+
+
+def repos_to_capture(root: Path, extras: list[str]) -> list[tuple[Path, str, str | None]]:
+    """(path, name, path relative to the main repository) for the main repository, every --repo,
+    and every submodule of any of them, recursively. A submodule that is not checked out is an error:
+    its code would be missing from the capsule."""
+    out: list[tuple[Path, str, str | None]] = [(root, root.name, None)]
+    for i, extra in enumerate(extras):
+        r = Path(git(["rev-parse", "--show-toplevel"], Path(extra).resolve())).resolve()
+        name = r.name if r.name not in {n for _, n, _ in out} else f"{r.name}-{i}"
+        out.append((r, name, os.path.relpath(r, root).replace(os.sep, "/")))
+    queue = list(out)
+    while queue:
+        top, name, _ = queue.pop(0)
+        for line in git(["ls-tree", "-r", "HEAD"], top).splitlines():
+            meta, _, sub = line.partition("\t")
+            if meta.split()[0] != "160000":
+                continue
+            path = (top / sub).resolve()
+            if not (path / ".git").exists():
+                raise VaultError(f"submodule {sub} of {name} is not checked out, so its code would be missing. "
+                                 f"Run: git -C {top} submodule update --init --recursive")
+            entry = (path, f"{name}--{sub.replace('/', '-')}", os.path.relpath(path, root).replace(os.sep, "/"))
+            out.append(entry)
+            queue.append(entry)
+    return out
+
+
 # ---------------------------------------------------------------- files, environment, hardware
 
-def walk_files(paths: list[str], cwd: Path, root: Path, blobs: dict[str, Path], what: str) -> list[dict]:
+def walk_files(paths: list[str], cwd: Path, root: Path, blobs: dict[str, Path] | None, what: str,
+               since: float | None = None, stale: list[str] | None = None) -> list[dict]:
+    """The files under paths, hashed into blobs. With since, files last written before it are left
+    out and listed in stale: an output folder can hold files an earlier run wrote."""
     out = []
     for raw in paths:
         p = (cwd / raw).resolve() if not os.path.isabs(raw) else Path(raw).resolve()
@@ -533,6 +715,14 @@ def walk_files(paths: list[str], cwd: Path, root: Path, blobs: dict[str, Path], 
             Path(dp) / fn for dp, _, fns in os.walk(logical, followlinks=True) for fn in fns)
         for f in files:
             if not f.is_file():
+                continue
+            if since is not None and f.stat().st_mtime < since:
+                if stale is not None:
+                    stale.append(f.relative_to(root).as_posix())
+                continue
+            if blobs is None:
+                # A check only: count, do not hash.
+                out.append({"path": f.relative_to(root).as_posix(), "size": f.stat().st_size})
                 continue
             hexd, size = sha256_file(f)
             blobs[hexd] = f
@@ -705,9 +895,10 @@ def check_node_id(node: str) -> str:
     return node
 
 
-def write_capsule(backend: Backend, project: str, node: str, manifest: dict, blobs: dict[str, Path]) -> dict:
-    """Upload the blobs, then the manifest. Returns the reference the DAG records."""
-    sent = backend.put_blobs(blobs)
+def write_capsule(backend: Backend, project: str, node: str, manifest: dict, blobs: dict[str, Path],
+                  files: dict[str, Path] | None = None) -> dict:
+    """Upload the blobs and bundles, then the manifest. Returns the reference the DAG records."""
+    sent = backend.put_blobs(blobs) + (backend.put_files(files) if files else 0)
     data = canonical(manifest)
     digest = hashlib.sha256(data).hexdigest()
     stamp = manifest["created_at"].replace("-", "").replace(":", "")
@@ -732,7 +923,8 @@ def write_capsule(backend: Backend, project: str, node: str, manifest: dict, blo
 
 def iter_blob_refs(manifest: dict) -> Iterable[dict]:
     for repo in manifest.get("code", []):
-        yield repo["archive"]
+        if repo.get("archive"):
+            yield repo["archive"]
         if repo.get("patch"):
             yield repo["patch"]
         yield from repo.get("untracked", [])
@@ -783,7 +975,11 @@ def resolve(backend: Backend, settings: Settings, ref: str, node: str | None = N
     digest = hashlib.sha256(data).hexdigest()
     if digest[:12] != cid.rsplit("-", 1)[1]:
         raise VaultError(f"capsule {node}/{cid} is corrupt: its manifest hashes to {digest[:12]}")
-    return node, cid, json.loads(data), digest
+    manifest = json.loads(data)
+    if manifest.get("format") not in FORMATS:
+        raise VaultError(f"capsule {node}/{cid} is {manifest.get('format')}, which this experiment-vault "
+                         f"{TOOL_VERSION} cannot read; update the skill")
+    return node, cid, manifest, digest
 
 
 # ---------------------------------------------------------------- running
@@ -902,7 +1098,71 @@ def build_manifest(settings: Settings, args, node: str, kind: str, code: list[di
     return manifest
 
 
+def cmd_preflight(settings: Settings, args, observed: bool) -> int:
+    """Check a run or capture could be kept, changing nothing: no tag, no upload, no run."""
+    problems: list[str] = []
+    notes: list[str] = []
+
+    def check(fn):
+        try:
+            return fn()
+        except VaultError as e:
+            problems.append(str(e))
+            return None
+
+    backend = None
+    if check(settings.need) is None and not problems:
+        backend = check(lambda: open_backend(settings.uri))
+        if backend is not None and check(lambda: backend.read("VAULT.md")) is None and not problems:
+            problems.append(f"{settings.uri} has no VAULT.md: it is not initialised, or not reachable. Run vault.py init")
+    check(lambda: check_node_id(args.node))
+    argv = args.command if observed else (args.cmd_argv or [])
+    if not argv:
+        problems.append("no command: give it after --" if observed else "no command: pass --cmd")
+    cwd = Path(args.cwd).resolve()
+    top = check(lambda: git(["rev-parse", "--show-toplevel"], cwd))
+    if top is None:
+        problems.append(f"{cwd} is not in a git repository")
+    else:
+        root = Path(top).resolve()
+        storage = args.code_storage or settings.code_storage
+        for path, name, rel in check(lambda: repos_to_capture(root, args.repo or [])) or []:
+            e = check(lambda: capture_repo(path, name, args.allow_dirty, Path("."), {}, settings.managed,
+                                           backend=backend, storage=storage, dry=True))
+            if e:
+                extra = f", {e['new_commits']} commit(s) new to the vault" if "new_commits" in e else ""
+                notes.append(f"code {name}{' at ' + rel if rel else ''}: {e['commit'][:12]} as {e['storage']}{extra}"
+                             f"{'' if e.get('pushed', True) else '; the commit is on no remote branch'}")
+        n, size = 0, 0
+        for d in args.data or []:
+            files = check(lambda: walk_files([d], cwd, root, None, "data"))
+            for f in files or []:
+                n, size = n + 1, size + f["size"]
+        notes.append(f"data: {n} files, {human(size)}")
+        for what, paths in (("output", args.outputs or []), ("metrics", [args.metrics] if args.metrics else [])):
+            for o in paths:
+                logical = Path(os.path.abspath(cwd / o))
+                if not logical.is_relative_to(root):
+                    problems.append(f"{what} {o} is outside {root}")
+        if not args.metrics:
+            notes.append("no --metrics: a replay can compare output files only")
+    check(lambda: recorded_env(args.env or []))
+    if "PYTHONHASHSEED" not in os.environ:
+        notes.append("PYTHONHASHSEED is not set; set it for bit-identical replays")
+    py = args.python or sys.executable
+    if run_cmd([py, "-m", "pip", "--version"], check=False).returncode != 0 and not shutil.which("uv"):
+        problems.append(f"{py} has no pip (and uv is not installed), so its packages cannot be recorded")
+    for line in notes:
+        print(f"  {line}")
+    for line in problems:
+        print(f"PROBLEM {line}")
+    print("ready: nothing was run, tagged or uploaded" if not problems else f"not ready: {len(problems)} problem(s)")
+    return 0 if not problems else 2
+
+
 def cmd_run(settings: Settings, args, observed: bool) -> int:
+    if args.dry_run:
+        return cmd_preflight(settings, args, observed)
     settings.need()
     node = check_node_id(args.node)
     backend = open_backend(settings.uri)
@@ -917,12 +1177,15 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
     with tempfile.TemporaryDirectory(prefix="vault-") as td:
         work = Path(td)
         blobs: dict[str, Path] = {}
-        code = [capture_repo(root, args.name or root.name, args.allow_dirty, work, blobs, settings.managed)]
-        for i, extra in enumerate(args.repo or []):
-            r = Path(extra).resolve()
-            name = r.name if r.name not in {c["name"] for c in code} else f"{r.name}-{i}"
-            code.append(capture_repo(r, name, args.allow_dirty, work, blobs, settings.managed))
-            code[-1]["path"] = os.path.relpath(Path(git(["rev-parse", "--show-toplevel"], r)), root).replace(os.sep, "/")
+        files: dict[str, Path] = {}
+        storage = args.code_storage or settings.code_storage
+        pin = dict(backend=backend, files=files, storage=storage, push_tag=not args.no_push_tag)
+        code = []
+        for path, name, rel in repos_to_capture(root, args.repo or []):
+            code.append(capture_repo(path, (args.name or name) if rel is None else name, args.allow_dirty,
+                                     work, blobs, settings.managed, **pin))
+            if rel is not None:
+                code[-1]["path"] = rel
         data = walk_files(args.data or [], cwd, root, blobs, "data")
         env_vars = recorded_env(args.env or [])
         if "PYTHONHASHSEED" not in env_vars:
@@ -932,6 +1195,7 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         run: dict[str, Any] = {"argv": argv, "cwd": cwd.relative_to(root).as_posix() or ".",
                                "env": env_vars, "seeds": seeds, "observed": observed}
         started = now_utc()
+        started_wall = time.time() - 0.001
         if observed:
             code_rc, out_p, err_p, secs = tee_run(argv, cwd, os.environ.copy(), work)
             run.update({"started_at": iso(started), "duration_s": secs, "exit_code": code_rc,
@@ -944,7 +1208,12 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
                     run[k] = blob_entry(Path(getattr(args, k)).resolve(), blobs)
         environment = capture_environment(args.python or sys.executable,
                                           args.vendor_wheels or settings.vendor_wheels, work, blobs, args.strict)
-        outputs = walk_files([o for o in (args.outputs or []) if (cwd / o).exists()], cwd, root, blobs, "output")
+        stale: list[str] = []
+        outputs = walk_files([o for o in (args.outputs or []) if (cwd / o).exists()], cwd, root, blobs, "output",
+                             since=started_wall if observed else None, stale=stale)
+        if stale:
+            print(f"warning: {len(stale)} file(s) under --outputs were not written by this run and are not kept "
+                  f"as its outputs: {', '.join(stale[:5])}. Empty output folders before a run.", file=sys.stderr)
         for o in args.outputs or []:
             if not (cwd / o).exists():
                 print(f"warning: output {o} was not written", file=sys.stderr)
@@ -957,7 +1226,7 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
             tol = manifest["tolerance"]
             manifest["retest_of"] = f"{node}/{prior_id}"
             manifest["comparison"] = compare(prior, metrics, outputs, code_rc, tol["rtol"], tol["atol"])
-        ref = write_capsule(backend, settings.project, node, manifest, blobs)
+        ref = write_capsule(backend, settings.project, node, manifest, blobs, files)
     if prior:
         print_comparison(manifest["comparison"])
     if not args.no_link:
@@ -1009,7 +1278,10 @@ def restore(backend: Backend, manifest: dict, dest: Path) -> Path:
             if beside != main.resolve() and beside.is_relative_to(dest.resolve()):
                 target = beside
         target.mkdir(parents=True, exist_ok=True)
-        safe_extract(cache / repo["archive"]["sha256"], target)
+        if repo.get("bundles"):
+            restore_bundled(backend, repo, target, dest / ".vault")
+        else:
+            safe_extract(cache / repo["archive"]["sha256"], target)
         if repo.get("patch"):
             run_cmd(["git", "apply", "--binary", str(cache / repo["patch"]["sha256"])], cwd=target)
         for u in repo.get("untracked", []):
@@ -1210,6 +1482,7 @@ def cmd_show(settings: Settings, args) -> int:
         print(f"  hypothesis: {snap['hypothesis']}")
     for r in m["code"]:
         print(f"  code {r['name']}: {r.get('remote', '(no remote)')} @ {r['commit'][:12]}"
+              f"{' as git bundles, tag ' + r['tag'] if r.get('bundles') else ' as a snapshot'}"
               f"{' (dirty, patch stored)' if r.get('dirty') else ''}{'' if r.get('exact') else ' (archive not exact)'}"
               f"{'' if r.get('pushed', True) else ' (commit not on any remote branch)'}")
     print(f"  data: {len(m.get('data', []))} files, {human(sum(d['size'] for d in m.get('data', [])))}")
@@ -1252,13 +1525,21 @@ def cmd_verify(settings: Settings, args) -> int:
             missing = backend.missing_blobs(hexes)
             if missing:
                 raise VaultError(f"{len(missing)} of {len(hexes)} blobs missing: {', '.join(missing[:3])}")
+            bundles = set(iter_bundle_keys(m))
+            gone = backend.missing(bundles)
+            if gone:
+                raise VaultError(f"{len(gone)} of {len(bundles)} code bundles missing: {', '.join(gone[:3])}")
             if args.deep:
                 with tempfile.TemporaryDirectory() as td:
                     backend.get_blobs(hexes, Path(td))
                     for h in hexes:
                         if sha256_file(Path(td) / h)[0] != h:
                             raise VaultError(f"blob {h} is corrupt")
-            print(f"ok   {node}/{cid}: {len(hexes)} blobs{' re-hashed' if args.deep else ' present'}")
+                    for repo in m.get("code", []):
+                        if repo.get("bundles"):
+                            restore_bundled(backend, repo, Path(td) / "repos" / repo["name"], Path(td))
+            what = f"{len(hexes)} blobs" + (f" and {len(bundles)} code bundles" if bundles else "")
+            print(f"ok   {node}/{cid}: {what}{' re-hashed, code rebuilt and its tree checked' if args.deep else ' present'}")
         except VaultError as e:
             bad += 1
             print(f"FAIL {t}: {e}")
@@ -1290,8 +1571,9 @@ def cmd_coverage(settings: Settings, args) -> int:
                     if isinstance(c, dict) and c.get("sha256") and c["sha256"] != digest:
                         raise VaultError(f"manifest hash {digest[:12]} is not the {c['sha256'][:12]} the DAG records")
                     missing = backend.missing_blobs({e["sha256"] for e in iter_blob_refs(m)})
+                    missing += backend.missing(set(iter_bundle_keys(m)))
                     if missing:
-                        raise VaultError(f"{len(missing)} blobs missing")
+                        raise VaultError(f"{len(missing)} files missing")
                 except VaultError as e:
                     bad += 1
                     print(f"  FAIL {n['id']}/{cid}: {e}")
@@ -1346,6 +1628,10 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--python", help="The interpreter the experiment uses (default: this one)")
         p.add_argument("--vendor-wheels", action="store_true", help="Store the wheels of every pinned package too")
         p.add_argument("--allow-dirty", action="store_true", help="Allow uncommitted changes, stored as a patch")
+        p.add_argument("--code-storage", choices=["bundle", "archive"],
+                       help="bundle: tag the commit and keep incremental git bundles (default); "
+                            "archive: a compressed snapshot of the commit")
+        p.add_argument("--no-push-tag", action="store_true", help="Tag the commit locally only, without pushing the tag")
         p.add_argument("--strict", action="store_true", help="Fail when the environment cannot be fully captured")
         p.add_argument("--rtol", type=float, help="Relative tolerance a replay's metrics must meet")
         p.add_argument("--atol", type=float, help="Absolute tolerance a replay's metrics must meet")
@@ -1354,6 +1640,8 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--agent", help="Who ran it: an agent handle or a person")
         p.add_argument("--work-item", help="The work item the run belongs to")
         p.add_argument("--no-link", action="store_true", help="Do not record the capsule on the DAG node")
+        p.add_argument("--dry-run", action="store_true",
+                       help="Check everything the capture needs and print the plan; run, tag and upload nothing")
 
     p = sub.add_parser("init", help="Write VAULT.md at the vault root")
     p = sub.add_parser("run", help="Run a command and keep everything it used and produced as a capsule")

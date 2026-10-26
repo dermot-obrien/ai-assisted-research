@@ -143,9 +143,12 @@ what the result was made from, in a Google Cloud Storage bucket or a folder.
 - Write-once: blobs are uploaded first and the manifest last, and nothing is ever
   overwritten, edited or deleted by an agent. A wrong capsule is superseded by a new one,
   never replaced.
-- Exact code: the capsule keeps a tar of the commit, and checks the tar's own git tree hash
-  against the commit's tree. When they match (`exact: true`) the restored code is the
-  commit, bit for bit, even if the repository is later rewritten or lost.
+- Exact code, stored once: the capsule tags the commit (`vault/<commit12>`, pushed to
+  `origin`) and the vault keeps each repository's history as incremental git bundles, so a
+  new commit costs only its changes. Restore rebuilds the repository from the bundles,
+  checks out the commit and checks its git tree, so the code is the commit, bit for bit,
+  even if the repository is later rewritten or lost. A shallow clone is kept as a
+  compressed snapshot instead.
 
 `vault.py replay` restores a capsule into a fresh environment, runs the recorded command
 and compares the metrics within the tolerance fixed at capture:

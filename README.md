@@ -1,6 +1,6 @@
 # AI-Assisted Research (RMS)
 
-[![Version: v4.0.0](https://img.shields.io/badge/Version-v4.0.0-purple.svg)](CHANGELOG.md)
+[![Version: v4.1.0](https://img.shields.io/badge/Version-v4.1.0-purple.svg)](CHANGELOG.md)
 [![Licence: CC BY 4.0](https://img.shields.io/badge/content-CC%20BY%204.0-blue.svg)](LICENSES/CC-BY-4.0.txt)
 [![Licence: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue.svg)](LICENSES/Apache-2.0.txt)
 
@@ -131,7 +131,7 @@ python .agents/skills/experiment-vault/bin/vault.py run --node H-001 --data data
 python .agents/skills/experiment-vault/bin/vault.py replay H-001/<capsule id>
 ```
 
-The first keeps the commit (as a tar checked against its git tree), the data, the frozen environment, the command, seeds, console output and outputs, and appends the capsule to node H-001. The second, on any machine and at any later date, restores it into a fresh virtual environment, runs it again and says whether the result is identical, reproduced within the tolerance fixed at capture, or drifted. Old capsules move to archive storage on their own and stay readable at once. [The experiment-vault skill](skills/experiment-vault/SKILL.md) has the rest.
+The first tags the commit and keeps it as git history (only the commits the vault lacks, checked against the commit's tree on restore), the data, the frozen environment, the command, seeds, console output and outputs, and appends the capsule to node H-001. The second, on any machine and at any later date, restores it into a fresh virtual environment, runs it again and says whether the result is identical, reproduced within the tolerance fixed at capture, or drifted. Old capsules move to archive storage on their own and stay readable at once. [The experiment-vault skill](skills/experiment-vault/SKILL.md) has the rest.
 
 ## Agent Skills conformance
 

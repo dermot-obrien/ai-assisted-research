@@ -241,6 +241,9 @@ The capture options, for `run` and `capture`:
 | `--python PATH` | The interpreter the experiment uses (default: the one running `vault.py`) |
 | `--vendor-wheels` | Store the wheel of every pinned package too (or set `vault.vendor_wheels: true`) |
 | `--allow-dirty` | Allow uncommitted changes, stored as a patch; the capsule is marked dirty |
+| `--code-storage bundle\|archive` | `bundle` (default, or `vault.code_storage`): tag the commit and keep the repository as incremental git bundles; `archive`: a compressed snapshot of the commit. A shallow clone always gets `archive` |
+| `--no-push-tag` | Create the `vault/<commit12>` tag locally without pushing it to `origin` |
+| `--dry-run` | Check everything the capture needs (vault reachable, clean full clones, submodules checked out, paths inside the repository, no secret `--env`, pip available) and print the plan; run, tag and upload nothing. Exit 0 and `ready`, or 2 with a `PROBLEM` line for each problem |
 | `--strict` | Fail when the environment cannot be fully captured, instead of warning |
 | `--rtol NUMBER`, `--atol NUMBER` | The relative and absolute tolerance a replay's metrics must meet (default: `vault.rtol` and `vault.atol`, else 1e-9 and 1e-12) |
 | `--retest-of <capsule>` | A capsule this run retests: the capsule is of kind `retest` and the result is compared with it |

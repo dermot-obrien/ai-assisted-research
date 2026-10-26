@@ -275,8 +275,9 @@ Usable without the rest of AAR: with no `research.yaml`, pass `--vault` and `--p
 - Invoke: `/research run`, `sync`, `audit`, `retest` and `housekeep` call it when a vault is
   configured; ask for it directly with "run this experiment for H-001 and keep it",
   "reproduce the result of H-001", "does H-001 still hold with numpy 2.1".
-- Does: `vault.py run` runs the command and keeps the exact code at its commit (checked
-  against the commit's git tree), the data it read, the Python environment and optionally
+- Does: `vault.py run` runs the command and keeps the exact code at its commit (tagged,
+  kept as incremental git bundles, and checked against the commit's git tree on restore),
+  the data it read, the Python environment and optionally
   every wheel, the hardware, the command, its seeds, the console output, the outputs and
   the metrics, then appends the capsule to the node's `capsules` through research-dag.
   `vault.py replay` restores a capsule into a fresh environment, runs it again and says
