@@ -1,6 +1,6 @@
 # AI-Assisted Research (RMS)
 
-[![Version: v4.1.0](https://img.shields.io/badge/Version-v4.1.0-purple.svg)](CHANGELOG.md)
+[![Version: v4.2.0](https://img.shields.io/badge/Version-v4.2.0-purple.svg)](CHANGELOG.md)
 [![Licence: CC BY 4.0](https://img.shields.io/badge/content-CC%20BY%204.0-blue.svg)](LICENSES/CC-BY-4.0.txt)
 [![Licence: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue.svg)](LICENSES/Apache-2.0.txt)
 

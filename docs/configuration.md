@@ -123,6 +123,8 @@ a `research.yaml` it cannot find as absent rather than an error.
 | `RESEARCH_DAG_HOME` | `dag_store.py`, `dag_update.py`, `validate_dag_references.py` | `~/.research-dags` | Where a store given as a URL or bare repository is cloned |
 | `RESEARCH_VAULT` | `vault.py` | unset | The vault, as `--vault` takes it; overrides `vault.uri` |
 | `RESEARCH_VAULT_PROJECT` | `vault.py` | unset | The vault project, as `--project` takes it; overrides `vault.project` and `dag_project` |
+| `RESEARCH_VAULT_GCP_KEY` | `vault.py` | unset | A service account key, as the key file's whole JSON, for the vault's own gcloud calls; for cloud sessions. Never printed, recorded or passed to the experiment ([storage](../skills/experiment-vault/references/storage.md#how-vaultpy-uses-the-key)) |
+| `RESEARCH_VAULT_GCP_KEY_FILE` | `vault.py` | unset | The same, as the path to a key file |
 | `RESEARCH_DAG_BIN` | `vault.py` | the research-dag skill beside experiment-vault | The folder holding `dag_update.py`, used to record capsules on the node |
 | `OPENALEX_EMAIL` | `openalex_discovery.py`, `sota_baseline.py` | `user@example.com` | Sent as `mailto`, which puts requests in OpenAlex's polite pool. Set it to an address you read |
 | `S2_API_KEY` | `s2_ranking.py`, `sota_baseline.py` | unset | Semantic Scholar API key, raising its rate limit. `s2_ranking.py --api-key` wins over it |

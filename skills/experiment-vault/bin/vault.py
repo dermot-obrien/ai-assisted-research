@@ -43,6 +43,7 @@ vault.project (or dag_project).
 from __future__ import annotations
 
 import argparse
+import atexit
 import datetime as dt
 import gzip
 import hashlib
@@ -65,7 +66,7 @@ from typing import Any, Iterable
 
 FORMAT = "experiment-vault/2"
 FORMATS = ("experiment-vault/1", "experiment-vault/2")
-TOOL_VERSION = "1.1.0"
+TOOL_VERSION = "1.2.0"
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 CAPSULE_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{12}$")
@@ -76,6 +77,10 @@ RECORDED_ENV = ("PYTHONHASHSEED", "CUBLAS_WORKSPACE_CONFIG", "OMP_NUM_THREADS", 
                 "OPENBLAS_NUM_THREADS", "CUDA_VISIBLE_DEVICES", "TZ", "LANG", "LC_ALL")
 SECRET_HINT = re.compile(r"(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL)", re.I)
 PYTHON_NAMES = {"python", "python3", "python.exe", "python3.exe", "py"}
+
+# A service account key for the vault, as JSON in the variable, or as a file named by the other.
+# A cloud session, whose setup script cannot read saved secrets, gets the key this way.
+KEY_VARS = ("RESEARCH_VAULT_GCP_KEY", "RESEARCH_VAULT_GCP_KEY_FILE")
 
 VAULT_README = """# Experiment vault
 
@@ -330,12 +335,17 @@ class GCSBackend(Backend):
         self.uri = self.base.rstrip("/")
         if not shutil.which("gcloud"):
             raise VaultError("gcloud is not installed or not on PATH; it is needed for a gs:// vault")
+        self.env = gcloud_env()
+
+    def gcloud(self, args: list[str], check: bool = True, input_text: str | None = None):
+        return run_cmd(["gcloud", *args], check=check, input_text=input_text, env=self.env)
 
     def url(self, key: str) -> str:
         return self.base + key
 
     def read(self, key: str) -> bytes | None:
-        p = subprocess.run([shutil.which("gcloud"), "storage", "cat", self.url(key)], capture_output=True)
+        p = subprocess.run([shutil.which("gcloud"), "storage", "cat", self.url(key)], capture_output=True,
+                           env=self.env)
         if p.returncode != 0:
             err = p.stderr.decode("utf-8", "replace")
             if any(t in err.lower() for t in ("no urls matched", "matched no objects", "404", "not found")):
@@ -347,7 +357,7 @@ class GCSBackend(Backend):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td) / "object"
             tmp.write_bytes(data)
-            p = run_cmd(["gcloud", "storage", "cp", "--if-generation-match=0", str(tmp), self.url(key)], check=False)
+            p = self.gcloud(["storage", "cp", "--if-generation-match=0", str(tmp), self.url(key)], check=False)
         if p.returncode == 0:
             return True
         if self.read(key) is not None:
@@ -372,8 +382,8 @@ class GCSBackend(Backend):
                     except OSError:
                         shutil.copyfile(src, dest)
                     staged.append(str(dest))
-                p = run_cmd(["gcloud", "storage", "cp", "--no-clobber", "-I", self.url(folder + "/")],
-                            input_text="\n".join(staged) + "\n")
+                p = self.gcloud(["storage", "cp", "--no-clobber", "-I", self.url(folder + "/")],
+                                input_text="\n".join(staged) + "\n")
             sent += len(named) - len(re.findall(r"(?i)skipping existing", p.stdout + p.stderr))
         return sent
 
@@ -382,15 +392,15 @@ class GCSBackend(Backend):
         keys = sorted(set(keys))
         for i in range(0, len(keys), self.CHUNK):
             chunk_keys = keys[i:i + self.CHUNK]
-            p = run_cmd(["gcloud", "storage", "ls", *[self.url(k) for k in chunk_keys]], check=False)
+            p = self.gcloud(["storage", "ls", *[self.url(k) for k in chunk_keys]], check=False)
             listed = {line.strip()[len(self.base):] for line in p.stdout.splitlines()
                       if line.strip().startswith(self.base)}
             chunk = [k for k in chunk_keys if k in listed]
             if p.returncode != 0:
                 # ls may stop at the first missing URL; ask about the rest one at a time.
                 for k in chunk_keys:
-                    if k not in listed and run_cmd(["gcloud", "storage", "objects", "describe", self.url(k)],
-                                                   check=False).returncode == 0:
+                    if k not in listed and self.gcloud(["storage", "objects", "describe", self.url(k)],
+                                                       check=False).returncode == 0:
                         chunk.append(k)
             found.extend(chunk)
         return found
@@ -403,14 +413,51 @@ class GCSBackend(Backend):
         into.mkdir(parents=True, exist_ok=True)
         urls = [self.url(k) for k in sorted(set(keys))]
         if urls:
-            run_cmd(["gcloud", "storage", "cp", "-I", str(into) + os.sep], input_text="\n".join(urls) + "\n")
+            self.gcloud(["storage", "cp", "-I", str(into) + os.sep], input_text="\n".join(urls) + "\n")
 
     def list(self, prefix: str) -> list[str]:
-        p = run_cmd(["gcloud", "storage", "ls", self.url(prefix) + "**"], check=False)
+        p = self.gcloud(["storage", "ls", self.url(prefix) + "**"], check=False)
         if p.returncode != 0:
             return []
         return sorted(line.strip()[len(self.base):] for line in p.stdout.splitlines()
                       if line.strip().startswith(self.base) and not line.strip().endswith("/"))
+
+
+def gcloud_env() -> dict | None:
+    """The environment for the vault's own gcloud calls: with a key in RESEARCH_VAULT_GCP_KEY (or a file
+    in RESEARCH_VAULT_GCP_KEY_FILE), gcloud authenticates as that service account for these calls only,
+    through auth/credential_file_override, leaving the machine's own gcloud sign-in as it is. Without
+    one, None: gcloud uses whatever account is signed in."""
+    text = os.environ.get("RESEARCH_VAULT_GCP_KEY")
+    path = os.environ.get("RESEARCH_VAULT_GCP_KEY_FILE")
+    if not text and not path:
+        return None
+    if not text:
+        if not os.path.isfile(path):
+            raise VaultError(f"RESEARCH_VAULT_GCP_KEY_FILE names {path}, which does not exist")
+        key_file = path
+    else:
+        try:
+            key = json.loads(text)
+        except json.JSONDecodeError:
+            raise VaultError("RESEARCH_VAULT_GCP_KEY is not JSON: set it to the whole service account key file, "
+                             "from { to }") from None
+        if not isinstance(key, dict) or key.get("type") != "service_account" or "private_key" not in key:
+            raise VaultError("RESEARCH_VAULT_GCP_KEY is not a service account key (its type must be "
+                             "service_account)")
+        fd, key_file = tempfile.mkstemp(prefix="vault-key-", suffix=".json")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.chmod(key_file, 0o600)
+        atexit.register(lambda: os.path.exists(key_file) and os.remove(key_file))
+    env = without_vault_keys(os.environ)
+    env["CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE"] = key_file
+    return env
+
+
+def without_vault_keys(environ) -> dict:
+    """A copy of the environment without the vault's key, for anything the vault starts but gcloud."""
+    return {k: v for k, v in environ.items() if k not in KEY_VARS}
 
 
 def open_backend(uri: str) -> Backend:
@@ -1197,7 +1244,7 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         started = now_utc()
         started_wall = time.time() - 0.001
         if observed:
-            code_rc, out_p, err_p, secs = tee_run(argv, cwd, os.environ.copy(), work)
+            code_rc, out_p, err_p, secs = tee_run(argv, cwd, without_vault_keys(os.environ), work)
             run.update({"started_at": iso(started), "duration_s": secs, "exit_code": code_rc,
                         "stdout": blob_entry(out_p, blobs), "stderr": blob_entry(err_p, blobs)})
         else:
@@ -1388,7 +1435,7 @@ def cmd_replay(settings: Settings, args) -> int:
     argv = list(run["argv"])
     if argv and (is_python(argv[0]) or argv[0] == recorded_py.get("executable")):
         argv[0] = py
-    env = os.environ.copy()
+    env = without_vault_keys(os.environ)
     env.update(run.get("env", {}))
     if args.setup == "venv":
         env["VIRTUAL_ENV"] = str(dest / ".venv")

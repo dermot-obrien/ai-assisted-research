@@ -315,6 +315,14 @@ listed under `environment.unpinnable`. Install them from a commit instead, or ad
 repository to the capture with `--repo`. With `--strict` an environment that cannot be
 captured fully is an error rather than a warning.
 
+### `Error: RESEARCH_VAULT_GCP_KEY is not JSON: ...` or `... is not a service account key`
+
+The cloud environment's `RESEARCH_VAULT_GCP_KEY` variable must hold a service account key file's whole JSON, from `{` to `}`, of `type: service_account`. Fix it in the environment's settings; the message never shows the value. A key file on disk goes in `RESEARCH_VAULT_GCP_KEY_FILE` instead.
+
+### `Error: RESEARCH_VAULT_GCP_KEY_FILE names ..., which does not exist`
+
+The path is wrong, or the file was moved. Correct the variable.
+
 ### `Error: submodule ... of ... is not checked out, so its code would be missing`
 
 The repository has a submodule whose files are not there, so the capsule could not hold its code. Run the `git submodule update --init --recursive` the message names, then capture again.
