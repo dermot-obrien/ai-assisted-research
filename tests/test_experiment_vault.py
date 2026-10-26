@@ -112,6 +112,20 @@ def validate_schema(case, manifest):
     jsonschema.validate(manifest, SCHEMA)
 
 
+def force_rmtree(path):
+    """shutil.rmtree that also removes read-only files, as git writes its objects on Windows."""
+    import shutil
+
+    def writable(func, p, _):
+        os.chmod(p, stat.S_IWRITE)
+        func(p)
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=writable)
+    else:
+        shutil.rmtree(path, onerror=writable)
+
+
 def sh(args, cwd, env=None, check=True):
     p = subprocess.run(args, cwd=cwd, capture_output=True, text=True, env=env)
     if check and p.returncode != 0:
@@ -389,8 +403,7 @@ class TestCodeBundles(VaultTestCase):
     def test_restore_rebuilds_the_repository_without_the_original(self):
         ref = self.run_experiment()
         m = self.manifest(ref)
-        import shutil as _shutil
-        _shutil.rmtree(self.exp)
+        force_rmtree(self.exp)
         dest = self.base / "restored"
         sh([sys.executable, str(VAULT), "restore", ref, "--to", str(dest)], self.base, self.env)
         repo = dest / "repos" / "exp"
@@ -543,8 +556,15 @@ class TestCodeEdges(VaultTestCase):
         self.assertTrue((restored / "train.py").read_text(encoding="utf-8").endswith("# an uncommitted line\n"))
         self.assertEqual((restored / "notes.txt").read_text(encoding="utf-8"), "untracked\n")
 
+    def checkout_again(self):
+        """Check every tracked file out again, so the working files follow the repository's eol settings."""
+        for rel in sh(["git", "ls-files"], self.exp).stdout.split():
+            (self.exp / rel).unlink()
+        sh(["git", "checkout", "--", "."], self.exp)
+
     def test_restore_ignores_the_users_line_ending_settings(self):
         sh(["git", "config", "core.autocrlf", "false"], self.exp)
+        self.checkout_again()
         ref = self.run_experiment()
         cfg = self.base / "gitconfig"
         cfg.write_text("[core]\n\tautocrlf = true\n", encoding="utf-8")
@@ -556,8 +576,7 @@ class TestCodeEdges(VaultTestCase):
     def test_restore_writes_the_line_endings_the_run_read(self):
         """A run on a machine that checks files out with CRLF (Windows) restores with CRLF."""
         sh(["git", "config", "core.autocrlf", "true"], self.exp)
-        (self.exp / "train.py").unlink()
-        sh(["git", "checkout", "--", "train.py"], self.exp)
+        self.checkout_again()
         self.assertIn(b"\r\n", (self.exp / "train.py").read_bytes())
         ref = self.run_experiment()
         self.assertEqual(self.manifest(ref)["code"][0]["checkout"]["core.autocrlf"], "true")
