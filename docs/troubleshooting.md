@@ -319,6 +319,10 @@ captured fully is an error rather than a warning.
 
 The cloud environment's `RESEARCH_VAULT_GCP_KEY` variable must hold a service account key of `type: service_account`, as the key file's JSON on one line or the whole file in base64 ([storage](../skills/experiment-vault/references/storage.md#6-a-key-for-cloud-sessions) has the PowerShell for each). Fix it in the environment's settings; the message never shows the value. A key file on disk goes in `RESEARCH_VAULT_GCP_KEY_FILE` instead.
 
+### `HTTPError 401: Invalid Credentials. This command is authenticated with an access token from the CLOUDSDK_AUTH_ACCESS_TOKEN environment variable`
+
+An experiment-vault before 1.2.1 left the cloud session's placeholder access token in place, and gcloud preferred it to the vault's key. Update the skill. Seen with a key from another tool, unset `CLOUDSDK_AUTH_ACCESS_TOKEN` for that command.
+
 ### `Error: RESEARCH_VAULT_GCP_KEY_FILE names ..., which does not exist`
 
 The path is wrong, or the file was moved. Correct the variable.

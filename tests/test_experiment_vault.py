@@ -57,7 +57,8 @@ FAKE_GCLOUD = textwrap.dedent("""\
         import json
         with open(ROOT / "auth.log", "a") as log:
             log.write(f"{override} {json.load(open(override))['client_email']} "
-                      f"{'leaked' if 'RESEARCH_VAULT_GCP_KEY' in os.environ else 'clean'}\\n")
+                      f"{'leaked' if 'RESEARCH_VAULT_GCP_KEY' in os.environ else 'clean'} "
+                      f"{'token' if 'CLOUDSDK_AUTH_ACCESS_TOKEN' in os.environ else 'notoken'}\\n")
     assert args[0] == "storage", args
     cmd, rest = args[1], args[2:]
     flags = [a for a in rest if a.startswith("-")]
@@ -901,6 +902,16 @@ class TestGcsBackend(VaultTestCase):
             self.env["RESEARCH_VAULT_GCP_KEY"] = value
             self.vault("init")
             self.assertIn(self.FAKE_KEY["client_email"], log.read_text(encoding="utf-8"))
+
+    def test_a_preset_access_token_does_not_override_the_key(self):
+        """A cloud session presets CLOUDSDK_AUTH_ACCESS_TOKEN for its proxy; gcloud prefers it to a key file."""
+        self.env["CLOUDSDK_AUTH_ACCESS_TOKEN"] = "placeholder-14"
+        self.env["RESEARCH_VAULT_GCP_KEY"] = json.dumps(self.FAKE_KEY)
+        self.vault("init")
+        log = (self.base / "gcs" / "auth.log").read_text(encoding="utf-8").splitlines()
+        self.assertTrue(log)
+        self.assertEqual({line.split()[3] for line in log}, {"notoken"},
+                         "gcloud was given the preset access token, which it would use instead of the key")
 
     def test_a_malformed_key_is_named_without_printing_it(self):
         self.env["RESEARCH_VAULT_GCP_KEY"] = "secret-but-not-json"

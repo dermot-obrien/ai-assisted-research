@@ -134,7 +134,7 @@ To rotate or revoke: `gcloud iam service-accounts keys list --iam-account=$SaEma
 
 ### How vault.py uses the key
 
-When `RESEARCH_VAULT_GCP_KEY` holds a service account key, as one-line JSON or base64 (or `RESEARCH_VAULT_GCP_KEY_FILE` names a key file), `vault.py` writes it to a private temporary file, readable by its owner only and deleted when the command ends, and points its own gcloud calls at it (`CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE`). The machine's own gcloud sign-in is left as it is, the experiment is started without either variable, and the key is never printed or recorded in a capsule. Without either variable, the vault uses whichever account gcloud is signed in as, which is how a person runs it.
+When `RESEARCH_VAULT_GCP_KEY` holds a service account key, as one-line JSON or base64 (or `RESEARCH_VAULT_GCP_KEY_FILE` names a key file), `vault.py` writes it to a private temporary file, readable by its owner only and deleted when the command ends, and points its own gcloud calls at it (`CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE`), without the settings gcloud would prefer to it: a cloud session presets `CLOUDSDK_AUTH_ACCESS_TOKEN` as a placeholder for its proxy, which would otherwise authenticate every call and be refused (`HTTPError 401: Invalid Credentials`). The machine's own gcloud sign-in is left as it is, the experiment is started without either variable, and the key is never printed or recorded in a capsule. Without either variable, the vault uses whichever account gcloud is signed in as, which is how a person runs it.
 
 ### 7. Point workspaces at the vault
 

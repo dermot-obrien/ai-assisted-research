@@ -66,7 +66,7 @@ from typing import Any, Iterable
 
 FORMAT = "experiment-vault/2"
 FORMATS = ("experiment-vault/1", "experiment-vault/2")
-TOOL_VERSION = "1.2.0"
+TOOL_VERSION = "1.2.1"
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 CAPSULE_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{12}$")
@@ -81,6 +81,11 @@ PYTHON_NAMES = {"python", "python3", "python.exe", "python3.exe", "py"}
 # A service account key for the vault, as JSON in the variable, or as a file named by the other.
 # A cloud session, whose setup script cannot read saved secrets, gets the key this way.
 KEY_VARS = ("RESEARCH_VAULT_GCP_KEY", "RESEARCH_VAULT_GCP_KEY_FILE")
+# gcloud settings that take priority over a credential file, or change who it acts as. A cloud
+# session presets CLOUDSDK_AUTH_ACCESS_TOKEN as a placeholder for its proxy; left in place it, not
+# the vault's key, would authenticate every call.
+OVERRIDDEN_AUTH = ("CLOUDSDK_AUTH_ACCESS_TOKEN", "CLOUDSDK_AUTH_ACCESS_TOKEN_FILE",
+                   "CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT", "CLOUDSDK_CORE_ACCOUNT")
 
 VAULT_README = """# Experiment vault
 
@@ -460,7 +465,7 @@ def gcloud_env() -> dict | None:
             f.write(text)
         os.chmod(key_file, 0o600)
         atexit.register(lambda: os.path.exists(key_file) and os.remove(key_file))
-    env = without_vault_keys(os.environ)
+    env = {k: v for k, v in without_vault_keys(os.environ).items() if k not in OVERRIDDEN_AUTH}
     env["CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE"] = key_file
     return env
 
