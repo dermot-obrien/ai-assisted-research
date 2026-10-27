@@ -43,7 +43,7 @@ Every capture and replay follows [references/protocol.md](references/protocol.md
 3. Commit, in a full clone with submodules checked out, before you run, and run through `vault.py run`; `--dry-run` first must print `ready`.
 4. Never edit, overwrite or delete anything in the vault or a `vault/*` tag, and never record a secret. A wrong capsule is superseded by a new one with a `--note`.
 5. A replay that drifts is a finding, not an error to retry away: report the metrics that moved, and let the research flow decide whether the node becomes `contested`.
-6. A test's evidence is only as good as the data it could have seen. Run on the window the framing fixed, look at a sealed holdout once, and leave revising an append-only dataset or overriding a holdout to a person.
+6. A test's evidence is only as good as the data it could have seen. Run on the window the framing fixed, look at a sealed holdout once, and leave revising an append-only dataset or overriding a holdout to a person ([protocol](references/protocol.md) section 6).
 
 ## What is in this skill
 

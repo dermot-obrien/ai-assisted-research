@@ -37,7 +37,7 @@ Usage: `/research sync {node_id} {WI_id}`, for example
    | Research stopped early | `discarded` |
 
    The capsule's evidence class (`vault.py show <capsule>`) limits the status, when the framing
-   fixed windows:
+   fixed windows (the same table as the experiment-vault protocol, 6.7.2):
 
    | Evidence class of the capsule | Met the target | Missed it |
    |---|---|---|

@@ -1,6 +1,6 @@
 # Datasets
 
-A dataset that more than one test reads is registered in the vault once, as numbered versions, and every capsule that reads it records the version it read instead of copying its files. The dataset's rule says how it may change, its windows say which part of it a test may look at, and the window a test ran on decides what its result is worth as evidence. `<vault.py>` is `python <skills>/experiment-vault/bin/vault.py`.
+A dataset that more than one test reads is registered in the vault once, as numbered versions, and every capsule that reads it records the version it read instead of copying its files. The dataset's rule says how it may change, its windows say which part of it a test may look at, and the window a test ran on decides what its result is worth as evidence. `<vault.py>` is `python <skills>/experiment-vault/bin/vault.py`. This page explains; the steps an agent follows, and which are a person's, are [the protocol](protocol.md), section 6.
 
 Backtesting is hypothesis testing on history. What makes a backtest weak evidence is that the history was there while the strategy was designed, so it can be fitted to it, knowingly or not. The vault cannot see intent, but it can record, and enforce, which data a test could have seen: data named for backtesting, a sealed holdout looked at once, or data that did not exist when the test was fixed.
 

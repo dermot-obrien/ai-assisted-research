@@ -39,7 +39,8 @@ Two research-specific obligations on top of the standard loop:
   `--dataset <name>@<version>:<mount>:<window>` and only the part of it its window names
   ([datasets](../../experiment-vault/references/datasets.md)). Develop and debug on the backtest
   window, with `--exploratory` for runs that are not evidence; run on the sealed holdout once, when
-  the design is final, since its look cannot be taken back.
+  the design is final, since its look cannot be taken back. Follow the experiment-vault
+  [protocol](../../experiment-vault/references/protocol.md), section 6, step by step.
 
 ## Phase 3: Synthesis and synchronisation
 

@@ -50,8 +50,9 @@ trading strategy's backtest, fix its evidence too ([datasets](../../experiment-v
 
 - **The datasets and windows**: the registered dataset and version, the backtest window it is
   developed on, the sealed holdout window it is judged on once, and the forward window it is
-  tested on as data arrive. Ask the person to define any window that does not exist yet; a holdout
-  that overlaps a backtest window is refused.
+  tested on as data arrive. Define the backtest and forward windows that do not exist yet; a
+  holdout window only for a span the person approved in the plan. The steps, and who does each, are
+  the experiment-vault [protocol](../../experiment-vault/references/protocol.md), section 6.
 - **The decision rule**: the target on the backtest, the target on the holdout, the forward
   checkpoints (after how much new data, against what threshold), and the rule that retires it.
   Which statuses the node can reach follows from the windows (the research-dag skill's

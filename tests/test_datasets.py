@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import stat
 import subprocess
 import sys
 import textwrap
@@ -260,6 +262,7 @@ class TestDatasetRuns(DatasetTestCase):
         self.assertEqual(sorted(os.listdir(restored / "repos" / "exp" / "mounted" / "prices")), [".vault-verified", "AAA.csv"])
         record = self.base / "vault" / "datasets" / "prices" / "versions" / "v0001.json"
         good = record.read_bytes()
+        os.chmod(record, stat.S_IWUSR | stat.S_IRUSR)
         record.write_bytes(good.replace(b'"first pull"', b'"first pull!"'))
         p = self.vault("restore", ref, "--to", str(self.base / "restored-2"), check=False)
         self.assertEqual(p.returncode, 2)
@@ -267,6 +270,7 @@ class TestDatasetRuns(DatasetTestCase):
         self.assertNotEqual(self.vault("verify", ref, check=False).returncode, 0)
         record.write_bytes(good)
         blob = self.version("prices@v0001")["files"]["AAA.csv"]["sha256"]
+        os.chmod(self.base / "vault" / "blobs" / "sha256" / blob, stat.S_IWUSR | stat.S_IRUSR)
         (self.base / "vault" / "blobs" / "sha256" / blob).write_bytes(b"tampered")
         p = self.vault("verify", ref, "--deep", check=False)
         self.assertNotEqual(p.returncode, 0)
@@ -413,6 +417,27 @@ class TestHoldouts(DatasetTestCase):
         p = self.vault("replay", ref, "--setup", "none", "--no-link", "--to", str(self.base / "replay"))
         self.assertIn("Verdict: identical", p.stdout)
         self.assertEqual(self.claims(), ["H-1.1.json"])
+
+
+class TestProtocol(unittest.TestCase):
+    """The protocol quotes the tool's refusals so agents can match them; every quote must still be one."""
+
+    def test_every_quoted_refusal_is_one_the_tool_gives(self):
+        page = (tev.VAULT.parents[1] / "references" / "protocol.md").read_text(encoding="utf-8")
+        source = tev.VAULT.read_text(encoding="utf-8")
+        quotes, inside = [], False
+        for line in page.splitlines():
+            if line.startswith("| The tool says"):
+                inside = True
+            elif not line.startswith("|"):
+                inside = False
+            elif inside and line.startswith("| `"):
+                quotes += re.findall(r"`([^`]+)`", line.split("|")[1])
+        self.assertGreaterEqual(len(quotes), 20)
+        for q in quotes:
+            fixed = [part for part in re.split(r"<[^>]+>|\.\.\.", q) if part.strip()]
+            for part in fixed:
+                self.assertIn(part.strip(" .()"), source, f"the protocol quotes {q!r}, which vault.py never says")
 
 
 if __name__ == "__main__":
