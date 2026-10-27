@@ -77,7 +77,7 @@ python <skills>/research-dag/bin/dag_update.py --action ACTION [options]
 | `--target NUMBER` | `add` | Target improvement, default 0.0 |
 | `--metric NAME` | `add` | Metric; warns if it differs from `metadata.primary_metric` |
 | `--node-id ID` | `update`, `adopt`, `relink`, `set`, `append`, `note` | The node to change |
-| `--status STATUS` | `update` | `pending`, `framed`, `in_progress`, `validated`, `contested`, `ineffective`, `discarded` |
+| `--status STATUS` | `update` | `pending`, `framed`, `in_progress`, `backtested`, `holdout_passed`, `forward_testing`, `validated`, `contested`, `ineffective`, `retired`, `discarded` |
 | `--performance NUMBER` | `update` | Sets `actual_performance` |
 | `--adoption STATE` | `adopt` | `not_assessed`, `not_applicable`, `not_adopted`, `partial`, `adopted`, `contradicted` |
 | `--artefact TEXT` | `adopt` | Where the finding lives in the running system |
@@ -220,7 +220,13 @@ Both go before the command. A relative folder resolves against the folder holdin
 | `verify` | `[<capsule>]`, `--node ID`, `--all`, `--sha256 HASH`, `--deep` | Check the manifest hashes to its id and every blob is present. `--sha256` is the hash the DAG records, to check against; `--deep` downloads and re-hashes every blob. Name a capsule, or pass `--node` or `--all` |
 | `restore` | `<capsule>`, `--node ID`, `--to DIR` (required) | Materialise a capsule into an empty folder: `repos/<name>/` with the data in place, `env/`, `original-outputs/`, `CAPSULE.json`, and `replay.sh` and `replay.ps1` to run it by hand |
 | `replay` | `<capsule>` and the replay options below | Restore a capsule, run it again, compare, and keep the replay as a `retest` capsule |
-| `coverage` | `--verify`, `--strict` | List the DAG's result nodes (`validated`, `ineffective`, `contested` and the older result statuses) that have no capsule. `--verify` also checks every capsule the DAG names is intact and has the hash the DAG records |
+| `coverage` | `--verify`, `--strict` | List the DAG's result nodes (`validated`, `ineffective`, `contested`, the evidence statuses `backtested`, `holdout_passed`, `forward_testing` and `retired`, and the older result statuses) that have no capsule. `--verify` also checks every capsule the DAG names is intact and has the hash the DAG records |
+| `dataset create` | `NAME`, `--rule append-only\|revisable\|frozen` (required), `--title`, `--description`, `--source` (repeatable), `--licence`, `--owner`, `--agent` | Register a dataset, once |
+| `dataset add` | `NAME`, `--from FOLDER` (required), `--note`, `--source`, `--fetched-by`, `--source-checksums FILE`, `--revise REASON`, `--allow-append-only-revision`, `--agent` | Add the folder as the next version, if it differs, within the dataset's rule. A revision of an append-only dataset needs a person at a terminal |
+| `dataset window` | `NAME WINDOW`, `--class backtest\|holdout\|forward` (required), `--from-date`, `--to-date`, `--from-version`, `--note` | Define a window, once. A forward window needs `--from-version` and an append-only dataset |
+| `dataset list`, `show`, `diff`, `fetch` | `show NAME[@VERSION] [--files]`, `diff A B`, `fetch NAME[@VERSION] [--to DIR]` | Read datasets, their versions and windows; fetch a version, hash-checked |
+| `dataset uses` | `NAME`, `--window WINDOW` | The capsules that read a dataset, and a holdout's claims and overrides |
+| `dataset impact` | `NAME@VERSION`, `--strict` | The capsules built on earlier versions; `--strict` exits 1 when there are any |
 | `lifecycle` | `--nearline DAYS` (default 30), `--coldline DAYS` (default 90), `--archive DAYS` (default 365) | Print Cloud Storage lifecycle rules, as JSON, that move old objects to colder classes |
 
 The capture options, for `run` and `capture`:
@@ -232,6 +238,9 @@ The capture options, for `run` and `capture`:
 | `--name NAME` | Name for the main repository (default: its folder name) |
 | `--repo PATH` | Another git repository the run used. Repeatable |
 | `--data PATH` | A file or folder the run reads, inside the repository. Repeatable |
+| `--dataset NAME@VERSION:MOUNT[:WINDOW]` | A registered dataset the run reads, linked at the git-ignored folder `MOUNT`; `VERSION` may be `latest`. Repeatable. The run finds them in the file `VAULT_DATASETS` names |
+| `--exploratory` | The run is not evidence: its capsule's evidence class is `exploratory` |
+| `--override-holdout REASON` | Look again at a sealed holdout; a person confirms at a terminal |
 | `--outputs PATH` | A file or folder the run writes. Repeatable |
 | `--metrics FILE` | The JSON file of metrics the run writes |
 | `--metric KEY` | The metric (a dotted key in `--metrics`) that is the node's result |

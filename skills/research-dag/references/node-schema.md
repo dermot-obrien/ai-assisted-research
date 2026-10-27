@@ -24,17 +24,25 @@ A node is a YAML mapping in the DAG's `nodes` list. The tools keep any field a n
 
 ## Statuses
 
+A node's status says how strong its evidence is, and the strength depends on whether the data could have shaped the design. A test is one capsule, and its evidence class comes from the dataset window it ran on (the experiment-vault skill's `references/datasets.md`): `exploratory` (any data, never validates), `untracked` (no window: fine for a node that fixed none), `backtest` (historical data named at framing), `holdout` (a sealed window, one look) or `forward` (data that arrived after framing).
+
 | Status | Means | Next |
 |---|---|---|
 | `pending` | Proposed, not designed | `framed` |
-| `framed` | The experiment is designed and its target fixed | `in_progress` |
+| `framed` | The experiment, its windows and its decision rule are fixed | `in_progress` |
 | `in_progress` | Running | a result status |
-| `validated` | The result met the target | `contested` if a retest or audit disagrees |
+| `backtested` | Its backtest met the target; its holdout or forward evidence is still to come | `holdout_passed`, `forward_testing`, `ineffective` |
+| `holdout_passed` | It met the target on its sealed holdout window, at its one look | `forward_testing`, `validated` |
+| `forward_testing` | Being tested on data as it arrives, at the checkpoints fixed at framing | `validated`, `contested`, `retired` |
+| `validated` | It met the decision rule fixed at framing: for a node with no holdout or forward window, its result met the target; otherwise its holdout and forward evidence did | `contested` if a retest, audit or checkpoint disagrees; `retired` |
 | `ineffective` | The result missed the target; a result, not a failure | |
-| `contested` | A retest, an audit or a later node disagrees with the recorded result | `validated`, `ineffective` |
+| `contested` | A retest, an audit, a forward checkpoint or a later node disagrees with the recorded result | `validated`, `ineffective`, `retired` |
+| `retired` | It held once and no longer does (its forward evidence decayed past its retire rule), or it was withdrawn from use; the record stays | |
 | `discarded` | Stopped before a result, with the reason in `notes` | |
 
-`dag_update.py --action update` accepts only these. Older DAGs also use `completed`, `tested`, `partially_tested`, `blocked` and `proposed`; the reading tools still treat `completed` as resolved, but write new results as `validated` or `ineffective`, and record a block in `notes` rather than as a status.
+An `exploratory` test never moves a node past `in_progress`, and a backtest alone never makes it `validated` when the node fixed a holdout or forward window at framing. Children become ready when their parent is `validated`, `ineffective`, `holdout_passed`, `forward_testing` or `retired`: from a passed holdout on, further evidence only adds to the parent's.
+
+`dag_update.py --action update` accepts only these. Older DAGs also use `completed`, `tested`, `partially_tested`, `blocked` and `proposed`; the reading tools still treat `completed` as resolved, but write new results with the statuses above, and record a block in `notes` rather than as a status.
 
 ## A reproducible result
 

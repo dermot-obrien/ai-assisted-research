@@ -1,6 +1,6 @@
 # Guarantees
 
-What the vault promises, each promise with the tests that prove it. Research results are going to rest on these, so none is a claim without a test: `tests/test_experiment_vault.py` reads this table and fails if a test it names does not exist, and the tests are written so that breaking the behaviour fails them. G1, G3, G4, G5, G6, G8, G12, G18, G19 and G21 were checked that way, by breaking the code on purpose and watching their tests fail. A change that weakens a guarantee changes this page in the same pull request.
+What the vault promises, each promise with the tests that prove it. Research results are going to rest on these, so none is a claim without a test: `tests/test_experiment_vault.py` reads this table and fails if a test it names does not exist, and the tests are written so that breaking the behaviour fails them. G1, G3, G4, G5, G6, G8, G12, G18, G19, G21 and G24 to G31 were checked that way, by breaking the code on purpose and watching their tests fail. A change that weakens a guarantee changes this page in the same pull request.
 
 The tests use a folder vault and, for Cloud Storage, a stand-in for `gcloud`. What has not been tested against a real bucket is said in the last section.
 
@@ -29,6 +29,15 @@ The tests use a folder vault and, for Cloud Storage, a stand-in for `gcloud`. Wh
 | G21 | Older capsules keep restoring; a capsule of a newer format is refused, not misread | `test_a_format_1_capsule_still_restores`, `test_a_newer_format_is_refused` |
 | G22 | Every manifest matches the published JSON Schema | `test_manifest_matches_the_schema`; every test that reads a manifest checks it too |
 | G23 | A Cloud Storage vault behaves as a folder vault | `test_round_trip_through_gcs` |
+| G24 | A dataset version is written once and keeps to its dataset's rule: an append-only dataset takes new files and extensions only, a frozen one a single version, and a description, version or window is never replaced | `test_an_append_only_dataset_takes_new_files_and_extensions`, `test_an_append_only_change_is_refused`, `test_a_frozen_dataset_takes_one_version`, `test_a_revisable_dataset_is_revised_with_a_reason`, `test_a_dataset_and_its_versions_are_written_once` |
+| G25 | Only a person at a terminal revises an append-only dataset or overrides a holdout, never a run without one or with `CI` set, and the override is recorded | `test_an_append_only_revision_needs_a_person`, `test_a_person_revises_and_is_shown_what_to_retest`, `test_overriding_a_holdout_needs_a_person`, `test_a_persons_override_is_recorded` |
+| G26 | A capsule records the dataset version it read, not a copy; restore, replay and verify use that version and refuse one whose record no longer hashes to what the capsule recorded | `test_a_capsule_points_at_the_dataset_version_without_copying_it`, `test_verify_restore_and_replay_use_the_recorded_version` |
+| G27 | A sealed holdout gives each node one look and none to a sibling of a node that looked, for a node in the DAG only; a dry run and a replay spend no look | `test_a_holdout_gives_each_node_one_look`, `test_a_sibling_cannot_look_at_a_holdout_its_sibling_saw`, `test_a_holdout_needs_the_node_in_the_dag`, `test_a_dry_run_does_not_spend_the_look`, `test_a_replay_of_a_holdout_result_is_not_a_new_look` |
+| G28 | A dataset with a holdout is read only through a named window, and no backtest window overlaps a holdout | `test_a_dataset_with_a_holdout_is_read_through_a_window` |
+| G29 | A forward window gives the run exactly the data added after its starting version, on an append-only dataset only | `test_a_forward_window_gives_only_the_data_added_since`, `test_a_forward_window_needs_an_append_only_dataset` |
+| G30 | Every capsule has one evidence class, from its window or `--exploratory`, recorded on the capsule and on the node | `test_one_test_has_one_evidence_class`, `test_an_exploratory_run_is_never_evidence`, `test_the_node_records_each_capsules_evidence_class` |
+| G31 | Datasets are read-only to a run: one that writes into its dataset, or a mount git does not ignore, is not recorded, and a damaged cache is rebuilt from the vault | `test_a_run_that_writes_into_its_dataset_is_not_recorded`, `test_a_mount_that_is_not_git_ignored_is_refused` |
+| G32 | A revision lists every result built on an earlier version, to be retested | `test_a_person_revises_and_is_shown_what_to_retest` |
 
 ## Limits
 

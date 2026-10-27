@@ -18,7 +18,9 @@ The procedure every agent follows to keep and replay experiments, so that any tw
 
 2.3. Commit. Every change that affects the run MUST be committed, in every repository the run uses, and the branch SHOULD be pushed. `--allow-dirty` SHOULD NOT be used for a result that will be recorded.
 
-2.4. Inputs. Every file the run reads MUST be inside the main repository, in a folder named with `--data` (git-ignored when large; a symlink to data elsewhere is followed). Data the run would fetch from the network MUST be fetched first, into that folder, by a separate step.
+2.4. Inputs. Every file the run reads MUST be inside the main repository, in a folder named with `--data` (git-ignored when large; a symlink to data elsewhere is followed), or be a registered dataset named with `--dataset` ([datasets](datasets.md)). Data the run would fetch from the network MUST be fetched first, by a separate step. Data that more than one test reads, or that grows, SHOULD be registered (`dataset create`, `dataset add`) and read with `--dataset`, so it is stored once and every result names its version.
+
+2.4a. Windows. A test of a node whose framing fixed a window MUST run on that window (`--dataset <name>@<version>:<mount>:<window>`) and read only that part of the data, as `VAULT_DATASETS` describes it. A run that is not evidence (trying a loader, a quick look) MUST carry `--exploratory`. A sealed holdout is looked at once per node, and not by a sibling of a node that looked: run the same design on a backtest window until it works, and only then on the holdout.
 
 2.5. Outputs. The run MUST write into folders named with `--outputs`, and those folders SHOULD be emptied (or new) before the run. `run` keeps as outputs only the files written during the run, and warns about any it left out, so a file from an earlier run is never kept as this run's output; `capture` cannot tell, so for a capture the folders MUST hold only that run's outputs.
 
@@ -52,7 +54,7 @@ export PYTHONHASHSEED=0
 4.3. Report in this form, and cite the capsule id wherever the number appears afterwards:
 
 ```
-<node>: <metric> = <value> against a target of <target>. Capsule <node>/<id>; code <repo>@<commit12> (tag vault/<commit12>); <n> data files; replay tolerance rtol <r>, atol <a>.
+<node>: <metric> = <value> against a target of <target>, <evidence class> evidence. Capsule <node>/<id>; code <repo>@<commit12> (tag vault/<commit12>); data <dataset> <version> (<window>) or <n> data files; replay tolerance rtol <r>, atol <a>.
 ```
 
 4.4. A tool warning (a tag that did not push, a commit on no remote branch, an unpinnable package) MUST be passed on to the person in the same report.
@@ -79,6 +81,11 @@ export PYTHONHASHSEED=0
 | `is corrupt`, `missing from`, `bundles missing`, `not the recorded` | Stop. Report the capsule and the message to the person. Never repair, rewrite or delete anything in the vault |
 | `cannot read; update the skill` | Update experiment-vault; never edit the manifest |
 | `RESEARCH_VAULT_GCP_KEY is not JSON`, `neither JSON nor base64 JSON`, `is not a service account key` | The environment's key variable is wrong. Tell the person; never print, echo or edit the variable |
+| `is append-only`, `is frozen`, `needs a person` | The data changed in a way its rule forbids. Register the new data as a new version only if it only adds; otherwise tell the person, who decides on a revision |
+| `already looked at by` | The holdout's look is spent for this node or its siblings. Do not retry, rename the node or override. Report it; a person decides |
+| `has a sealed holdout, so a run on it names its window`, `overlaps` | Name the node's backtest or holdout window (2.4a); a person defines windows that do not overlap |
+| `is not in the DAG` | Add the node, or refresh the view, and run again |
+| `the run changed dataset` | The experiment wrote into its input. Fix it to write under `--outputs` and run again |
 | `not initialised, or not reachable` | Check `vault.uri` and the gcloud sign-in; a person creates the bucket ([storage](storage.md)) |
 
 ## 7. Never
@@ -88,3 +95,4 @@ export PYTHONHASHSEED=0
 - Never report a retest that was run with `--no-record`, or a `drifted` replay re-run until it passed.
 - Never pass a secret with `--env`, or put one in the command line or the console output. Never print, copy or write out `RESEARCH_VAULT_GCP_KEY`; the tool reads it.
 - Never hand-write a manifest or a `capsules` entry: copy the one the tool printed.
+- Never revise an append-only dataset, override a holdout, or answer a prompt that asks for a person. Never read a holdout outside the window a run names.

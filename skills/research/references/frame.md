@@ -45,6 +45,19 @@ seeds, the metric key, and the tolerance a replay must meet (`--rtol`, `--atol`)
 arguments of `vault.py run` in the experiment-vault skill. Fixing them now, like the target, is
 what lets a later agent replay the experiment and know whether it held.
 
+When the node is tested on data that grows or that the design could be fitted to, such as a
+trading strategy's backtest, fix its evidence too ([datasets](../../experiment-vault/references/datasets.md)):
+
+- **The datasets and windows**: the registered dataset and version, the backtest window it is
+  developed on, the sealed holdout window it is judged on once, and the forward window it is
+  tested on as data arrive. Ask the person to define any window that does not exist yet; a holdout
+  that overlaps a backtest window is refused.
+- **The decision rule**: the target on the backtest, the target on the holdout, the forward
+  checkpoints (after how much new data, against what threshold), and the rule that retires it.
+  Which statuses the node can reach follows from the windows (the research-dag skill's
+  `references/node-schema.md`): with a holdout or forward window fixed, a backtest alone never
+  validates it.
+
 ## Phase 3: Update the lineage
 
 1. Record the generated `WI-{NNN}` in the DAG node's metadata.

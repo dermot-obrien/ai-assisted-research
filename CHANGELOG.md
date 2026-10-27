@@ -5,6 +5,20 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.3.0
+
+### Added
+- `experiment-vault` 1.3.0 registers datasets once and lets capsules point at them. [Datasets](skills/experiment-vault/references/datasets.md) has the detail.
+  - Versions and rules: `vault.py dataset create` registers a dataset with its sources, licence, owner and a rule. `dataset add` writes numbered versions (`v0001`, ...), each listing every file's hash and size, what changed since the version before, and where the data came from. Files are stored once as blobs, so a version that extends one file stores only that file again.
+  - What the rules allow: an `append-only` dataset takes new files and files extended at their end; a `revisable` one takes changes as revisions, with a reason; a `frozen` one takes a single version. Only a person, at a terminal and with `CI` unset, revises an append-only dataset, and a revision lists every result built on an earlier version (`dataset impact`), to be retested.
+  - Windows: `dataset window` defines named windows: a `backtest` span of history, a sealed `holdout` span, and a `forward` window of everything an append-only dataset gains after a version. No backtest window may overlap a holdout.
+  - Runs: `run --dataset <name>@<version>:<mount>[:<window>]` fetches the version, hash-checked, into a read-only local cache. It links the version into a git-ignored folder and tells the run its version, folder, window and, for a forward window, the byte in each file where the new data starts (`VAULT_DATASETS`). The capsule records the version and window instead of copying the files. Restore, replay and verify use that version and refuse one whose record changed. A run that writes into its dataset is not recorded.
+  - Sealed holdouts: each node gets one look at a sealed holdout, and a sibling of a node that looked gets none. The look is claimed before the run, and the node must be in the DAG. A dataset with a holdout is read only through a named window. Only a person may override a spent look, and the override is recorded.
+  - Evidence classes: every capsule records its evidence class (`exploratory`, `untracked`, `backtest`, `holdout` or `forward`), on the capsule and on the node, and one test has one class.
+- `research-dag` 2.1.0 adds the statuses `backtested`, `holdout_passed`, `forward_testing` and `retired`. The [node schema](skills/research-dag/references/node-schema.md) says which evidence class can move a node to which status. A passed holdout, forward testing and retirement resolve a parent for readiness, and backtesting keeps a node active.
+- `research` 4.1.0: framing fixes a node's datasets, windows and decision rule. Running develops on the backtest window and looks at the holdout once. Sync sets the status by the capsule's evidence class, and retest finds the results a dataset revision touches.
+- Guarantees G24 to G32, with the tests behind them (`tests/test_datasets.py`), each of G24 to G31 checked by breaking the code on purpose.
+
 ## 4.2.0
 
 ### Added

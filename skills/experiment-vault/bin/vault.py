@@ -55,6 +55,7 @@ import re
 import secrets
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 import tarfile
@@ -66,7 +67,7 @@ from typing import Any, Iterable
 
 FORMAT = "experiment-vault/2"
 FORMATS = ("experiment-vault/1", "experiment-vault/2")
-TOOL_VERSION = "1.2.1"
+TOOL_VERSION = "1.3.0"
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 CAPSULE_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{12}$")
@@ -980,6 +981,8 @@ def write_capsule(backend: Backend, project: str, node: str, manifest: dict, blo
         ref["verdict"] = manifest["comparison"]["verdict"]
     if manifest.get("result"):
         ref["result"] = manifest["result"]
+    if manifest.get("evidence"):
+        ref["evidence"] = manifest["evidence"]["class"]
     return ref
 
 
@@ -1132,7 +1135,8 @@ def compare(original: dict, metrics: dict | None, outputs: list[dict], exit_code
 
 
 def build_manifest(settings: Settings, args, node: str, kind: str, code: list[dict], data: list[dict],
-                   environment: dict, run: dict, outputs: list[dict], metrics: dict | None) -> dict:
+                   environment: dict, run: dict, outputs: list[dict], metrics: dict | None,
+                   datasets: list[dict] | None = None, evidence: dict | None = None) -> dict:
     manifest: dict[str, Any] = {
         "format": FORMAT, "tool": f"experiment-vault {TOOL_VERSION}", "kind": kind,
         "created_at": iso(now_utc()), "host": socket.gethostname(), "project": settings.project,
@@ -1141,6 +1145,10 @@ def build_manifest(settings: Settings, args, node: str, kind: str, code: list[di
         "tolerance": {"rtol": args.rtol if args.rtol is not None else settings.rtol,
                       "atol": args.atol if args.atol is not None else settings.atol},
     }
+    if datasets:
+        manifest["datasets"] = datasets
+    if evidence:
+        manifest["evidence"] = evidence
     if getattr(args, "agent", None):
         manifest["agent"] = args.agent
     if getattr(args, "note", None):
@@ -1195,6 +1203,15 @@ def cmd_preflight(settings: Settings, args, observed: bool) -> int:
                 extra = f", {e['new_commits']} commit(s) new to the vault" if "new_commits" in e else ""
                 notes.append(f"code {name}{' at ' + rel if rel else ''}: {e['commit'][:12]} as {e['storage']}{extra}"
                              f"{'' if e.get('pushed', True) else '; the commit is on no remote branch'}")
+        snap = node_snapshot(settings, args.node).get("snapshot") if NAME_RE.match(args.node or "") else None
+        if backend is not None and args.dataset:
+            found = prepare_datasets(settings, backend, args.dataset, root, cwd, args.node, lineage(snap),
+                                     args.override_holdout, dry=True, problems=problems)
+            for d in found:
+                w = d.get("window")
+                notes.append(f"dataset {d['dataset']} {d['version']} at {d['mount']}"
+                             + (f", window {w['window']} ({w['class']})" if w else ", no window"))
+            notes.append(f"evidence class: {evidence_of(found, args.exploratory)['class']}")
         n, size = 0, 0
         for d in args.data or []:
             files = check(lambda: walk_files([d], cwd, root, None, "data"))
@@ -1249,6 +1266,10 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
             if rel is not None:
                 code[-1]["path"] = rel
         data = walk_files(args.data or [], cwd, root, blobs, "data")
+        datasets = prepare_datasets(settings, backend, args.dataset or [], root, cwd, node,
+                                    lineage(node_snapshot(settings, node).get("snapshot")), args.override_holdout,
+                                    dry=False)
+        evidence = evidence_of(datasets, args.exploratory)
         env_vars = recorded_env(args.env or [])
         if "PYTHONHASHSEED" not in env_vars:
             print("note: PYTHONHASHSEED is not set, so set and dict-of-str iteration order can differ "
@@ -1259,9 +1280,18 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         started = now_utc()
         started_wall = time.time() - 0.001
         if observed:
-            code_rc, out_p, err_p, secs = tee_run(argv, cwd, without_vault_keys(os.environ), work)
+            run_env = without_vault_keys(os.environ)
+            if datasets:
+                run_env["VAULT_DATASETS"] = str(datasets_env_file(datasets, root, work))
+            code_rc, out_p, err_p, secs = tee_run(argv, cwd, run_env, work)
             run.update({"started_at": iso(started), "duration_s": secs, "exit_code": code_rc,
                         "stdout": blob_entry(out_p, blobs), "stderr": blob_entry(err_p, blobs)})
+            for d in datasets:
+                damage = cache_damage(root / d["mount"], load_version(backend, d["dataset"], d["version"])[0])
+                if damage:
+                    raise VaultError(f"the run changed dataset {d['dataset']} {d['version']} at {d['mount']} "
+                                     f"({', '.join(damage[:5])}); datasets are read-only, so nothing was recorded. "
+                                     f"Write outputs under --outputs")
         else:
             code_rc = args.exit_code
             run["exit_code"] = code_rc
@@ -1283,12 +1313,17 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         if args.metrics:
             run["metrics_path"] = Path(os.path.abspath(cwd / args.metrics)).relative_to(root).as_posix()
         manifest = build_manifest(settings, args, node, "retest" if prior else "run", code, data,
-                                  environment, run, outputs, metrics)
+                                  environment, run, outputs, metrics, datasets, evidence)
         if prior:
             tol = manifest["tolerance"]
             manifest["retest_of"] = f"{node}/{prior_id}"
             manifest["comparison"] = compare(prior, metrics, outputs, code_rc, tol["rtol"], tol["atol"])
         ref = write_capsule(backend, settings.project, node, manifest, blobs, files)
+        record_uses(backend, settings.project, node, ref["id"], manifest)
+    if datasets:
+        print(f"  evidence: {evidence['class']}; data: "
+              + ", ".join(f"{d['dataset']} {d['version']}" + (f" ({d['window']['window']})" if d.get('window') else "")
+                          for d in datasets))
     if prior:
         print_comparison(manifest["comparison"])
     if not args.no_link:
@@ -1350,6 +1385,12 @@ def restore(backend: Backend, manifest: dict, dest: Path) -> Path:
             place(cache / u["sha256"], target / u["path"])
     for d in manifest.get("data", []):
         place(cache / d["sha256"], main / d["path"])
+    for d in manifest.get("datasets", []):
+        record, digest = load_version(backend, d["dataset"], d["version"])
+        if digest != d["sha256"]:
+            raise VaultError(f"dataset {d['dataset']} {d['version']} in the vault is not the version the capsule "
+                             f"used: it hashes to {digest[:12]}, the capsule recorded {d['sha256'][:12]}")
+        link_folder(materialize(backend, d["dataset"], d["version"], record, digest), main / d["mount"])
     env = manifest.get("environment", {})
     if env.get("lock"):
         place(cache / env["lock"]["sha256"], dest / "env" / "requirements.lock")
@@ -1452,6 +1493,9 @@ def cmd_replay(settings: Settings, args) -> int:
         argv[0] = py
     env = without_vault_keys(os.environ)
     env.update(run.get("env", {}))
+    if manifest.get("datasets"):
+        main_dir = dest / "repos" / manifest["code"][0]["name"]
+        env["VAULT_DATASETS"] = str(datasets_env_file(manifest["datasets"], main_dir, dest))
     if args.setup == "venv":
         env["VIRTUAL_ENV"] = str(dest / ".venv")
         env["PATH"] = str(Path(py).parent) + os.pathsep + env.get("PATH", "")
@@ -1482,11 +1526,13 @@ def cmd_replay(settings: Settings, args) -> int:
             args.metric = (manifest.get("result") or {}).get("metric")
             args.target = (manifest.get("result") or {}).get("target")
             retest = build_manifest(settings, args, node, "retest", manifest["code"], manifest.get("data", []),
-                                    environment, new_run, outputs, metrics)
+                                    environment, new_run, outputs, metrics, manifest.get("datasets"),
+                                    manifest.get("evidence"))
             retest["tolerance"] = {"rtol": rtol, "atol": atol}
             retest["retest_of"] = f"{node}/{cid}"
             retest["comparison"] = comparison
             ref = write_capsule(backend, settings.project, node, retest, blobs)
+            record_uses(backend, settings.project, node, ref["id"], retest)
             if not args.no_link:
                 link_to_dag(settings, node, ref)
     return {"identical": 0, "reproduced": 0, "drifted": 3}.get(comparison["verdict"], 1)
@@ -1501,6 +1547,578 @@ def print_comparison(c: dict) -> None:
     o = c["outputs"]
     print(f"  outputs: {o['identical']} identical, {len(o['changed'])} changed"
           + (f": {', '.join(o['changed'][:5])}" if o["changed"] else ""))
+
+
+# ---------------------------------------------------------------- datasets
+
+DATASET_FORMAT = "experiment-vault-dataset/1"
+DATASET_RULES = ("append-only", "revisable", "frozen")
+WINDOW_CLASSES = ("backtest", "holdout", "forward")
+VERSION_RE = re.compile(r"^v(\d{4,})$")
+
+
+def ds_key(name: str, *parts: str) -> str:
+    return "/".join(["datasets", name, *parts])
+
+
+def read_json(backend: Backend, key: str) -> tuple[dict, str] | None:
+    """(record, sha256 of its bytes) for a JSON object in the vault, or None when it is not there."""
+    data = backend.read(key)
+    if data is None:
+        return None
+    return json.loads(data), hashlib.sha256(data).hexdigest()
+
+
+def check_dataset_name(name: str) -> str:
+    if not NAME_RE.match(name):
+        raise VaultError(f"dataset name {name!r} must be letters, digits, '.', '_' or '-'")
+    return name
+
+
+def dataset_descriptor(backend: Backend, name: str) -> dict:
+    got = read_json(backend, ds_key(check_dataset_name(name), "dataset.json"))
+    if got is None:
+        raise VaultError(f"there is no dataset {name}; create it with vault.py dataset create")
+    return got[0]
+
+
+def dataset_versions(backend: Backend, name: str) -> list[str]:
+    prefix = ds_key(name, "versions") + "/"
+    found = []
+    for key in backend.list(prefix):
+        stem = key[len(prefix):-len(".json")] if key.endswith(".json") else ""
+        if VERSION_RE.match(stem):
+            found.append(stem)
+    return sorted(found, key=lambda v: int(v[1:]))
+
+
+def resolve_version(backend: Backend, name: str, ref: str) -> str:
+    versions = dataset_versions(backend, name)
+    if not versions:
+        raise VaultError(f"dataset {name} has no versions yet; add one with vault.py dataset add")
+    if ref in ("", "latest"):
+        return versions[-1]
+    if ref not in versions:
+        raise VaultError(f"dataset {name} has no version {ref}; it has {', '.join(versions[-5:])}")
+    return ref
+
+
+def load_version(backend: Backend, name: str, version: str) -> tuple[dict, str]:
+    got = read_json(backend, ds_key(name, "versions", f"{version}.json"))
+    if got is None:
+        raise VaultError(f"dataset {name} has no version {version}")
+    return got
+
+
+def load_window(backend: Backend, name: str, window: str) -> dict:
+    if not NAME_RE.match(window):
+        raise VaultError(f"window name {window!r} must be letters, digits, '.', '_' or '-'")
+    got = read_json(backend, ds_key(name, "windows", f"{window}.json"))
+    if got is None:
+        raise VaultError(f"dataset {name} has no window {window}; define it with vault.py dataset window")
+    return got[0]
+
+
+def dataset_windows(backend: Backend, name: str) -> list[dict]:
+    prefix = ds_key(name, "windows") + "/"
+    keys = [k for k in backend.list(prefix) if k.endswith(".json") and "/" not in k[len(prefix):]]
+    return [read_json(backend, k)[0] for k in sorted(keys)]
+
+
+def overlaps(a: dict, b: dict) -> bool:
+    """Whether two date windows share any time; a missing end is open. Dates compare as ISO text."""
+    lo = max(a.get("from_date") or "", b.get("from_date") or "")
+    hi = min(a.get("to_date") or "\uffff", b.get("to_date") or "\uffff")
+    return lo <= hi
+
+
+def scan_folder(folder: Path) -> dict[str, tuple[str, int, Path]]:
+    """{posix path relative to folder: (sha256, size, file)} for every file under folder, links followed."""
+    if not folder.is_dir():
+        raise VaultError(f"{folder} is not a folder")
+    out = {}
+    for dp, _, fns in os.walk(folder, followlinks=True):
+        for fn in fns:
+            f = Path(dp) / fn
+            if f.is_file():
+                hexd, size = sha256_file(f)
+                out[f.relative_to(folder).as_posix()] = (hexd, size, f)
+    if not out:
+        raise VaultError(f"{folder} holds no files")
+    return dict(sorted(out.items()))
+
+
+def prefix_sha256(path: Path, n: int) -> str:
+    h = hashlib.sha256()
+    left = n
+    with open(path, "rb") as f:
+        while left > 0:
+            chunk = f.read(min(1 << 20, left))
+            if not chunk:
+                break
+            h.update(chunk)
+            left -= len(chunk)
+    return h.hexdigest()
+
+
+def classify_changes(parent: dict[str, dict], scan: dict[str, tuple[str, int, Path]]) -> dict[str, list]:
+    """How a folder differs from a version: files added, extended at the end, changed, removed."""
+    changes: dict[str, list] = {"added": [], "extended": [], "changed": [], "removed": []}
+    for path, old in parent.items():
+        if path not in scan:
+            changes["removed"].append(path)
+            continue
+        hexd, size, f = scan[path]
+        if hexd == old["sha256"]:
+            continue
+        if size > old["size"] and prefix_sha256(f, old["size"]) == old["sha256"]:
+            changes["extended"].append({"path": path, "from_size": old["size"], "to_size": size})
+        else:
+            changes["changed"].append(path)
+    changes["added"] = [p for p in scan if p not in parent]
+    return changes
+
+
+def confirm_person(what: str, name: str) -> None:
+    """Stop unless a person at a terminal confirms by typing the dataset's name. Agents run without one."""
+    if not sys.stdin.isatty() or os.environ.get("CI"):
+        raise VaultError(f"{what} needs a person: run it yourself at a terminal, not through an agent or a script")
+    typed = input(f"{what}. Type the dataset's name ({name}) to confirm: ").strip()
+    if typed != name:
+        raise VaultError("not confirmed; nothing was written")
+
+
+def cmd_dataset_create(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    name = check_dataset_name(args.name)
+    record = {"format": DATASET_FORMAT, "name": name, "rule": args.rule, "title": args.title or name,
+              "description": args.description or "", "sources": args.source or [], "licence": args.licence or "",
+              "owner": args.owner or "", "created_at": iso(now_utc()), "host": socket.gethostname()}
+    if args.agent:
+        record["agent"] = args.agent
+    if not backend.write_once(ds_key(name, "dataset.json"), canonical(record)):
+        raise VaultError(f"dataset {name} already exists; a dataset's description is written once")
+    print(f"Created dataset {name} ({args.rule}). Add its first version with: vault.py dataset add {name} --from <folder>")
+    return 0
+
+
+def cmd_dataset_add(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    name = check_dataset_name(args.name)
+    desc = dataset_descriptor(backend, name)
+    versions = dataset_versions(backend, name)
+    parent_v = versions[-1] if versions else None
+    parent_files = load_version(backend, name, parent_v)[0]["files"] if parent_v else {}
+    scan = scan_folder(Path(args.source_folder).resolve())
+    changes = classify_changes(parent_files, scan)
+    if not any(changes.values()):
+        print(f"No change from {name} {parent_v}; no version added.")
+        return 0
+    rewrites = changes["changed"] + changes["removed"]
+    if parent_v and desc["rule"] == "frozen":
+        raise VaultError(f"dataset {name} is frozen: it has one version, {parent_v}, and takes no other. "
+                         f"Register the new data as a dataset of its own.")
+    if rewrites and not args.revise:
+        raise VaultError(f"dataset {name} is {desc['rule']}, and this folder changes or removes "
+                         f"{len(rewrites)} file(s) of {parent_v}: {', '.join(rewrites[:5])}. Only adding files and "
+                         f"extending files at their end is allowed; a change is a revision (--revise \"<reason>\"), "
+                         f"which a person makes")
+    if args.revise:
+        if not rewrites:
+            raise VaultError("--revise is for changing or removing data; this folder only adds to it")
+        if desc["rule"] == "append-only" and not args.allow_append_only_revision:
+            raise VaultError(f"dataset {name} is append-only: it is never revised. If its history really is wrong, "
+                             f"pass --allow-append-only-revision too, and every result built on it will be listed "
+                             f"for retesting")
+        if desc["rule"] == "append-only":
+            confirm_person(f"Revising append-only {name}: {len(rewrites)} file(s) of {parent_v} change", name)
+    blobs = {sha: f for sha, _, f in scan.values()}
+    with tempfile.TemporaryDirectory(prefix="vault-") as td:
+        extra = {}
+        if args.source_checksums:
+            extra["source_checksums"] = blob_entry(Path(args.source_checksums).resolve(), blobs)
+        sent = backend.put_blobs(blobs)
+        number = int(parent_v[1:]) + 1 if parent_v else 1
+        version = f"v{number:04d}"
+        record = {"format": DATASET_FORMAT, "dataset": name, "version": version, "parent": parent_v,
+                  "created_at": iso(now_utc()), "host": socket.gethostname(),
+                  "files": {p: {"sha256": h, "size": n} for p, (h, n, _) in scan.items()},
+                  "changes": changes, "revision": args.revise or None,
+                  "totals": {"files": len(scan), "bytes": sum(n for _, n, _ in scan.values())}, **extra}
+        for k in ("note", "source", "fetched_by", "agent"):
+            if getattr(args, k, None):
+                record[k] = getattr(args, k)
+        if not backend.write_once(ds_key(name, "versions", f"{version}.json"), canonical(record)):
+            raise VaultError(f"another version {version} of {name} was added at the same moment; run again")
+    print(f"Added {name} {version}: {len(changes['added'])} added, {len(changes['extended'])} extended, "
+          f"{len(changes['changed'])} changed, {len(changes['removed'])} removed; {sent} new file(s) to the vault")
+    if args.revise:
+        print("This is a revision. Results built on earlier versions:")
+        print_impact(backend, name, version)
+    return 0
+
+
+def cmd_dataset_window(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    name = check_dataset_name(args.name)
+    desc = dataset_descriptor(backend, name)
+    if not NAME_RE.match(args.window):
+        raise VaultError(f"window name {args.window!r} must be letters, digits, '.', '_' or '-'")
+    record: dict[str, Any] = {"format": DATASET_FORMAT, "dataset": name, "window": args.window, "class": args.cls,
+                              "created_at": iso(now_utc()), "host": socket.gethostname()}
+    if args.cls == "forward":
+        if desc["rule"] != "append-only":
+            raise VaultError("a forward window needs an append-only dataset, so the data after it is exactly the "
+                             "data added since")
+        if not args.from_version:
+            raise VaultError("a forward window starts at a version: pass --from-version <version>")
+        record["from_version"] = resolve_version(backend, name, args.from_version)
+    else:
+        if not (args.from_date or args.to_date):
+            raise VaultError(f"a {args.cls} window is a span of time: pass --from-date and --to-date")
+        record["from_date"], record["to_date"] = args.from_date, args.to_date
+        for other in dataset_windows(backend, name):
+            pair = {other["class"], args.cls}
+            if pair == {"backtest", "holdout"} and overlaps(other, record):
+                raise VaultError(f"{args.window} ({args.cls}) overlaps {other['class']} window {other['window']} "
+                                 f"({other.get('from_date') or '...'} to {other.get('to_date') or '...'}): a holdout "
+                                 f"is data no backtest has seen")
+    if args.note:
+        record["note"] = args.note
+    if not backend.write_once(ds_key(name, "windows", f"{args.window}.json"), canonical(record)):
+        raise VaultError(f"dataset {name} already has a window {args.window}; a window is defined once")
+    sealed = " It is sealed: each node may look once, and no sibling of a node that looked may." if args.cls == "holdout" else ""
+    print(f"Defined {args.cls} window {args.window} on {name}.{sealed}")
+    return 0
+
+
+def dataset_uses(backend: Backend, name: str) -> list[dict]:
+    prefix = ds_key(name, "used-by") + "/"
+    out = []
+    for key in backend.list(prefix):
+        if key.endswith(".json"):
+            got = read_json(backend, key)
+            if got:
+                out.append(got[0])
+    return sorted(out, key=lambda u: u.get("at", ""))
+
+
+def print_impact(backend: Backend, name: str, version: str) -> list[dict]:
+    n = int(version[1:])
+    older = [u for u in dataset_uses(backend, name) if int(u["version"][1:]) < n]
+    if not older:
+        print("  none")
+    for u in older:
+        print(f"  {u['project']}/{u['node']}/{u['capsule']}  on {u['version']}  {u.get('class', '')}")
+    return older
+
+
+def cmd_dataset_list(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    names = sorted({k.split("/")[1] for k in backend.list("datasets/") if k.endswith("/dataset.json")})
+    if not names:
+        print("No datasets yet.")
+    for name in names:
+        desc = dataset_descriptor(backend, name)
+        versions = dataset_versions(backend, name)
+        print(f"{name}  {desc['rule']}  {len(versions)} version(s), latest {versions[-1] if versions else '-'}  "
+              f"{desc.get('title', '')}")
+    return 0
+
+
+def cmd_dataset_show(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    name, _, ref = args.ref.partition("@")
+    desc = dataset_descriptor(backend, name)
+    if not ref:
+        print(json.dumps(desc, indent=2, ensure_ascii=False))
+        for v in dataset_versions(backend, name):
+            rec, _ = load_version(backend, name, v)
+            ch = rec["changes"]
+            print(f"  {v}  {rec['created_at']}  {rec['totals']['files']} files, {human(rec['totals']['bytes'])}  "
+                  f"+{len(ch['added'])} >{len(ch['extended'])} ~{len(ch['changed'])} -{len(ch['removed'])}"
+                  f"{'  REVISION: ' + rec['revision'] if rec.get('revision') else ''}")
+        windows = [k for k in backend.list(ds_key(name, "windows") + "/") if k.count("/") == 3 and k.endswith(".json")]
+        for k in windows:
+            w = read_json(backend, k)[0]
+            span = f"from {w['from_version']}" if "from_version" in w else f"{w.get('from_date')} to {w.get('to_date')}"
+            print(f"  window {w['window']}  {w['class']}  {span}")
+        return 0
+    version = resolve_version(backend, name, ref)
+    rec, digest = load_version(backend, name, version)
+    rec = {**rec, "sha256": digest}
+    if not args.files:
+        rec["files"] = f"{len(rec['files'])} files (--files to list them)"
+    print(json.dumps(rec, indent=2, ensure_ascii=False))
+    return 0
+
+
+def cmd_dataset_diff(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    (a_name, _, a_ref), (b_name, _, b_ref) = args.a.partition("@"), args.b.partition("@")
+    if a_name != b_name:
+        raise VaultError("diff compares two versions of one dataset")
+    a = load_version(backend, a_name, resolve_version(backend, a_name, a_ref))[0]["files"]
+    b = load_version(backend, b_name, resolve_version(backend, b_name, b_ref))[0]["files"]
+    for path in sorted(set(a) | set(b)):
+        if path not in b:
+            print(f"- {path}")
+        elif path not in a:
+            print(f"+ {path}  {human(b[path]['size'])}")
+        elif a[path]["sha256"] != b[path]["sha256"]:
+            print(f"~ {path}  {human(a[path]['size'])} -> {human(b[path]['size'])}")
+    return 0
+
+
+def cache_root() -> Path:
+    env = os.environ.get("RESEARCH_VAULT_CACHE")
+    return Path(env).expanduser() if env else Path.home() / ".cache" / "experiment-vault"
+
+
+def materialize(backend: Backend, name: str, version: str, record: dict, digest: str) -> Path:
+    """The version's files in the local cache, read-only, hash-checked once and reused after."""
+    target = cache_root() / "datasets" / name / version
+    marker = target / ".vault-verified"
+    if marker.is_file() and marker.read_text(encoding="utf-8").strip() == digest and not cache_damage(target, record):
+        return target
+    if target.exists():
+        def writable(func, p, _):
+            os.chmod(p, stat.S_IWRITE)
+            func(p)
+        if sys.version_info >= (3, 12):
+            shutil.rmtree(target, onexc=writable)
+        else:
+            shutil.rmtree(target, onerror=writable)
+    with tempfile.TemporaryDirectory(prefix="vault-") as td:
+        cache = Path(td)
+        hexes = {e["sha256"] for e in record["files"].values()}
+        backend.get_blobs(hexes, cache)
+        for hexd in hexes:
+            if sha256_file(cache / hexd)[0] != hexd:
+                raise VaultError(f"blob {hexd} of {name} {version} is corrupt in {backend.uri}")
+        for path, e in record["files"].items():
+            place(cache / e["sha256"], target / path)
+            os.chmod(target / path, 0o444)
+    marker.write_text(digest + "\n", encoding="utf-8")
+    return target
+
+
+def cache_damage(target: Path, record: dict) -> list[str]:
+    """Files of a cached version that are missing, added or of the wrong size: a cheap check made on every use
+    (a full re-hash is verify --deep's job), so an experiment that wrote into its data is caught."""
+    found = {}
+    for dp, _, fns in os.walk(target):
+        for fn in fns:
+            f = Path(dp) / fn
+            rel = f.relative_to(target).as_posix()
+            if rel != ".vault-verified":
+                found[rel] = f.stat().st_size
+    want = {p: e["size"] for p, e in record["files"].items()}
+    return sorted(p for p in set(found) | set(want) if found.get(p) != want.get(p))
+
+
+def link_folder(target: Path, mount: Path) -> None:
+    """Make mount point at target: a symlink, else (Windows) a junction, else a read-only copy."""
+    mount.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.symlink(target, mount, target_is_directory=True)
+        return
+    except (OSError, NotImplementedError):
+        pass
+    if os.name == "nt":
+        p = subprocess.run(["cmd", "/c", "mklink", "/J", str(mount), str(target)], capture_output=True, text=True)
+        if p.returncode == 0:
+            return
+    shutil.copytree(target, mount)
+
+
+def same_folder(a: Path, b: Path) -> bool:
+    try:
+        return a.exists() and b.exists() and os.path.samefile(a, b)
+    except OSError:
+        return False
+
+
+def parse_dataset_arg(text: str) -> tuple[str, str, str, str | None]:
+    """name@version:mount[:window] -> (name, version, mount, window)."""
+    head, sep, rest = text.partition(":")
+    if not sep or not rest:
+        raise VaultError(f"--dataset {text!r}: write it as name@version:mount[:window], e.g. stocks-eod@latest:data/eod")
+    name, _, version = head.partition("@")
+    mount, _, window = rest.partition(":")
+    return check_dataset_name(name), version or "latest", mount, window or None
+
+
+def lineage(snapshot: dict | None) -> dict | None:
+    """The node's place in the DAG, which a holdout claim needs to find its siblings; None if not in the DAG."""
+    if snapshot is None:
+        return None
+    parent = snapshot.get("parent")
+    return {"parent": parent if isinstance(parent, str) and parent else None}
+
+
+def prepare_datasets(settings: Settings, backend: Backend, specs: list[str], root: Path, cwd: Path,
+                     node: str, place: dict | None, override: str | None, dry: bool,
+                     problems: list[str] | None = None) -> list[dict]:
+    """Resolve, fetch and mount each --dataset, check its window, and claim sealed holdouts."""
+    out = []
+    for spec in specs:
+        try:
+            name, ref, mount_rel, window_name = parse_dataset_arg(spec)
+            dataset_descriptor(backend, name)
+            version = resolve_version(backend, name, ref)
+            record, digest = load_version(backend, name, version)
+            mount = Path(os.path.abspath(cwd / mount_rel))
+            if not mount.is_relative_to(root):
+                raise VaultError(f"dataset mount {mount_rel} is outside {root}")
+            ignored = run_cmd(["git", "check-ignore", "-q", str(mount)], cwd=root, check=False).returncode == 0
+            if not ignored:
+                raise VaultError(f"{mount.relative_to(root).as_posix()} is not git-ignored, so mounting {name} there "
+                                 f"would make the repository dirty. Add it to .gitignore")
+            entry: dict[str, Any] = {"dataset": name, "version": version, "sha256": digest,
+                                     "mount": mount.relative_to(root).as_posix()}
+            if not window_name and any(w["class"] == "holdout" for w in dataset_windows(backend, name)):
+                raise VaultError(f"dataset {name} has a sealed holdout, so a run on it names its window "
+                                 f"({name}@{ref or 'latest'}:{mount_rel}:<window>), and reads only that window")
+            if window_name:
+                w = load_window(backend, name, window_name)
+                entry["window"] = {k: w[k] for k in ("window", "class", "from_date", "to_date", "from_version") if k in w}
+                if w["class"] == "forward":
+                    start_files = load_version(backend, name, w["from_version"])[0]["files"]
+                    if int(version[1:]) <= int(w["from_version"][1:]):
+                        raise VaultError(f"forward window {window_name} starts after {w['from_version']}; "
+                                         f"{version} holds no forward data yet")
+                    entry["forward_offsets"] = {p: start_files[p]["size"] if p in start_files else 0
+                                                for p in record["files"]}
+                if w["class"] == "holdout":
+                    if place is None:
+                        raise VaultError(f"{node} is not in the DAG, so its siblings cannot be checked against "
+                                         f"holdout {window_name} of {name}; add the node (and refresh the view) first")
+                    claim_holdout(backend, name, window_name, node, place["parent"], override, dry)
+            if not dry:
+                target = materialize(backend, name, version, record, digest)
+                if mount.exists() or mount.is_symlink():
+                    if not same_folder(mount, target):
+                        raise VaultError(f"{entry['mount']} already exists and is not {name} {version}; remove it "
+                                         f"(it is git-ignored) and run again")
+                else:
+                    link_folder(target, mount)
+            out.append(entry)
+        except VaultError as e:
+            if problems is None:
+                raise
+            problems.append(str(e))
+    classes = {d["window"]["class"] for d in out if d.get("window")}
+    if len(classes) > 1:
+        msg = f"one test has one evidence class; these windows mix {', '.join(sorted(classes))}"
+        if problems is None:
+            raise VaultError(msg)
+        problems.append(msg)
+    return out
+
+
+def claim_holdout(backend: Backend, name: str, window: str, node: str, parent: str | None,
+                  override: str | None, dry: bool) -> None:
+    """A sealed holdout gives each node one look, and none to a sibling of a node that looked."""
+    prefix = ds_key(name, "windows", window, "claims") + "/"
+    claims = [read_json(backend, k)[0] for k in backend.list(prefix) if k.endswith(".json")]
+    clash = [c for c in claims if c["node"] == node or (parent and c.get("parent") == parent)]
+    if clash and not override:
+        who = ", ".join(sorted({c["node"] for c in clash}))
+        raise VaultError(f"holdout {window} of {name} was already looked at by {who} "
+                         f"({'this node' if any(c['node'] == node for c in clash) else 'a sibling of this node'}). "
+                         f"A sealed holdout gives one look; a person may override with --override-holdout \"<reason>\"")
+    if dry:
+        if clash or override:
+            print(f"  note: overriding holdout {window} of {name} needs a person at a terminal", file=sys.stderr)
+        return
+    claim = {"node": node, "parent": parent, "at": iso(now_utc()), "host": socket.gethostname()}
+    key = prefix + f"{node}.json"
+    if clash or override:
+        confirm_person(f"Overriding holdout {window} of {name} for {node}: {override}", name)
+        claim["override"] = override
+        key = prefix + f"{node}-override-{now_utc().strftime('%Y%m%dT%H%M%SZ')}.json"
+    if not backend.write_once(key, canonical(claim)):
+        raise VaultError(f"holdout {window} of {name} was claimed for {node} at the same moment; it has had its look")
+
+
+def record_uses(backend: Backend, project: str, node: str, cid: str, manifest: dict) -> None:
+    for d in manifest.get("datasets", []):
+        use = {"project": project, "node": node, "capsule": cid, "version": d["version"],
+               "class": (d.get("window") or {}).get("class", "untracked"), "at": manifest["created_at"]}
+        if d.get("window"):
+            use["window"] = d["window"]["window"]
+        backend.write_once(ds_key(d["dataset"], "used-by", f"{project}--{node}--{cid}.json"), canonical(use))
+
+
+def evidence_of(datasets: list[dict], exploratory: bool) -> dict:
+    windows = [{"dataset": d["dataset"], "window": d["window"]["window"], "class": d["window"]["class"]}
+               for d in datasets if d.get("window")]
+    if exploratory:
+        cls = "exploratory"
+    elif windows:
+        cls = windows[0]["class"]
+    else:
+        cls = "untracked"
+    return {"class": cls, "windows": windows}
+
+
+def datasets_env_file(datasets: list[dict], root: Path, work: Path) -> Path:
+    """The file VAULT_DATASETS names: each dataset's version, folder, window and, for a forward window,
+    the byte in each file where the forward data starts."""
+    body = {d["dataset"]: {"version": d["version"], "path": str(root / d["mount"]), "window": d.get("window"),
+                           "forward_offsets": d.get("forward_offsets")} for d in datasets}
+    path = work / "vault-datasets.json"
+    path.write_text(json.dumps(body, indent=2), encoding="utf-8")
+    return path
+
+
+def cmd_dataset_fetch(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    name, _, ref = args.ref.partition("@")
+    version = resolve_version(backend, check_dataset_name(name), ref)
+    record, digest = load_version(backend, name, version)
+    target = materialize(backend, name, version, record, digest)
+    if args.to:
+        dest = Path(args.to).resolve()
+        if dest.exists() and any(dest.iterdir()):
+            raise VaultError(f"{dest} is not empty")
+        shutil.copytree(target, dest, dirs_exist_ok=True, ignore=shutil.ignore_patterns(".vault-verified"))
+        print(f"Fetched {name} {version} into {dest}")
+    else:
+        print(f"Fetched {name} {version} into the cache: {target}")
+    return 0
+
+
+def cmd_dataset_uses(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    name = check_dataset_name(args.name)
+    for u in dataset_uses(backend, name):
+        print(f"{u['project']}/{u['node']}/{u['capsule']}  {u['version']}  {u['class']}  {u.get('window', '')}")
+    if args.window:
+        prefix = ds_key(name, "windows", args.window, "claims") + "/"
+        for k in backend.list(prefix):
+            c = read_json(backend, k)[0]
+            print(f"claim  {c['node']}  (parent {c.get('parent')})  {c['at']}"
+                  f"{'  OVERRIDE: ' + c['override'] if c.get('override') else ''}")
+    return 0
+
+
+def cmd_dataset_impact(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    name, _, ref = args.ref.partition("@")
+    version = resolve_version(backend, check_dataset_name(name), ref)
+    print(f"Results built on versions of {name} before {version}:")
+    return 1 if print_impact(backend, name, version) and args.strict else 0
 
 
 # ---------------------------------------------------------------- reading
@@ -1548,6 +2166,11 @@ def cmd_show(settings: Settings, args) -> int:
               f"{' (dirty, patch stored)' if r.get('dirty') else ''}{'' if r.get('exact') else ' (archive not exact)'}"
               f"{'' if r.get('pushed', True) else ' (commit not on any remote branch)'}")
     print(f"  data: {len(m.get('data', []))} files, {human(sum(d['size'] for d in m.get('data', [])))}")
+    for d in m.get("datasets", []):
+        w = d.get("window")
+        print(f"  dataset {d['dataset']} {d['version']} at {d['mount']}" + (f", window {w['window']} ({w['class']})" if w else ""))
+    if m.get("evidence"):
+        print(f"  evidence: {m['evidence']['class']}")
     env = m.get("environment", {})
     py = env.get("python", {})
     print(f"  python {py.get('version')} on {py.get('platform')}; {env.get('lock', {}).get('packages', 0)} packages"
@@ -1591,6 +2214,17 @@ def cmd_verify(settings: Settings, args) -> int:
             gone = backend.missing(bundles)
             if gone:
                 raise VaultError(f"{len(gone)} of {len(bundles)} code bundles missing: {', '.join(gone[:3])}")
+            ds_hexes = set()
+            for d in m.get("datasets", []):
+                record, digest = load_version(backend, d["dataset"], d["version"])
+                if digest != d["sha256"]:
+                    raise VaultError(f"dataset {d['dataset']} {d['version']} hashes to {digest[:12]}, "
+                                     f"not the {d['sha256'][:12]} the capsule recorded")
+                ds_hexes |= {e["sha256"] for e in record["files"].values()}
+            gone_data = backend.missing_blobs(ds_hexes)
+            if gone_data:
+                raise VaultError(f"{len(gone_data)} of the datasets' {len(ds_hexes)} files are missing")
+            hexes |= ds_hexes
             if args.deep:
                 with tempfile.TemporaryDirectory() as td:
                     backend.get_blobs(hexes, Path(td))
@@ -1608,7 +2242,8 @@ def cmd_verify(settings: Settings, args) -> int:
     return 1 if bad else 0
 
 
-RESULT_STATUSES = ("validated", "ineffective", "contested", "completed", "tested", "partially_tested")
+RESULT_STATUSES = ("validated", "ineffective", "contested", "completed", "tested", "partially_tested", "backtested",
+                   "holdout_passed", "forward_testing", "retired")
 
 
 def cmd_coverage(settings: Settings, args) -> int:
@@ -1702,6 +2337,13 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--agent", help="Who ran it: an agent handle or a person")
         p.add_argument("--work-item", help="The work item the run belongs to")
         p.add_argument("--no-link", action="store_true", help="Do not record the capsule on the DAG node")
+        p.add_argument("--dataset", action="append",
+                       help="A registered dataset the run reads, name@version:mount[:window], e.g. "
+                            "stocks-eod@latest:data/eod:holdout-2023 (repeatable)")
+        p.add_argument("--exploratory", action="store_true",
+                       help="Mark the test exploratory: it may use any data, and never validates a node")
+        p.add_argument("--override-holdout", metavar="REASON",
+                       help="Look at a sealed holdout again; a person confirms at a terminal, and the reason is recorded")
         p.add_argument("--dry-run", action="store_true",
                        help="Check everything the capture needs and print the plan; run, tag and upload nothing")
 
@@ -1751,6 +2393,54 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("coverage", help="List the DAG's result nodes that have no capsule")
     p.add_argument("--verify", action="store_true", help="Also check every recorded capsule is intact")
     p.add_argument("--strict", action="store_true", help="Exit 1 when any result node has no capsule")
+    p = sub.add_parser("dataset", help="Register, version and fetch datasets, and define their windows")
+    dsub = p.add_subparsers(dest="dataset_command", required=True)
+    q = dsub.add_parser("create", help="Register a dataset")
+    q.add_argument("name")
+    q.add_argument("--rule", choices=DATASET_RULES, required=True,
+                   help="append-only: only add files or extend them at the end; revisable: changes are revisions; "
+                        "frozen: one version only")
+    q.add_argument("--title")
+    q.add_argument("--description")
+    q.add_argument("--source", action="append", help="Where the data comes from: a URL, an API, a vendor (repeatable)")
+    q.add_argument("--licence")
+    q.add_argument("--owner")
+    q.add_argument("--agent")
+    q = dsub.add_parser("add", help="Add a version from a folder, checking the dataset's rule")
+    q.add_argument("name")
+    q.add_argument("--from", dest="source_folder", required=True, help="The folder holding the whole dataset")
+    q.add_argument("--note")
+    q.add_argument("--source", help="Where this version's data came from, and when")
+    q.add_argument("--fetched-by", help="The script or command that fetched it, ideally with its commit")
+    q.add_argument("--source-checksums", help="A file of checksums the source publishes, kept with the version")
+    q.add_argument("--revise", metavar="REASON", help="Change or remove data: a revision, which a person confirms")
+    q.add_argument("--allow-append-only-revision", action="store_true",
+                   help="With --revise, revise an append-only dataset")
+    q.add_argument("--agent")
+    q = dsub.add_parser("window", help="Define a named window: backtest, sealed holdout, or forward")
+    q.add_argument("name")
+    q.add_argument("window")
+    q.add_argument("--class", dest="cls", choices=WINDOW_CLASSES, required=True)
+    q.add_argument("--from-date", help="Start of a backtest or holdout window, as the data's own dates")
+    q.add_argument("--to-date", help="End of a backtest or holdout window")
+    q.add_argument("--from-version", help="A forward window: the data added after this version")
+    q.add_argument("--note")
+    dsub.add_parser("list", help="List datasets")
+    q = dsub.add_parser("show", help="A dataset's description, versions and windows, or one version")
+    q.add_argument("ref", help="name, or name@version")
+    q.add_argument("--files", action="store_true", help="List every file of the version")
+    q = dsub.add_parser("diff", help="What changed between two versions")
+    q.add_argument("a")
+    q.add_argument("b")
+    q = dsub.add_parser("fetch", help="Fetch a version, hash-checked, into the cache or a folder")
+    q.add_argument("ref", help="name@version, or name for the latest")
+    q.add_argument("--to")
+    q = dsub.add_parser("uses", help="Which capsules used a dataset, and who looked at a holdout")
+    q.add_argument("name")
+    q.add_argument("--window")
+    q = dsub.add_parser("impact", help="The results built on versions before this one")
+    q.add_argument("ref", help="name@version")
+    q.add_argument("--strict", action="store_true", help="Exit 1 when there are any")
     p = sub.add_parser("lifecycle", help="Print GCS lifecycle rules that move old objects to colder classes")
     p.add_argument("--nearline", type=int, default=30)
     p.add_argument("--coldline", type=int, default=90)
@@ -1787,6 +2477,11 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_replay(settings, args)
         if args.command_name == "coverage":
             return cmd_coverage(settings, args)
+        if args.command_name == "dataset":
+            return {"create": cmd_dataset_create, "add": cmd_dataset_add, "window": cmd_dataset_window,
+                    "list": cmd_dataset_list, "show": cmd_dataset_show, "diff": cmd_dataset_diff,
+                    "fetch": cmd_dataset_fetch, "uses": cmd_dataset_uses,
+                    "impact": cmd_dataset_impact}[args.dataset_command](settings, args)
         if args.command_name == "lifecycle":
             return cmd_lifecycle(settings, args)
     except VaultError as e:

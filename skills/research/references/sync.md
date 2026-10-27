@@ -36,6 +36,17 @@ Usage: `/research sync {node_id} {WI_id}`, for example
    | Performance failed the target | `ineffective` |
    | Research stopped early | `discarded` |
 
+   The capsule's evidence class (`vault.py show <capsule>`) limits the status, when the framing
+   fixed windows:
+
+   | Evidence class of the capsule | Met the target | Missed it |
+   |---|---|---|
+   | `exploratory` | none: the node stays `in_progress` | none |
+   | `backtest` | `backtested`, or `validated` if the framing fixed no holdout or forward window | `ineffective` |
+   | `holdout` | `holdout_passed`, or `validated` if the framing fixed no forward window | `ineffective` |
+   | `forward`, at a checkpoint | `forward_testing`, and `validated` at the checkpoint the rule names | `contested`, or `retired` by the retire rule |
+   | `untracked` | `validated`, for a node that fixed no window | `ineffective` |
+
    `ineffective` is a result, not a failure. Record it with the same care as a success; the
    next person needs to know this avenue was tried.
 

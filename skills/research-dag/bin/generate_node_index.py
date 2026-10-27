@@ -6,7 +6,7 @@ Generate node-index.yaml from the hypothesis DAG.
 
 Computes parent-resolved readiness for each node and classifies them as:
   - ready: pending nodes whose parent is completed, validated, or ineffective
-  - active: nodes with status in_progress, partially_tested, or contested
+  - active: nodes with status in_progress, partially_tested, backtested or contested
   - framed: nodes with status framed
   - blocked: pending nodes whose parent is still pending, in_progress, etc.
 
@@ -28,8 +28,10 @@ if __name__ == "__main__" and any(a in ("-h", "--help") for a in sys.argv[1:]):
     print(__doc__.strip())
     sys.exit(0)
 
-RESOLVED_STATUSES = {"completed", "validated", "ineffective"}
-ACTIVE_STATUSES = {"in_progress", "partially_tested", "contested"}
+# A child is ready once its parent has settled evidence: a validated or ineffective result, a passed
+# holdout (forward testing only adds to it), or a retired finding.
+RESOLVED_STATUSES = {"completed", "validated", "ineffective", "holdout_passed", "forward_testing", "retired"}
+ACTIVE_STATUSES = {"in_progress", "partially_tested", "contested", "backtested"}
 
 
 def main():

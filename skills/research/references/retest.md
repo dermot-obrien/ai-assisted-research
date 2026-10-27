@@ -9,7 +9,7 @@ A recorded result is a claim about the world at one moment: one commit, one data
 
 1. **Pull the DAG** (`dag_store.py view`, with a store) and read the node. Take its newest capsule of kind `run` from `capsules`; with none, the result cannot be retested from a record. Say so, suggest `/research run` to make one, and stop.
 2. **Check the capsule is intact**: `vault.py verify <node>/<capsule> --sha256 <hash from the node>`.
-3. **Name the change**, from the user's words or by asking: a library version, the environment as a whole, the code, or the data. With `--all-validated`, do this for every `validated` node with a capsule that the change touches (a node whose capsule's lock names the library, or whose `data[]` names the dataset); list them and confirm before running more than three.
+3. **Name the change**, from the user's words or by asking: a library version, the environment as a whole, the code, or the data. With `--all-validated`, do this for every `validated` node with a capsule that the change touches (a node whose capsule's lock names the library, or whose `data[]` or `datasets[]` names the dataset; after a dataset revision, `vault.py dataset impact <name>@<version>` lists them); list them and confirm before running more than three.
 
 ## Phase 2: Replay with the change
 
@@ -18,7 +18,9 @@ A recorded result is a claim about the world at one moment: one commit, one data
 | Nothing, or "does it still reproduce" | `vault.py replay <capsule>` |
 | A library | `vault.py replay <capsule> --pip <package>==<version>` |
 | The environment as a whole | `vault.py replay <capsule> --setup none`, in the new environment |
-| The code or the data | Commit the change, then `vault.py run --node <node> --retest-of <capsule> <the capsule's --data, --outputs, --metrics, --metric and --seed> -- <the capsule's command>` |
+| The code or the data | Commit the change, then `vault.py run --node <node> --retest-of <capsule> <the capsule's --data or --dataset (with the new version), --outputs, --metrics, --metric and --seed> -- <the capsule's command>` |
+
+A retest on a sealed holdout is a second look, which the vault refuses: if the holdout's data were revised, tell the person, who decides whether to override the claim (`--override-holdout`, at a terminal) or to fix a new holdout window.
 
 Pass `--note "<what changed>"` and your `--agent` handle. Each records a `retest` capsule on the node with its verdict. Read the command, paths and seeds from `vault.py show <capsule>`, never from memory.
 
