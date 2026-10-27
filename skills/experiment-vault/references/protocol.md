@@ -4,7 +4,7 @@ The procedure every agent follows to keep and replay experiments, so that any tw
 
 ## 1. When a capsule is required
 
-1.1. A run MUST be captured when any number it produces will be reported to a person, recorded on a node (`actual_performance`, `evidence`, notes), compared with a target, or used to decide what to try next. Exploratory and debugging runs need not be.
+1.1. A run MUST be captured when any number it produces will be reported to a person, recorded on a node (`actual_performance`, `evidence`, notes), compared with a target, or used to decide what to try next. Exploratory and debugging runs need not be, except on a registered dataset, where they run through `vault.py run --exploratory` (6.5.2).
 
 1.2. A reported number MUST come from one capsule. A result over several seeds or folds SHOULD be one command that runs them all and writes one metrics file with the aggregate and each seed; otherwise each seed is its own capsule and the report names every capsule.
 
@@ -18,7 +18,9 @@ The procedure every agent follows to keep and replay experiments, so that any tw
 
 2.3. Commit. Every change that affects the run MUST be committed, in every repository the run uses, and the branch SHOULD be pushed. `--allow-dirty` SHOULD NOT be used for a result that will be recorded.
 
-2.4. Inputs. Every file the run reads MUST be inside the main repository, in a folder named with `--data` (git-ignored when large; a symlink to data elsewhere is followed). Data the run would fetch from the network MUST be fetched first, into that folder, by a separate step.
+2.4. Inputs. Every file the run reads MUST be inside the main repository, in a folder named with `--data` (git-ignored when large; a symlink to data elsewhere is followed), or be a registered dataset named with `--dataset` ([datasets](datasets.md)). Data the run would fetch from the network MUST be fetched first, by a separate step. Data that more than one test reads, or that grows, SHOULD be registered (`dataset create`, `dataset add`) and read with `--dataset`, so it is stored once and every result names its version.
+
+2.4a. Windows. A test of a node whose framing fixed a window MUST run on that window (`--dataset <name>@<version>:<mount>:<window>`) and read only that part of the data, as `VAULT_DATASETS` describes it. A run that is not evidence (trying a loader, a quick look) MUST carry `--exploratory`. A sealed holdout is looked at once per node, and not by a sibling of a node that looked. Section 6 gives every step.
 
 2.5. Outputs. The run MUST write into folders named with `--outputs`, and those folders SHOULD be emptied (or new) before the run. `run` keeps as outputs only the files written during the run, and warns about any it left out, so a file from an earlier run is never kept as this run's output; `capture` cannot tell, so for a capture the folders MUST hold only that run's outputs.
 
@@ -52,7 +54,7 @@ export PYTHONHASHSEED=0
 4.3. Report in this form, and cite the capsule id wherever the number appears afterwards:
 
 ```
-<node>: <metric> = <value> against a target of <target>. Capsule <node>/<id>; code <repo>@<commit12> (tag vault/<commit12>); <n> data files; replay tolerance rtol <r>, atol <a>.
+<node>: <metric> = <value> against a target of <target>, <evidence class> evidence. Capsule <node>/<id>; code <repo>@<commit12> (tag vault/<commit12>); data <dataset> <version> (<window>) or <n> data files; replay tolerance rtol <r>, atol <a>.
 ```
 
 4.4. A tool warning (a tag that did not push, a commit on no remote branch, an unpinnable package) MUST be passed on to the person in the same report.
@@ -65,7 +67,98 @@ export PYTHONHASHSEED=0
 
 5.3. Every replay is kept as a retest capsule (the default). `--no-record` is for a dry check only, and its verdict MUST NOT be reported as a retest.
 
-## 6. When something goes wrong
+## 6. Datasets, windows and evidence
+
+The steps for data that several tests read or that grows, and for any test whose evidence depends on what data it could have seen, such as a backtest. [Datasets](datasets.md) explains the ideas; this section is what to do. Each step names who does it: you (the agent) or the person.
+
+### 6.1 Who does what
+
+| Action | Who |
+|---|---|
+| `dataset create`, `dataset add` that only adds (new files, or files extended at their end) | You |
+| `dataset add --revise` on a `revisable` dataset | You, with the reason in `--revise` |
+| `dataset add --revise --allow-append-only-revision` | The person, at a terminal. Never you |
+| `dataset window` for `backtest` and `forward` windows | You, at framing, as written in the plan |
+| `dataset window` for a `holdout` window | You, at framing, only for a span the person approved in the plan, quoted in `--note` |
+| `run --override-holdout` | The person, at a terminal. Never you |
+| Answering any prompt that asks you to type a dataset's name | The person. Never you, and never by piping input |
+
+### 6.2 Registering data
+
+6.2.1. Data that a second test will read, that will grow, or that a backtest, holdout or forward test uses MUST be registered; data read by one test only MAY stay under `--data`.
+
+6.2.2. Before registering, check it is not already there: `<vault.py> dataset list`. Choose the rule from what the data are, not from convenience: data that only accumulate are `append-only`, data that are corrected or re-derived are `revisable`, a published benchmark or fixed split is `frozen`.
+
+6.2.3. Register it with every source you know (`--source`, repeatable), its `--licence` and `--owner`, then add the first version from a folder holding the whole dataset:
+
+```bash
+<vault.py> dataset create <name> --rule append-only --title "<what it is>" --source "<url or vendor>" --licence "<terms>" --owner <who>
+<vault.py> dataset add <name> --from <folder> --source "<where and when this pull came from>" --fetched-by "<script>@<commit12>" --note "<why>" --agent <handle>
+```
+
+6.2.4. The folder MUST be the whole dataset as it now stands, not only the new rows: the vault works out what was added. Fetching runs as its own step before `dataset add`, and the fetch script SHOULD be committed, so `--fetched-by` names a commit. Pass `--source-checksums <file>` when the source publishes checksums.
+
+### 6.3 New data arriving
+
+6.3.1. Fetch into the same folder, then `dataset add <name> --from <folder> ...` as in 6.2.3. It prints `Added <name> vNNNN: ...` or `No change ...`; report the version.
+
+6.3.2. If it refuses with `is append-only` or `is frozen`, the source changed data it had already given. Do not edit the folder to make it pass, do not register it under another name, and do not use `--revise`. Stop, and tell the person which files changed (`dataset show <name> --files` against the folder) so they decide.
+
+### 6.4 Framing a test on a dataset
+
+6.4.1. The plan MUST fix, before any run of the node on the dataset: the dataset and version (`latest` is allowed for forward tests only), the windows by name and span, the evidence class of each run, and the decision rule (the target on the backtest, the target on the holdout, the forward checkpoints and the rule that retires the node).
+
+6.4.2. Define the windows the plan names (6.1) that do not exist yet, and check them: `<vault.py> dataset show <name>`. A holdout that overlaps a backtest window is refused; do not shift it to fit without the person.
+
+6.4.3. A node can share its parent's windows. Siblings share one holdout look between them (6.6), so frame which sibling is the one judged on the holdout, or give siblings their own holdout windows, approved by the person.
+
+### 6.5 Running
+
+6.5.1. Every run on a registered dataset goes through `vault.py run --dataset <name>@<version>:<mount>:<window>`. The mount is a folder inside the repository that git ignores (add it to `.gitignore` and commit that first). The run MUST read the dataset from the `path` in the file `VAULT_DATASETS` names, and only the part of it its `window` names:
+
+| Window class | The run reads |
+|---|---|
+| `backtest`, `holdout` | Only rows whose date is from `from_date` to `to_date` inclusive, in the data's own date format |
+| `forward` | Only the bytes of each file from its `forward_offsets` entry on (0 for a file that is new) |
+
+6.5.2. Runs while developing (a new loader, a parameter search, debugging) MUST use the backtest window with `--exploratory`. They are kept, and never count as evidence.
+
+6.5.3. The test itself is the same command, with the same `--dataset`, without `--exploratory`, after `--dry-run` printed `ready`. Its evidence class is printed as `evidence: <class>`; it MUST be the class the plan fixed.
+
+6.5.4. Run on the holdout once, when the design is final and its backtest met the plan's target: the dry run must print `ready`, the command must be committed, and nothing may change between the dry run and the run. The look is spent when the run starts, even if it fails.
+
+6.5.5. A forward test is the node's committed command run on `<name>@latest:<mount>:<forward window>` after each new version (6.3), unchanged between runs. Record each run on the node as it comes; compare it with the checkpoints only where the plan placed them.
+
+6.5.6. A run on a dataset MUST NOT read it any other way: not through `dataset fetch`, not from the cache folder, not from the source folder. `dataset fetch` is for a person inspecting data.
+
+### 6.6 Holdout refusals
+
+| The tool says | Do |
+|---|---|
+| `already looked at by <node> (this node)` | The node's one look is spent. Report the recorded holdout capsule (`dataset uses <name> --window <window>`) as the result. Do not run again |
+| `already looked at by <node> (a sibling of this node)` | The look belongs to the sibling. Report it to the person; they decide whether this node gets a holdout of its own |
+| `is not in the DAG` | Add the node with `dag_update.py`, refresh the view, then run again |
+| `has a sealed holdout, so a run on it names its window` | Add the window the plan fixed to `--dataset` |
+
+Never get round a refusal by renaming or re-parenting a node, defining a new window, registering the data again, or reading the data outside the vault.
+
+### 6.7 Reporting and status
+
+6.7.1. Report a dataset result as 4.3 gives it, with `<evidence class> evidence` and `data <dataset> <version> (<window>)`.
+
+6.7.2. The status a result can give the node follows from its evidence class and the plan, and the research flow sets it (`/research sync`, by the research-dag skill's `references/node-schema.md`):
+
+| Class | Met the target | Missed it |
+|---|---|---|
+| `exploratory` | No change: the node stays `in_progress` | No change |
+| `untracked` | `validated` if the plan fixed no window; otherwise no change | `ineffective` |
+| `backtest` | `backtested`, or `validated` if the plan fixed no holdout or forward window | `ineffective` |
+| `holdout` | `holdout_passed`, or `validated` if the plan fixed no forward window | `ineffective` |
+| `forward`, at a checkpoint | `forward_testing`, or `validated` at the checkpoint the decision rule names | `contested`, or `retired` by the retire rule |
+
+6.7.3. After a revision (the person's, or yours on a `revisable` dataset), run `<vault.py> dataset impact <name>@<new version>` and pass every listed capsule to `/research retest`, except holdout results, which go to the person (6.6).
+
+## 7. When something goes wrong
 
 | The tool says | Do |
 |---|---|
@@ -79,12 +172,19 @@ export PYTHONHASHSEED=0
 | `is corrupt`, `missing from`, `bundles missing`, `not the recorded` | Stop. Report the capsule and the message to the person. Never repair, rewrite or delete anything in the vault |
 | `cannot read; update the skill` | Update experiment-vault; never edit the manifest |
 | `RESEARCH_VAULT_GCP_KEY is not JSON`, `neither JSON nor base64 JSON`, `is not a service account key` | The environment's key variable is wrong. Tell the person; never print, echo or edit the variable |
+| `is append-only`, `is frozen`, `needs a person` | The data changed in a way its rule forbids. Register the new data as a new version only if it only adds; otherwise tell the person, who decides on a revision |
+| `already looked at by` | See 6.6 |
+| `has a sealed holdout, so a run on it names its window`, `overlaps` | Name the window the plan fixed (6.5.1); windows that overlap are refused, so take it to the person |
+| `is not in the DAG` | Add the node, or refresh the view, and run again |
+| `the run changed dataset` | The experiment wrote into its input. Fix it to write under `--outputs` and run again |
 | `not initialised, or not reachable` | Check `vault.uri` and the gcloud sign-in; a person creates the bucket ([storage](storage.md)) |
 
-## 7. Never
+## 8. Never
 
 - Never edit, overwrite, move or delete anything in the vault, or a `vault/*` tag.
 - Never record a number as a result without the capsule it came from.
 - Never report a retest that was run with `--no-record`, or a `drifted` replay re-run until it passed.
 - Never pass a secret with `--env`, or put one in the command line or the console output. Never print, copy or write out `RESEARCH_VAULT_GCP_KEY`; the tool reads it.
 - Never hand-write a manifest or a `capsules` entry: copy the one the tool printed.
+- Never revise an append-only dataset, override a holdout, or answer a prompt that asks for a person (6.1).
+- Never read a registered dataset except through `vault.py run --dataset`, or outside the window the run names (6.5).

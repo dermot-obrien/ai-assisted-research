@@ -222,6 +222,10 @@ def generate_html(nodes, node_index, experiments, breakthroughs, papers, finding
         "ineffective": "#ef4444",
         "framed": "#a855f7",
         "contested": "#fb923c",
+        "backtested": "#38bdf8",
+        "holdout_passed": "#14b8a6",
+        "forward_testing": "#84cc16",
+        "retired": "#64748b",
     }
 
     issues = compute_issues(nodes)

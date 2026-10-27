@@ -419,7 +419,7 @@ def main():
     
     # Update Node arguments
     parser.add_argument("--node-id", help="Node ID to change for 'update', 'adopt', 'relink', 'set', 'append' and 'note'")
-    parser.add_argument("--status", choices=['pending', 'framed', 'in_progress', 'validated', 'contested', 'ineffective', 'discarded'], help="New status for 'update' action")
+    parser.add_argument("--status", choices=['pending', 'framed', 'in_progress', 'backtested', 'holdout_passed', 'forward_testing', 'validated', 'contested', 'ineffective', 'retired', 'discarded'], help="New status for 'update' action")
     parser.add_argument("--performance", type=float, help="Actual performance for 'update' action")
 
     # Adoption arguments — the second axis (is it live?), see docs/adoption-and-drift.md

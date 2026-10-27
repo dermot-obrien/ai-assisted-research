@@ -52,9 +52,13 @@
           "pending",
           "framed",
           "in_progress",
+          "backtested",
+          "holdout_passed",
+          "forward_testing",
           "validated",
           "contested",
           "ineffective",
+          "retired",
           "discarded"
         ],
         "description": "New status (Required if action=update)."

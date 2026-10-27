@@ -49,14 +49,25 @@ its id first; see [the shared DAG store](#the-shared-dag-store).
 | `in_progress` | Running, on its own research branch |
 | `partially_tested` | Some evidence, not yet conclusive |
 | `contested` | A retest, an audit or a later node disagrees with the recorded result, unresolved |
-| `validated` | Met or beat its target |
+| `backtested` | Met its target on its backtest; its holdout or forward evidence is still to come |
+| `holdout_passed` | Met its target on its sealed holdout, at its one look |
+| `forward_testing` | Being tested on data as it arrives, at checkpoints fixed at framing |
+| `validated` | Met the decision rule fixed at framing |
 | `ineffective` | Tested and missed its target. A result, not a failure |
+| `retired` | Held once and no longer does, or withdrawn from use; the record stays |
 | `discarded` | Stopped before a result, with the reason recorded |
 | `completed` | Resolved and closed; used for roots and legacy nodes |
 
 The usual path is `pending` to `framed` to `in_progress` to `validated` or `ineffective`.
 `dag_update.py --action update` sets any of these except `partially_tested` and
 `completed`, which older DAGs carry and the tools still read.
+
+How far a result can move a node depends on the data it could have seen, its evidence class:
+an `exploratory` run moves it nowhere, a `backtest` to `backtested`, a sealed `holdout` to
+`holdout_passed`, and `forward` data, which did not exist when the test was fixed, through
+`forward_testing` to `validated` or `retired`. A node that fixed no window is validated by its
+result as before. The research-dag skill's
+[node schema](../skills/research-dag/references/node-schema.md) has the full rule.
 
 ## The node index and readiness
 
@@ -166,6 +177,22 @@ result after a library, the environment, the code or the data changed: a drift m
 leaves the status alone, since a run that cannot start says nothing about the claim. The
 experiment-vault skill's [replaying](../skills/experiment-vault/references/replaying.md) and
 [storage](../skills/experiment-vault/references/storage.md) references go further.
+
+### Datasets, windows and evidence
+
+Data that several tests read, or that grows, such as daily prices, is registered in the vault
+once as numbered versions, with its sources and a rule: `append-only` (only new files, or
+files extended at their end), `revisable` (changes are revisions, with a reason) or `frozen`
+(one version). A capsule records the version it read, not a copy, and a revision lists every
+result built on an earlier version, to be retested. Only a person, at a terminal, revises an
+append-only dataset.
+
+Windows name the part of a dataset a test may see: a `backtest` span of history, a sealed
+`holdout` span that each node looks at once and that a sibling of a node that looked cannot,
+and a `forward` window of everything added after a version. Backtesting a trading strategy is
+then a hypothesis test like any other: developed on the backtest window, judged once on the
+holdout, and tested again on each new version of the data as it arrives. The experiment-vault
+skill's [datasets](../skills/experiment-vault/references/datasets.md) reference has the commands.
 
 ## Audit: is it sound?
 

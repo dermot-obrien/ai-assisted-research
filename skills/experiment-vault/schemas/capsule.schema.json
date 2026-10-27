@@ -383,6 +383,127 @@
           ]
         }
       }
+    },
+    "datasets": {
+      "type": "array",
+      "description": "Registered dataset versions the run read, by reference: the files stay in the dataset's version, stored once",
+      "items": {
+        "type": "object",
+        "required": [
+          "dataset",
+          "version",
+          "sha256",
+          "mount"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "dataset": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^v[0-9]{4,}$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "Hash of the version record, checked on restore and verify"
+          },
+          "mount": {
+            "type": "string",
+            "description": "Where the version was mounted, relative to the main repository"
+          },
+          "window": {
+            "type": "object",
+            "required": [
+              "window",
+              "class"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "window": {
+                "type": "string"
+              },
+              "class": {
+                "enum": [
+                  "backtest",
+                  "holdout",
+                  "forward"
+                ]
+              },
+              "from_date": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "to_date": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "from_version": {
+                "type": "string"
+              }
+            }
+          },
+          "forward_offsets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "For a forward window: the byte in each file where the forward data starts"
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "class",
+        "windows"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "enum": [
+            "exploratory",
+            "untracked",
+            "backtest",
+            "holdout",
+            "forward"
+          ]
+        },
+        "windows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "dataset",
+              "window",
+              "class"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "dataset": {
+                "type": "string"
+              },
+              "window": {
+                "type": "string"
+              },
+              "class": {
+                "enum": [
+                  "backtest",
+                  "holdout",
+                  "forward"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

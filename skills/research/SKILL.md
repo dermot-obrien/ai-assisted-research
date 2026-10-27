@@ -5,9 +5,9 @@ license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apac
 compatibility: Reads research.yaml at the workspace root. Python 3.10 or newer with PyYAML, and git. Changes the DAG through the research-dag skill and keeps experiments through the experiment-vault skill, both installed beside it. The start, frame, run, progress and sync flows hand the work item to the work skill (/work start, /work progress, /work initiative), so work must be installed for them; the start flow uses literature-discovery when it is installed.
 metadata:
   author: dermot-obrien
-  version: "4.0.0"
+  version: "4.1.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
-  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0, pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^2.0.0, pkg:generic/dermot-obrien/ai-assisted-research/experiment-vault ^1.0.0"
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0, pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^2.1.0, pkg:generic/dermot-obrien/ai-assisted-research/experiment-vault ^1.3.0"
 ---
 
 # Research
