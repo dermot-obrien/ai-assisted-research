@@ -764,7 +764,8 @@ class TestGuarantees(unittest.TestCase):
         rows = [line for line in page.splitlines() if re.match(r"^\| G\d+ \|", line)]
         self.assertGreaterEqual(len(rows), 20)
         sources = "".join((REPO / "tests" / f).read_text(encoding="utf-8")
-                          for f in ("test_experiment_vault.py", "test_dag_store.py", "test_datasets.py"))
+                          for f in ("test_experiment_vault.py", "test_dag_store.py", "test_datasets.py",
+                                    "test_runtimes.py", "test_pool.py"))
         ci = (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         ids = []
         for row in rows:
@@ -778,6 +779,23 @@ class TestGuarantees(unittest.TestCase):
             if step:
                 self.assertIn(f"name: {step.group(1).strip()}", ci, f"{gid} names a CI step that does not exist")
         self.assertEqual(ids, [f"G{i}" for i in range(1, len(ids) + 1)], "guarantee ids must run G1, G2, ...")
+
+
+class TestGitCalls(unittest.TestCase):
+    def test_the_vaults_git_calls_never_start_background_maintenance(self):
+        """git may run gc or maintenance in the background after a fetch, still writing into a temporary
+        repository the vault is deleting; every git call the vault makes turns both off."""
+        from unittest import mock
+        seen = []
+        real = subprocess.run
+
+        def spy(argv, **kw):
+            seen.append(argv)
+            return real(argv, **kw)
+
+        with mock.patch.object(vault.subprocess, "run", spy):
+            vault.git(["--version"], Path("."))
+        self.assertEqual(seen[0][1:6], ["-c", "gc.auto=0", "-c", "maintenance.auto=false", "--version"])
 
 
 class TestComparison(unittest.TestCase):

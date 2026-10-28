@@ -5,6 +5,7 @@
 <vault>/blobs/sha256/<hex>                                a file, named by the SHA-256 of its content
 <vault>/repos/<root commit>/<tip commit>.bundle           a repository's history, as incremental git bundles
 <vault>/capsules/<project>/<node>/<stamp>-<hash12>.json   one manifest per run or retest
+<vault>/runtimes/<name>.json                              a runtime: machine type, Python build, lock, profile, tolerance
 <vault>/datasets/<name>/dataset.json                      a registered dataset: its rule, sources, licence, owner
 <vault>/datasets/<name>/versions/v<NNNN>.json             a version: every file's path, hash and size, and its changes
 <vault>/datasets/<name>/windows/<window>.json             a backtest, holdout or forward window
@@ -30,8 +31,9 @@ Blob names are flat (no fan-out folders), because object stores have no director
 | `code[]` | `name`, `remote`, `branch`, `commit`, `tree`, `object_format`, `pushed`, `dirty`, `exact`, and `storage`: `bundle` with `root` (the repository's root commit), `bundles` (the tip commits of the bundles that hold it), `tag` and `tag_pushed`, or `archive` with `archive` (a `tar.gz` of the commit, a plain `tar` in format 1); `checkout`, the end-of-line settings (`core.autocrlf`, `core.eol`) the files were checked out with, applied again on restore; when dirty `patch` and `untracked[]`; `submodules` (path to commit), each also captured as its own entry; `path` for a second repository or a submodule, relative to the first |
 | `data[]` | `path` relative to the main repository, `sha256`, `size` |
 | `datasets[]` | Registered datasets the run read, by reference: `dataset`, `version`, `sha256` (of the version's record), `mount` (relative to the main repository), and when it ran on a window `window` (`window`, `class`, and `from_date`, `to_date` or `from_version`) and, for a forward window, `forward_offsets` (the byte in each file where the forward data starts) |
+| `runtime` | When the node fixes one: `name`, `sha256` (of the runtime's record), `profile`, `env` (the variables the vault set), `match` and `problems` (what differed, for an exploratory run) |
 | `evidence` | `class` (`exploratory`, `untracked`, `backtest`, `holdout` or `forward`) and `windows[]` (`dataset`, `window`, `class`) |
-| `environment` | `python` (version, implementation, executable, prefix, platform, machine), `lock` (pip freeze, with `packages` count), `wheels[]` (`file`, `sha256`, `size`), `unpinnable[]`, `conda`, `hardware` (cpu, cores, memory_kb, gpus) |
+| `environment` | `python` (version, implementation, executable, prefix, platform, machine), `lock` (pip freeze, with `packages` count), `wheels[]` (`file`, `sha256`, `size`), `unpinnable[]`, `conda`, `hardware` (cpu, cores, memory_kb, gpus), `machine` (`tool`, the agent platform; `os`, `arch`, `kernel`, `libc`, `cpu`, `cpu_flags`, `python`, `python_build`) |
 | `run` | `argv`, `cwd` (relative to the main repository), `env`, `seeds`, `observed` (false for `capture`), `started_at`, `duration_s`, `exit_code`, `stdout`, `stderr`, `metrics_path`, and on a replay `replay` (setup, pip overrides) |
 | `outputs[]` | `path`, `sha256`, `size` |
 | `metrics` | The metrics JSON as the run wrote it |

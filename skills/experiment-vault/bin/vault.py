@@ -67,7 +67,7 @@ from typing import Any, Iterable
 
 FORMAT = "experiment-vault/2"
 FORMATS = ("experiment-vault/1", "experiment-vault/2")
-TOOL_VERSION = "1.3.0"
+TOOL_VERSION = "1.4.0"
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 CAPSULE_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{12}$")
@@ -151,8 +151,13 @@ def canonical(manifest: dict) -> bytes:
 def run_cmd(argv: list[str], cwd: Path | str | None = None, check: bool = True,
             input_text: str | None = None, env: dict | None = None) -> subprocess.CompletedProcess:
     exe = shutil.which(argv[0]) or argv[0]
+    rest = argv[1:]
+    if Path(argv[0]).name.lower() in ("git", "git.exe"):
+        # No automatic gc or maintenance: git (2.56 on) may start it in the background after a fetch or
+        # commit, still writing into .git/objects when the vault deletes a temporary repository.
+        rest = ["-c", "gc.auto=0", "-c", "maintenance.auto=false", *rest]
     try:
-        p = subprocess.run([exe, *argv[1:]], cwd=cwd, input=input_text, capture_output=True,
+        p = subprocess.run([exe, *rest], cwd=cwd, input=input_text, capture_output=True,
                            text=True, encoding="utf-8", errors="replace", env=env)
     except FileNotFoundError as e:
         raise VaultError(f"{argv[0]} is not installed or not on PATH") from e
@@ -913,7 +918,7 @@ def node_snapshot(settings: Settings, node_id: str) -> dict:
     for node in dag.get("nodes", []) if isinstance(dag, dict) else []:
         if isinstance(node, dict) and node.get("id") == node_id:
             keep = ("hypothesis", "status", "target_improvement", "target", "metric", "parent", "parents",
-                    "work_item_id", "work_item")
+                    "work_item_id", "work_item", "runtime")
             snap["snapshot"] = json.loads(json.dumps({k: node[k] for k in keep if k in node}, default=str))
             break
     else:
@@ -983,6 +988,13 @@ def write_capsule(backend: Backend, project: str, node: str, manifest: dict, blo
         ref["result"] = manifest["result"]
     if manifest.get("evidence"):
         ref["evidence"] = manifest["evidence"]["class"]
+    if manifest.get("runtime"):
+        ref["runtime"] = {"name": manifest["runtime"]["name"], "match": manifest["runtime"]["match"]}
+    machine = manifest.get("environment", {}).get("machine")
+    if machine:
+        ref["env"] = {k: machine.get(k) for k in ("tool", "os", "arch", "cpu", "python")}
+    if manifest.get("upgrade"):
+        ref["upgrade"] = True
     return ref
 
 
@@ -1136,7 +1148,8 @@ def compare(original: dict, metrics: dict | None, outputs: list[dict], exit_code
 
 def build_manifest(settings: Settings, args, node: str, kind: str, code: list[dict], data: list[dict],
                    environment: dict, run: dict, outputs: list[dict], metrics: dict | None,
-                   datasets: list[dict] | None = None, evidence: dict | None = None) -> dict:
+                   datasets: list[dict] | None = None, evidence: dict | None = None,
+                   runtime: dict | None = None) -> dict:
     manifest: dict[str, Any] = {
         "format": FORMAT, "tool": f"experiment-vault {TOOL_VERSION}", "kind": kind,
         "created_at": iso(now_utc()), "host": socket.gethostname(), "project": settings.project,
@@ -1147,6 +1160,9 @@ def build_manifest(settings: Settings, args, node: str, kind: str, code: list[di
     }
     if datasets:
         manifest["datasets"] = datasets
+    if runtime:
+        manifest["runtime"] = {k: v for k, v in runtime.items() if k != "tolerance"}
+        manifest["tolerance"] = dict(runtime["tolerance"])
     if evidence:
         manifest["evidence"] = evidence
     if getattr(args, "agent", None):
@@ -1212,6 +1228,15 @@ def cmd_preflight(settings: Settings, args, observed: bool) -> int:
                 notes.append(f"dataset {d['dataset']} {d['version']} at {d['mount']}"
                              + (f", window {w['window']} ({w['class']})" if w else ", no window"))
             notes.append(f"evidence class: {evidence_of(found, args.exploratory)['class']}")
+        if backend is not None:
+            cls = evidence_of(found if args.dataset else [], args.exploratory)["class"]
+            try:
+                rt = runtime_for_run(backend, snap, args, args.python or sys.executable, root, cls, observed)
+                if rt:
+                    notes.append(f"runtime {rt['name']}: " + ("matched" if rt["match"] else
+                                 f"not matched ({len(rt['problems'])} difference(s)); exploratory only"))
+            except VaultError as e:
+                problems.append(str(e).replace("\n", " "))
         n, size = 0, 0
         for d in args.data or []:
             files = check(lambda: walk_files([d], cwd, root, None, "data"))
@@ -1266,11 +1291,21 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
             if rel is not None:
                 code[-1]["path"] = rel
         data = walk_files(args.data or [], cwd, root, blobs, "data")
+        # Checked before any holdout is claimed, so a run refused for its runtime spends no look.
+        runtime = runtime_for_run(backend, node_snapshot(settings, node).get("snapshot"), args,
+                                  args.python or sys.executable, root,
+                                  "exploratory" if args.exploratory else "evidence", observed)
         datasets = prepare_datasets(settings, backend, args.dataset or [], root, cwd, node,
                                     lineage(node_snapshot(settings, node).get("snapshot")), args.override_holdout,
                                     dry=False)
         evidence = evidence_of(datasets, args.exploratory)
+        if runtime and runtime["match"] and runtime["tolerance"] != {"rtol": args.rtol, "atol": args.atol} \
+                and (args.rtol is not None or args.atol is not None):
+            print(f"note: runtime {runtime['name']} fixes the tolerance at rtol {runtime['tolerance']['rtol']}, "
+                  f"atol {runtime['tolerance']['atol']}; --rtol and --atol are not used", file=sys.stderr)
         env_vars = recorded_env(args.env or [])
+        if runtime:
+            env_vars.update(runtime["env"])
         if "PYTHONHASHSEED" not in env_vars:
             print("note: PYTHONHASHSEED is not set, so set and dict-of-str iteration order can differ "
                   "between runs; set it for bit-identical replays", file=sys.stderr)
@@ -1281,6 +1316,8 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         started_wall = time.time() - 0.001
         if observed:
             run_env = without_vault_keys(os.environ)
+            if runtime:
+                run_env.update(runtime["env"])
             if datasets:
                 run_env["VAULT_DATASETS"] = str(datasets_env_file(datasets, root, work))
             code_rc, out_p, err_p, secs = tee_run(argv, cwd, run_env, work)
@@ -1300,6 +1337,7 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
                     run[k] = blob_entry(Path(getattr(args, k)).resolve(), blobs)
         environment = capture_environment(args.python or sys.executable,
                                           args.vendor_wheels or settings.vendor_wheels, work, blobs, args.strict)
+        environment["machine"] = machine_summary(args.python or sys.executable, args)
         stale: list[str] = []
         outputs = walk_files([o for o in (args.outputs or []) if (cwd / o).exists()], cwd, root, blobs, "output",
                              since=started_wall if observed else None, stale=stale)
@@ -1313,7 +1351,7 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         if args.metrics:
             run["metrics_path"] = Path(os.path.abspath(cwd / args.metrics)).relative_to(root).as_posix()
         manifest = build_manifest(settings, args, node, "retest" if prior else "run", code, data,
-                                  environment, run, outputs, metrics, datasets, evidence)
+                                  environment, run, outputs, metrics, datasets, evidence, runtime)
         if prior:
             tol = manifest["tolerance"]
             manifest["retest_of"] = f"{node}/{prior_id}"
@@ -1324,6 +1362,8 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         print(f"  evidence: {evidence['class']}; data: "
               + ", ".join(f"{d['dataset']} {d['version']}" + (f" ({d['window']['window']})" if d.get('window') else "")
                           for d in datasets))
+    if runtime:
+        print(f"  runtime: {runtime['name']} ({'matched' if runtime['match'] else 'NOT matched: exploratory only'})")
     if prior:
         print_comparison(manifest["comparison"])
     if not args.no_link:
@@ -1462,12 +1502,47 @@ def setup_venv(dest: Path, manifest: dict, python: str, pip_extra: list[str]) ->
     return py
 
 
+def setup_uv(project: Path, record: dict | None) -> str:
+    """The restored project's own uv environment, from its uv.lock, in the runtime's Python."""
+    if not shutil.which("uv"):
+        raise VaultError("--setup uv needs uv (https://docs.astral.sh/uv/); install it, or replay with --setup venv")
+    if not (project / "uv.lock").is_file():
+        raise VaultError(f"the restored project has no uv.lock; replay with --setup venv")
+    cmd = ["uv", "sync", "--frozen"]
+    if record:
+        cmd += ["--python", record["python"]["version"]]
+        if record["python"].get("managed"):
+            cmd.append("--managed-python")
+    print(f"Installing the locked environment: {' '.join(cmd)}")
+    env = {k: v for k, v in without_vault_keys(os.environ).items() if k not in ("VIRTUAL_ENV", "UV_NATIVE_TLS")}
+    p = subprocess.run(cmd, cwd=project, env=env, capture_output=True, text=True)
+    if p.returncode != 0:
+        raise VaultError(f"uv sync failed: {(p.stdout + p.stderr).strip()[-400:]}")
+    return str(project / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python"))
+
+
 def cmd_replay(settings: Settings, args) -> int:
     settings.need()
     backend = open_backend(settings.uri)
+    node, cid, manifest, _ = resolve(backend, settings, args.capsule, args.node)
+    rt_name = args.runtime or (manifest.get("runtime") or {}).get("name")
+    rt_record, rt_digest = load_runtime(backend, rt_name) if rt_name else (None, None)
+    upgrade = None
+    if args.upgrade:
+        # A regression test: the capsule's own code, with the packages of a newer lock (and its runtime).
+        source = Path(args.upgrade).resolve()
+        if not (source / "uv.lock").is_file() or not (source / "pyproject.toml").is_file():
+            raise VaultError(f"--upgrade {args.upgrade} must be a folder with pyproject.toml and uv.lock, such as "
+                             f"a checkout where `uv lock --upgrade` was run")
+        if args.setup not in (None, "uv"):
+            raise VaultError("--upgrade installs the new uv.lock, so it needs --setup uv")
+        args.setup = "uv"
+        upgrade = {"lock_sha256": sha256_file(source / "uv.lock")[0],
+                   "pyproject_sha256": sha256_file(source / "pyproject.toml")[0], "runtime": rt_name}
+    if args.setup is None:
+        args.setup = "uv" if rt_record else "venv"
     if args.pip and args.setup != "venv":
         raise VaultError("--pip needs --setup venv, so the overrides do not change your own environment")
-    node, cid, manifest, _ = resolve(backend, settings, args.capsule, args.node)
     if args.to:
         dest = Path(args.to).resolve()
     else:
@@ -1480,8 +1555,15 @@ def cmd_replay(settings: Settings, args) -> int:
     print(f"Restored {node}/{cid} into {dest}")
     recorded_py = (manifest.get("environment", {}).get("python") or {})
     base_python = args.python or sys.executable
+    main_dir = dest / "repos" / manifest["code"][0]["name"]
     if args.setup == "venv":
         py = setup_venv(dest, manifest, base_python, args.pip or [])
+    elif args.setup == "uv":
+        if upgrade:
+            for f in ("pyproject.toml", "uv.lock"):
+                shutil.copyfile(Path(args.upgrade).resolve() / f, main_dir / f)
+            print(f"Upgrading: the capsule's code with the packages of {args.upgrade}")
+        py = setup_uv(main_dir, rt_record)
     else:
         py = base_python
     probe = json.loads(run_cmd([py, "-c", INTERPRETER_PROBE]).stdout)
@@ -1496,9 +1578,20 @@ def cmd_replay(settings: Settings, args) -> int:
     if manifest.get("datasets"):
         main_dir = dest / "repos" / manifest["code"][0]["name"]
         env["VAULT_DATASETS"] = str(datasets_env_file(manifest["datasets"], main_dir, dest))
-    if args.setup == "venv":
-        env["VIRTUAL_ENV"] = str(dest / ".venv")
+    if args.setup in ("venv", "uv"):
+        env["VIRTUAL_ENV"] = str(Path(py).parent.parent)
         env["PATH"] = str(Path(py).parent) + os.pathsep + env.get("PATH", "")
+    runtime = None
+    if rt_record:
+        problems = check_runtime(rt_record, py, main_dir)
+        for line in problems:
+            print(f"warning: runtime {rt_record['name']}: {line}", file=sys.stderr)
+        runtime = {**(manifest.get("runtime") or {}), "name": rt_name, "sha256": rt_digest,
+                   "profile": rt_record["profile"], "match": not problems, "problems": problems,
+                   "tolerance": rt_record["tolerance"]}
+        if rt_name != (manifest.get("runtime") or {}).get("name"):
+            runtime["env"] = runtime_env(rt_record, py)
+            env.update(runtime["env"])
     with tempfile.TemporaryDirectory(prefix="vault-") as td:
         work = Path(td)
         blobs: dict[str, Path] = {}
@@ -1519,18 +1612,25 @@ def cmd_replay(settings: Settings, args) -> int:
         print_comparison(comparison)
         if not args.no_record:
             environment = capture_environment(py, False, work, blobs, False)
+            environment["machine"] = machine_summary(py, args)
             new_run = {**run, "argv": run["argv"], "observed": True, "started_at": iso(now_utc()),
                        "duration_s": secs, "exit_code": rc,
                        "stdout": blob_entry(out_p, blobs), "stderr": blob_entry(err_p, blobs),
                        "replay": {"setup": args.setup, "pip": args.pip or []}}
+            if upgrade:
+                new_run["replay"]["upgrade"] = upgrade
+            if runtime:
+                new_run["env"] = {**run.get("env", {}), **runtime["env"]}
             args.metric = (manifest.get("result") or {}).get("metric")
             args.target = (manifest.get("result") or {}).get("target")
             retest = build_manifest(settings, args, node, "retest", manifest["code"], manifest.get("data", []),
                                     environment, new_run, outputs, metrics, manifest.get("datasets"),
-                                    manifest.get("evidence"))
+                                    manifest.get("evidence"), runtime)
             retest["tolerance"] = {"rtol": rtol, "atol": atol}
             retest["retest_of"] = f"{node}/{cid}"
             retest["comparison"] = comparison
+            if upgrade:
+                retest["upgrade"] = upgrade
             ref = write_capsule(backend, settings.project, node, retest, blobs)
             record_uses(backend, settings.project, node, ref["id"], retest)
             if not args.no_link:
@@ -1547,6 +1647,293 @@ def print_comparison(c: dict) -> None:
     o = c["outputs"]
     print(f"  outputs: {o['identical']} identical, {len(o['changed'])} changed"
           + (f": {', '.join(o['changed'][:5])}" if o["changed"] else ""))
+
+
+# ---------------------------------------------------------------- runtimes
+
+RUNTIME_FORMAT = "experiment-vault-runtime/1"
+# numpy names the AVX-512 code paths by feature group from 2.4 on, and one by one before that; the first
+# value the interpreter's own numpy accepts is used, and recorded, so a replay sets exactly the same.
+NUMPY_AVX512_OFF = ("X86_V4 AVX512_ICL AVX512_SPR",
+                    "AVX512F AVX512CD AVX512_KNL AVX512_KNM AVX512_SKX AVX512_CLX AVX512_CNL AVX512_ICL AVX512_SPR")
+PROFILES: dict[str, dict] = {
+    "cpu-deterministic-v1": {
+        "description": "One thread for every numeric library, one fixed CPU code path (AVX2 and FMA, no AVX-512) "
+                       "whatever the CPU, deterministic GPU kernels where a library offers them, and a fixed "
+                       "hash seed, time zone and locale",
+        "env": {"PYTHONHASHSEED": "0", "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1",
+                "NUMEXPR_NUM_THREADS": "1", "VECLIB_MAXIMUM_THREADS": "1", "BLIS_NUM_THREADS": "1",
+                "OPENBLAS_CORETYPE": "Haswell", "MKL_CBWR": "AVX2,STRICT", "MKL_ENABLE_INSTRUCTIONS": "AVX2",
+                "CUBLAS_WORKSPACE_CONFIG": ":4096:8", "TF_DETERMINISTIC_OPS": "1", "TF_CUDNN_DETERMINISTIC": "1",
+                "TZ": "UTC", "LC_ALL": "C.UTF-8", "LANG": "C.UTF-8"},
+        "cpu_features": ["avx2", "fma"],
+        "numpy_avx512": "off",
+    },
+    "none": {
+        "description": "No settings: the runtime pins the machine type, the interpreter and the packages only",
+        "env": {}, "cpu_features": [], "numpy_avx512": "as-is",
+    },
+}
+CPU_FLAGS_KEPT = ("sse4_2", "avx", "avx2", "fma", "avx512f", "avx512bw", "avx512vl", "avx512dq", "avx512_vnni", "amx_tile")
+MACHINE_PROBE = (
+    "import json, platform, sys, sysconfig;"
+    "print(json.dumps({'version': platform.python_version(), 'build': sys.version,"
+    "'implementation': platform.python_implementation(), 'executable': sys.executable,"
+    "'prefix': sys.prefix, 'base_prefix': sys.base_prefix, 'system': platform.system().lower(),"
+    "'machine': platform.machine().lower(), 'libc': ' '.join(platform.libc_ver()).strip(),"
+    "'kernel': platform.release()}))"
+)
+
+
+def cpu_flags() -> set[str]:
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("flags"):
+                    return set(line.split(":", 1)[1].split())
+    except OSError:
+        pass
+    return set()
+
+
+def os_release() -> str:
+    try:
+        fields = dict(l.rstrip("\n").split("=", 1) for l in open("/etc/os-release", encoding="utf-8") if "=" in l)
+        return f"{fields.get('ID', '').strip(chr(34))} {fields.get('VERSION_ID', '').strip(chr(34))}".strip()
+    except OSError:
+        return f"{platform.system()} {platform.release()}"
+
+
+def agent_tool(args) -> str:
+    """Which agent platform made the run: --tool, else VAULT_AGENT_TOOL, else what the environment shows."""
+    named = getattr(args, "tool", None) or os.environ.get("VAULT_AGENT_TOOL")
+    if named:
+        return named
+    if os.environ.get("CLAUDECODE"):
+        return "claude-code-remote" if os.environ.get("CLAUDE_CODE_REMOTE") else "claude-code"
+    return "unknown"
+
+
+def probe_machine(python: str) -> dict:
+    p = run_cmd([python, "-c", MACHINE_PROBE], check=False)
+    if p.returncode != 0:
+        raise VaultError(f"cannot run {python}: {p.stderr.strip()[:200]}")
+    return json.loads(p.stdout)
+
+
+def machine_summary(python: str, args) -> dict:
+    """Where a run ran, as a capsule's environment and the DAG's capsule entry record it."""
+    try:
+        m = probe_machine(python)
+    except VaultError:
+        m = {"system": platform.system().lower(), "machine": platform.machine().lower(), "version": "?"}
+    flags = cpu_flags()
+    return {"tool": agent_tool(args), "os": os_release(), "arch": f"{m['system']}-{m['machine']}",
+            "kernel": m.get("kernel", platform.release()), "libc": m.get("libc", ""),
+            "cpu": hardware().get("cpu", ""), "cpu_flags": sorted(f for f in CPU_FLAGS_KEPT if f in flags),
+            "python": m.get("version"), "python_build": m.get("build")}
+
+
+def rt_key(name: str) -> str:
+    return f"runtimes/{name}.json"
+
+
+def load_runtime(backend: Backend, name: str) -> tuple[dict, str]:
+    if not NAME_RE.match(name or ""):
+        raise VaultError(f"runtime name {name!r} must be letters, digits, '.', '_' or '-'")
+    got = read_json(backend, rt_key(name))
+    if got is None:
+        raise VaultError(f"there is no runtime {name}; define it with vault.py runtime create {name} --python <interpreter>")
+    record, digest = got
+    if record.get("format") != RUNTIME_FORMAT:
+        raise VaultError(f"runtime {name} has format {record.get('format')}; update the skill to read it")
+    return record, digest
+
+
+def numpy_setting(python: str) -> str | None:
+    """The value of NPY_DISABLE_CPU_FEATURES that turns AVX-512 off for this interpreter's numpy, or None
+    when numpy is not installed."""
+    if run_cmd([python, "-c", "import numpy"], check=False).returncode != 0:
+        return None
+    for value in NUMPY_AVX512_OFF:
+        env = {**os.environ, "NPY_DISABLE_CPU_FEATURES": value}
+        p = subprocess.run([python, "-c", "import numpy"], env=env, capture_output=True, text=True)
+        if p.returncode == 0 and not p.stderr.strip():
+            return value
+    raise VaultError(f"the numpy of {python} accepts none of the known ways to turn AVX-512 off; "
+                     f"update the skill for this numpy")
+
+
+def runtime_env(record: dict, python: str) -> dict[str, str]:
+    profile = PROFILES[record["profile"]]
+    env = dict(profile["env"])
+    if profile.get("numpy_avx512") == "off":
+        value = numpy_setting(python)
+        if value:
+            env["NPY_DISABLE_CPU_FEATURES"] = value
+    return env
+
+
+def check_runtime(record: dict, python: str, root: Path | None) -> list[str]:
+    """Every way this machine, interpreter and environment differ from the runtime; empty when they match."""
+    problems = []
+    try:
+        m = probe_machine(python)
+    except VaultError as e:
+        return [str(e)]
+    arch = f"{m['system']}-{m['machine']}"
+    if arch != record["arch"]:
+        problems.append(f"this machine is {arch}; runtime {record['name']} is {record['arch']}")
+    want = record["python"]
+    if m["version"] != want["version"] or m["build"] != want["build"]:
+        problems.append(f"the interpreter is Python {m['version']} ({m['build'].splitlines()[0]}); runtime "
+                        f"{record['name']} is {want['version']} ({want['build'].splitlines()[0]})"
+                        + (". Install it with: uv python install " + want["version"] if want.get("managed") else ""))
+    missing = [f for f in PROFILES[record["profile"]]["cpu_features"] if f not in cpu_flags()]
+    if missing:
+        problems.append(f"this CPU lacks {', '.join(missing)}, which profile {record['profile']} needs")
+    if record.get("lock") == "uv" and root is not None:
+        if not shutil.which("uv"):
+            problems.append("uv is not installed, so the environment cannot be checked against uv.lock")
+        elif not (root / "uv.lock").is_file():
+            problems.append(f"{root} has no uv.lock; runtime {record['name']} runs only from a locked uv project")
+        elif m["prefix"] == m["base_prefix"]:
+            problems.append(f"{python} is not the project's environment; run `uv sync --frozen` and use "
+                            f"{root / '.venv' / 'bin' / 'python'}")
+        else:
+            env = {**without_vault_keys(os.environ), "VIRTUAL_ENV": m["prefix"]}
+            env.pop("UV_NATIVE_TLS", None)
+            p = subprocess.run(["uv", "sync", "--frozen", "--check", "--active"], cwd=root, env=env,
+                               capture_output=True, text=True)
+            if p.returncode != 0:
+                lines = [l for l in (p.stdout + p.stderr).splitlines() if l.strip() and "warning:" not in l]
+                problems.append("the environment does not match uv.lock: " + "; ".join(lines[-4:])
+                                + ". Run `uv sync --frozen`")
+    return problems
+
+
+def runtime_for_run(backend: Backend, snap: dict | None, args, python: str, root: Path,
+                    evidence_class: str, observed: bool) -> dict | None:
+    """The runtime the node fixes (or --runtime names), checked against this machine. Refuses an evidence
+    run that does not match; an exploratory run is recorded with what differed."""
+    named = getattr(args, "runtime", None)
+    fixed = (snap or {}).get("runtime")
+    if named and fixed and named != fixed:
+        raise VaultError(f"the node fixes runtime {fixed}; --runtime {named} names another")
+    name = named or fixed
+    if not name:
+        return None
+    record, digest = load_runtime(backend, name)
+    problems = check_runtime(record, python, root)
+    if not observed:
+        problems.append("a capture cannot show the machine a past run ran on")
+    evidence = evidence_class != "exploratory"
+    if problems and evidence:
+        raise VaultError(f"this run does not match runtime {name}, so it cannot be evidence:\n  - "
+                         + "\n  - ".join(problems)
+                         + "\nFix them, or run with --exploratory (kept, never evidence)")
+    for line in problems:
+        print(f"warning: runtime {name}: {line}", file=sys.stderr)
+    env = runtime_env(record, python) if not any("cannot run" in p for p in problems) else {}
+    return {"name": name, "sha256": digest, "profile": record["profile"], "env": env, "match": not problems,
+            "problems": problems, "tolerance": record["tolerance"]}
+
+
+def cmd_runtime_create(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    if not NAME_RE.match(args.name):
+        raise VaultError(f"runtime name {args.name!r} must be letters, digits, '.', '_' or '-'")
+    if args.profile not in PROFILES:
+        raise VaultError(f"unknown profile {args.profile}; the profiles are {', '.join(PROFILES)}")
+    m = probe_machine(args.python)
+    managed = False
+    if shutil.which("uv"):
+        p = run_cmd(["uv", "python", "dir"], check=False)
+        managed = p.returncode == 0 and Path(m["executable"]).resolve().is_relative_to(Path(p.stdout.strip()).resolve())
+    record = {"format": RUNTIME_FORMAT, "name": args.name, "arch": f"{m['system']}-{m['machine']}",
+              "python": {"version": m["version"], "build": m["build"], "implementation": m["implementation"],
+                         "managed": managed},
+              "lock": "uv", "profile": args.profile, "tolerance": {"rtol": args.rtol, "atol": args.atol},
+              "parity": not args.no_parity, "created_at": iso(now_utc()), "host": socket.gethostname()}
+    if args.note:
+        record["note"] = args.note
+    if not managed:
+        print(f"warning: {m['executable']} is not a uv-managed Python, so other machines may not find the same "
+              f"build; `uv python install {m['version']}` gives the same build everywhere", file=sys.stderr)
+    if not backend.write_once(rt_key(args.name), canonical(record)):
+        raise VaultError(f"runtime {args.name} already exists; a runtime is defined once. Name a new one")
+    print(f"Defined runtime {args.name}: {record['arch']}, Python {m['version']}"
+          f"{' (uv-managed)' if managed else ''}, uv.lock, profile {args.profile}, "
+          f"rtol {args.rtol}, atol {args.atol}, {'parity required' if record['parity'] else 'no parity check'}")
+    return 0
+
+
+def cmd_runtime_show(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    if args.name:
+        record, digest = load_runtime(backend, args.name)
+        print(json.dumps({**record, "sha256": digest, "profile_env": PROFILES[record["profile"]]["env"]}, indent=2))
+        return 0
+    names = sorted(k[len("runtimes/"):-len(".json")] for k in backend.list("runtimes/") if k.endswith(".json"))
+    if not names:
+        print("No runtimes yet.")
+    for n in names:
+        r, _ = load_runtime(backend, n)
+        print(f"{n}  {r['arch']}  Python {r['python']['version']}  {r['profile']}  rtol {r['tolerance']['rtol']}")
+    return 0
+
+
+def cmd_runtime_check(settings: Settings, args) -> int:
+    settings.need(project=False)
+    backend = open_backend(settings.uri)
+    record, _ = load_runtime(backend, args.name)
+    python = args.python or sys.executable
+    try:
+        root = Path(git(["rev-parse", "--show-toplevel"], Path(args.cwd).resolve())).resolve()
+    except VaultError:
+        root = Path(args.cwd).resolve()
+    problems = check_runtime(record, python, root)
+    m = machine_summary(python, args)
+    print(f"This machine: {m['tool']}, {m['os']}, {m['arch']}, {m['cpu']}, Python {m['python']}")
+    for line in problems:
+        print(f"PROBLEM {line}")
+    print(f"matches runtime {args.name}" if not problems else f"does not match runtime {args.name}: {len(problems)} problem(s)")
+    return 0 if not problems else 2
+
+
+def cmd_parity(settings: Settings, args) -> int:
+    """Whether a capsule was replayed identically on another machine in its runtime: the check a result on a
+    node with a runtime needs before its status moves."""
+    settings.need()
+    backend = open_backend(settings.uri)
+    node, cid, manifest, _ = resolve(backend, settings, args.capsule, args.node)
+    where = manifest.get("environment", {}).get("machine", {})
+    prefix = f"capsules/{settings.project}/{node}/"
+    found = []
+    for key in backend.list(prefix):
+        if not key.endswith(".json") or key.endswith(f"/{cid}.json"):
+            continue
+        got = read_json(backend, key)
+        if not got:
+            continue
+        m = got[0]
+        if m.get("retest_of") != f"{node}/{cid}":
+            continue
+        other = m.get("environment", {}).get("machine", {})
+        elsewhere = m.get("host") != manifest.get("host") or other.get("tool") != where.get("tool")
+        same_runtime = (m.get("runtime") or {}).get("name") == (manifest.get("runtime") or {}).get("name")
+        ok = ((m.get("comparison") or {}).get("verdict") == "identical" and (m.get("runtime") or {}).get("match")
+              and same_runtime and not m.get("upgrade") and elsewhere)
+        found.append((ok, key.rsplit("/", 1)[1][:-5], m, other))
+    for ok, rid, m, other in found:
+        print(f"{'ok  ' if ok else '    '}{rid}  {(m.get('comparison') or {}).get('verdict')}  "
+              f"{other.get('tool', '?')} on {m.get('host')}  runtime {'matched' if (m.get('runtime') or {}).get('match') else 'not matched'}")
+    passed = any(ok for ok, *_ in found)
+    print(f"parity: {node}/{cid} " + ("was replayed identically on another machine in its runtime" if passed
+                                      else "has no identical replay on another machine in its runtime yet"))
+    return 0 if passed else 1
 
 
 # ---------------------------------------------------------------- datasets
@@ -2346,6 +2733,8 @@ def main(argv: list[str] | None = None) -> int:
                        help="Look at a sealed holdout again; a person confirms at a terminal, and the reason is recorded")
         p.add_argument("--dry-run", action="store_true",
                        help="Check everything the capture needs and print the plan; run, tag and upload nothing")
+        p.add_argument("--runtime", help="The runtime the run must match (default: the one the node fixes)")
+        p.add_argument("--tool", help="The agent platform making the run (default: VAULT_AGENT_TOOL, or detected)")
 
     p = sub.add_parser("init", help="Write VAULT.md at the vault root")
     p = sub.add_parser("run", help="Run a command and keep everything it used and produced as a capsule")
@@ -2378,9 +2767,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("capsule")
     p.add_argument("--node")
     p.add_argument("--to", help="Where to restore (default: .vault-replay/<capsule id>)")
-    p.add_argument("--setup", choices=["venv", "none"], default="venv",
-                   help="venv: a fresh virtual environment from the capsule's lock (default); "
-                        "none: this interpreter as it is, to retest against what has changed")
+    p.add_argument("--setup", choices=["uv", "venv", "none"],
+                   help="uv: the project's uv.lock in the runtime's Python (the default for a capsule with a "
+                        "runtime); venv: a fresh virtual environment from the capsule's lock (the default "
+                        "otherwise); none: this interpreter as it is, to retest against what has changed")
+    p.add_argument("--tool", help="The agent platform making the replay (default: VAULT_AGENT_TOOL, or detected)")
+    p.add_argument("--upgrade", metavar="DIR",
+                   help="A regression test: replay the capsule's code with the pyproject.toml and uv.lock in DIR "
+                        "(a checkout where `uv lock --upgrade` was run), and compare")
+    p.add_argument("--runtime", help="The runtime to check the replay against (default: the capsule's); with "
+                                     "--upgrade, the runtime defined from the upgraded environment")
     p.add_argument("--python", help="The base interpreter (default: this one)")
     p.add_argument("--pip", action="append", help="A requirement to install over the lock, e.g. numpy==2.1.0 (repeatable)")
     p.add_argument("--rtol", type=float)
@@ -2390,6 +2786,28 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--work-item")
     p.add_argument("--no-record", action="store_true", help="Do not keep the replay as a retest capsule")
     p.add_argument("--no-link", action="store_true", help="Do not record the retest on the DAG node")
+    p = sub.add_parser("parity", help="Whether a capsule was replayed identically on another machine in its runtime")
+    p.add_argument("capsule")
+    p.add_argument("--node")
+    p = sub.add_parser("runtime", help="Define, show and check runtimes: the machine type, Python and settings "
+                                       "a node's evidence runs must match")
+    rsub = p.add_subparsers(dest="runtime_command", required=True)
+    q = rsub.add_parser("create", help="Define a runtime from an interpreter, once")
+    q.add_argument("name")
+    q.add_argument("--python", required=True, help="The interpreter to pin, ideally uv-managed (uv python find <v>)")
+    q.add_argument("--profile", default="cpu-deterministic-v1", help="The determinism settings: " + ", ".join(PROFILES))
+    q.add_argument("--rtol", type=float, default=0.0, help="Relative tolerance of a replay (default 0: exact)")
+    q.add_argument("--atol", type=float, default=0.0, help="Absolute tolerance of a replay (default 0: exact)")
+    q.add_argument("--no-parity", action="store_true",
+                   help="Do not require an identical replay on another machine before a result counts")
+    q.add_argument("--note")
+    q = rsub.add_parser("show", help="One runtime, or every runtime")
+    q.add_argument("name", nargs="?")
+    q = rsub.add_parser("check", help="Whether this machine and environment match a runtime")
+    q.add_argument("name")
+    q.add_argument("--python", help="The interpreter to check (default: this one)")
+    q.add_argument("--cwd", default=".", help="The project (default: here)")
+    q.add_argument("--tool")
     p = sub.add_parser("coverage", help="List the DAG's result nodes that have no capsule")
     p.add_argument("--verify", action="store_true", help="Also check every recorded capsule is intact")
     p.add_argument("--strict", action="store_true", help="Exit 1 when any result node has no capsule")
@@ -2482,6 +2900,11 @@ def main(argv: list[str] | None = None) -> int:
                     "list": cmd_dataset_list, "show": cmd_dataset_show, "diff": cmd_dataset_diff,
                     "fetch": cmd_dataset_fetch, "uses": cmd_dataset_uses,
                     "impact": cmd_dataset_impact}[args.dataset_command](settings, args)
+        if args.command_name == "parity":
+            return cmd_parity(settings, args)
+        if args.command_name == "runtime":
+            return {"create": cmd_runtime_create, "show": cmd_runtime_show,
+                    "check": cmd_runtime_check}[args.runtime_command](settings, args)
         if args.command_name == "lifecycle":
             return cmd_lifecycle(settings, args)
     except VaultError as e:

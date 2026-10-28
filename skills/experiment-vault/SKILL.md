@@ -1,11 +1,11 @@
 ---
 name: experiment-vault
-description: "Keep every hypothesis experiment as an immutable capsule in cheap cloud storage (a GCS bucket or a folder) that any later agent can replay: the code at its commit, kept as tagged incremental git bundles and checked against the git tree; the data it read, or the version of a registered dataset; the Python environment; the command, seeds, console output, outputs and metrics, linked to the hypothesis node by hash. Replays a capsule and says whether the result is identical, reproduced within tolerance or drifted. Registers datasets once as append-only, revisable or frozen versions with their sources, with backtest, sealed holdout and forward windows, so each test records its evidence class and a holdout is looked at once. Use when running or recording an experiment, when asked to reproduce, replay or retest one, to check a result still holds after code, data or a library changed, to audit a result, to register or version a dataset, to backtest or forward-test a strategy, or to set up the vault."
+description: "Keep every hypothesis experiment as an immutable capsule in cheap cloud storage (a GCS bucket or a folder) that any later agent can replay: the code at its commit, as tagged incremental git bundles; the data, or the registered dataset version; the environment and the machine it ran on; the command, seeds, outputs and metrics, linked to the node by hash. Replays a capsule and says whether the result is identical, reproduced or drifted. Registers datasets as append-only, revisable or frozen versions with backtest, sealed holdout and forward windows. Pins runtimes (machine type, Python build, uv lock, determinism settings) so an experiment gives the same result on any machine or agent platform, with a parity check. Use when running, recording, replaying or retesting an experiment, checking a result still holds, auditing what it was made from, registering or windowing a dataset, backtesting or forward-testing a strategy, making results reproducible across machines, or setting up the vault."
 license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apache-2.0; see the repository's LICENSE.
 compatibility: Python 3.10 or newer with PyYAML, and git. A gs:// vault needs the gcloud CLI, signed in with write access to the bucket, or a service account key in RESEARCH_VAULT_GCP_KEY (cloud sessions). Reads research.yaml when there is one (vault.uri, vault.project or dag_project, dag_path); without it, pass --vault and --project. Records each capsule on the DAG node through the research-dag skill when it is installed beside this one.
 metadata:
   author: dermot-obrien
-  version: "1.3.0"
+  version: "1.4.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: ""
 ---
@@ -34,6 +34,7 @@ Every capture and replay follows [references/protocol.md](references/protocol.md
 | Register data more than one test reads, add a new version, "new data arrived" | `vault.py dataset create`, `dataset add` | [references/datasets.md](references/datasets.md) |
 | Backtest, holdout, forward test, out-of-sample, "has this been looked at" | `vault.py dataset window`, `run --dataset <name>@<version>:<mount>:<window>`, `dataset uses` | [references/datasets.md](references/datasets.md) |
 | "the data changed", what rests on an old version | `vault.py dataset diff`, `dataset impact <name>@<version>` | [references/datasets.md](references/datasets.md) |
+| The same result on any machine or agent platform, "pin the environment", determinism | `vault.py runtime create`, `runtime check`, `run` on a node with `runtime`, `parity` | [references/runtimes.md](references/runtimes.md) |
 | Storage classes, cost, archiving, pulling forward | `vault.py lifecycle` | [references/storage.md](references/storage.md) |
 
 ## Rules
@@ -50,5 +51,5 @@ Every capture and replay follows [references/protocol.md](references/protocol.md
 | Folder | Holds |
 |---|---|
 | `bin/` | `vault.py`, and the post-install check |
-| `references/` | The protocol agents follow, the guarantees and the tests behind them, capturing, replaying, datasets and their windows, the capsule format, and storage (buckets, cost, archive) |
+| `references/` | The protocol agents follow, the guarantees and the tests behind them, capturing, replaying, datasets and their windows, runtimes and deterministic experiments, the capsule format, and storage (buckets, cost, archive) |
 | `schemas/` | The capsule manifest's JSON Schema |

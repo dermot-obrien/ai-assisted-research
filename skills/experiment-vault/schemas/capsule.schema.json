@@ -275,6 +275,47 @@
         },
         "hardware": {
           "type": "object"
+        },
+        "machine": {
+          "type": "object",
+          "properties": {
+            "tool": {
+              "type": "string"
+            },
+            "os": {
+              "type": "string"
+            },
+            "arch": {
+              "type": "string"
+            },
+            "kernel": {
+              "type": "string"
+            },
+            "libc": {
+              "type": "string"
+            },
+            "cpu": {
+              "type": "string"
+            },
+            "cpu_flags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "python": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "python_build": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
         }
       }
     },
@@ -502,6 +543,66 @@
               }
             }
           }
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": [
+        "name",
+        "sha256",
+        "profile",
+        "env",
+        "match"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "match": {
+          "type": "boolean"
+        },
+        "problems": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "upgrade": {
+      "type": "object",
+      "description": "A regression replay: the capsule's code with a newer pyproject.toml and uv.lock",
+      "required": [
+        "lock_sha256",
+        "pyproject_sha256"
+      ],
+      "properties": {
+        "lock_sha256": {
+          "type": "string"
+        },
+        "pyproject_sha256": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     }

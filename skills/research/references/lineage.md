@@ -12,7 +12,9 @@ space: add or revise nodes in the hypothesis DAG.
    what target. "Try a bigger model" is not a node.
 3. **Place it in the DAG.** Its parents are the nodes that must be resolved before it can be
    tested, not merely the ones that came before it chronologically. Getting this wrong is what
-   makes the `ready` list lie.
+   makes the `ready` list lie. With a pool running ([pool](pool.md)), check the parent first:
+   `python <skills>/research/scripts/pool.py check <parent>` must print yes, since a held node
+   keeps its chain closed to changes until its agent is done.
 4. **Record the evidence**: the citation, the dataset, the parent result it builds on.
 5. **Regenerate the node index** so the new node appears in `ready` or `blocked`, per
    `/research housekeep`. A node that is not in the index is invisible to everything that reads it.

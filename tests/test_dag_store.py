@@ -261,6 +261,28 @@ class Concurrency(StoreCase):
         a.write_view(view)
         self.assertIn(f"# alias: added as {a_id}", view.read_text(encoding="utf-8"))
 
+    def test_events_written_within_one_clock_tick_keep_their_order(self):
+        """A coarse clock (Windows) gives two batches the same time; they still replay in the order written."""
+        from unittest import mock
+        frozen = dag_store.dt.datetime(2026, 1, 1, tzinfo=dag_store.dt.timezone.utc)
+
+        class Coarse(dag_store.dt.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return frozen
+
+        a = self.seeded("a")
+        written = []
+        with mock.patch.object(dag_store.dt, "datetime", Coarse):
+            for i in range(5):
+                written += a.write_events([{"type": "add", "id": f"H-40{i}", "node": {"id": f"H-40{i}", "hypothesis": f"n{i}"}}])
+            written += a.write_events([{"type": "add", "id": "H-400", "node": {"id": "H-400", "hypothesis": "again"}}])
+        stamps = [e["ts"] for e in written]
+        self.assertEqual(stamps, sorted(set(stamps)), "each batch is later than the one before")
+        state = a.replay()
+        self.assertEqual(state.nodes["H-400"]["hypothesis"], "n0")
+        self.assertEqual(state.nodes["H-400b"]["hypothesis"], "again")
+
     def test_an_unrecorded_duplicate_keeps_the_earlier_and_suffixes_the_later(self):
         a = self.seeded("a")
         a.write_events([{"type": "add", "id": "H-300", "node": {"id": "H-300", "hypothesis": "first"}}])

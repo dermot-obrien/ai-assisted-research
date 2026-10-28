@@ -28,6 +28,16 @@ node_index_path: "research/node-index.yaml"
 #   rtol: 1.0e-9            # how close a replay's metrics must be, unless a run sets its own
 #   atol: 1.0e-12
 
+# Optional: the hypothesis pool (the research skill's references/pool.md), where agents on any
+# platform take hypotheses from the thread skill's board. thread is how to run its CLI (or set
+# $THREAD_CMD), source the board path, on_thread the thread the calls hang under, and as the
+# coordinator's handle (or set $BOARD_AS).
+# pool:
+#   thread: "node ../thread/skills/thread/bin/thread.mjs"
+#   source: "research"
+#   on_thread: "t-4k2"
+#   as: "coordinator"
+
 # Where AAW work items for research nodes live (your .aaw-config.yaml work_items_path).
 work_items_path: ".aaw/work-items/"
 
