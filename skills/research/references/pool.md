@@ -83,7 +83,7 @@ Order is the lock. A node is offered only when every ancestor with a result has 
 
    | Verdict | When | Do |
    |---|---|---|
-   | `reproduced` | The node has a capsule, and `vault.py replay` gives `identical` or `reproduced` (and, with a runtime that requires it, `parity` passes) | Record it with the retest capsule |
+   | `reproduced` | The node has a capsule, and `vault.py replay` gives `identical` or `reproduced` (and, with a runtime that requires it, `parity` passes). A replay where only wall-clock timings moved is `reproduced`: declare them volatile (`--volatile-key fit_ms`, and in `vault.volatile` for the project) so the replay says so itself | Record it with the retest capsule |
    | `rebuilt` | No capsule, but the code at the recorded commit or work item and the data still exist: run the recorded command through `vault.py run` on the node's runtime, and the metric matches `actual_performance` within the node's tolerance | Record it with the new capsule, which the vault has put on the node |
    | `differs` | It ran, by replay or rebuild, and the result is not the recorded one | Record it with the capsule; the node becomes `contested` |
    | `unverifiable` | Within the time box, the code, the data or the command cannot be found or made to run | Record what is missing, exactly; nothing else changes |

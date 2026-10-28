@@ -406,6 +406,27 @@
         }
       }
     },
+    "volatile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Output path globs left out of a replay's comparison"
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Metric and JSON keys (name or dotted path globs) left out of a replay's comparison"
+        }
+      },
+      "description": "What a replay may change without the result changing, such as wall-clock timings (vault.volatile, --volatile-output, --volatile-key)"
+    },
     "retest_of": {
       "type": "string"
     },
@@ -422,6 +443,24 @@
             "drifted",
             "failed"
           ]
+        },
+        "volatile": {
+          "type": "object",
+          "description": "The volatile declaration the comparison used, and the outputs that differed only in it ('changed')",
+          "properties": {
+            "outputs": {
+              "type": "array"
+            },
+            "keys": {
+              "type": "array"
+            },
+            "changed": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },

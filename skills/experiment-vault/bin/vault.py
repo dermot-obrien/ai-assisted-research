@@ -48,6 +48,7 @@ import datetime as dt
 import gzip
 import hashlib
 import io
+import fnmatch
 import json
 import os
 import platform
@@ -63,11 +64,11 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 FORMAT = "experiment-vault/2"
 FORMATS = ("experiment-vault/1", "experiment-vault/2")
-TOOL_VERSION = "1.4.0"
+TOOL_VERSION = "1.5.0"
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 CAPSULE_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{12}$")
@@ -215,6 +216,8 @@ class Settings:
             raise VaultError(f"vault.code_storage is {self.code_storage!r}; use bundle or archive")
         self.rtol = float(vault.get("rtol", 1e-9))
         self.atol = float(vault.get("atol", 1e-12))
+        # What a replay may change without the result changing: wall-clock timings and the like.
+        self.volatile = read_volatile(vault.get("volatile"), "vault.volatile in research.yaml")
         self.dag_path = (self.root / cfg["dag_path"]) if self.root and cfg.get("dag_path") else None
         # Files the research tools rewrite; a change to them does not make the code dirty.
         self.managed = {(self.root / cfg[k]).resolve() for k in ("dag_path", "node_index_path")
@@ -1115,13 +1118,81 @@ def flatten(d: Any, prefix: str = "") -> dict[str, Any]:
     return {prefix.rstrip("."): d}
 
 
+def read_volatile(spec: Any, where: str) -> dict[str, list[str]]:
+    """A volatile declaration: {outputs: [path globs], keys: [key globs]}. Outputs are whole files a replay
+    leaves out of the comparison; keys are metric and JSON keys it leaves out, matched by name or dotted path."""
+    if spec in (None, {}):
+        return {"outputs": [], "keys": []}
+    if not isinstance(spec, dict) or set(spec) - {"outputs", "keys"}:
+        raise VaultError(f"{where} must be a mapping with outputs: and keys: lists of globs")
+    out = {}
+    for k in ("outputs", "keys"):
+        v = spec.get(k) or []
+        if isinstance(v, str):
+            v = [v]
+        if not isinstance(v, list) or not all(isinstance(x, str) and x for x in v):
+            raise VaultError(f"{where}: {k} must be a list of globs")
+        out[k] = v
+    return out
+
+
+def cli_volatile(args) -> dict[str, list[str]]:
+    """The volatile outputs and keys named on the command line (--volatile-output, --volatile-key)."""
+    return {"outputs": list(getattr(args, "volatile_output", None) or []),
+            "keys": list(getattr(args, "volatile_key", None) or [])}
+
+
+def merge_volatile(*specs: dict | None) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {"outputs": [], "keys": []}
+    for s in specs:
+        for k in out:
+            for x in (s or {}).get(k) or []:
+                if x not in out[k]:
+                    out[k].append(x)
+    return out
+
+
+def volatile_key(dotted: str, keys: list[str]) -> bool:
+    """Whether a key is volatile: its dotted path, or its own name, matches one of the globs."""
+    name = dotted.rsplit(".", 1)[-1]
+    return any(fnmatch.fnmatchcase(dotted, g) or fnmatch.fnmatchcase(name, g) for g in keys)
+
+
+def strip_volatile(value: Any, keys: list[str], prefix: str = "") -> Any:
+    if isinstance(value, dict):
+        return {k: strip_volatile(v, keys, f"{prefix}{k}.") for k, v in value.items()
+                if not volatile_key(f"{prefix}{k}", keys)}
+    if isinstance(value, list):
+        return [strip_volatile(v, keys, prefix) for v in value]
+    return value
+
+
+def same_but_volatile(was: bytes | None, now: bytes | None, keys: list[str]) -> bool:
+    """Whether two JSON outputs differ only in volatile keys."""
+    if was is None or now is None or not keys:
+        return False
+    try:
+        a, b = json.loads(was), json.loads(now)
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return strip_volatile(a, keys) == strip_volatile(b, keys)
+
+
 def compare(original: dict, metrics: dict | None, outputs: list[dict], exit_code: int,
-            rtol: float, atol: float) -> dict:
+            rtol: float, atol: float, volatile: dict | None = None,
+            read: Callable[[str, str], bytes | None] | None = None) -> dict:
+    """The replay against the original. Volatile outputs and keys (wall-clock timings and the like) are left
+    out and listed apart, so they never make an identical result look drifted. read(path, "was"|"now") gives
+    an output's bytes, for telling a JSON file that differs only in volatile keys from one that changed."""
+    vol = merge_volatile(volatile)
     was = flatten(original.get("metrics") or {})
     now = flatten(metrics or {})
     rows, metric_ok = {}, True
     for k, v in was.items():
         n = now.get(k)
+        if volatile_key(k, vol["keys"]):
+            rows[k] = {"was": v, "now": n, "ok": True, "volatile": True}
+            continue
         if isinstance(v, (int, float)) and isinstance(n, (int, float)) and not isinstance(v, bool):
             ok = abs(n - v) <= atol + rtol * abs(v)
             rows[k] = {"was": v, "now": n, "delta": n - v, "ok": ok}
@@ -1131,8 +1202,16 @@ def compare(original: dict, metrics: dict | None, outputs: list[dict], exit_code
         metric_ok &= ok
     before = {o["path"]: o["sha256"] for o in original.get("outputs", [])}
     after = {o["path"]: o["sha256"] for o in outputs}
-    changed = sorted(p for p in before if after.get(p) != before[p])
-    identical = len(before) - len(changed)
+    changed, volatile_changed = [], []
+    for p in sorted(before):
+        if after.get(p) == before[p]:
+            continue
+        if any(fnmatch.fnmatchcase(p, g) for g in vol["outputs"]) or (
+                p in after and read is not None and vol["keys"] and same_but_volatile(read(p, "was"), read(p, "now"), vol["keys"])):
+            volatile_changed.append(p)
+        else:
+            changed.append(p)
+    identical = len(before) - len(changed) - len(volatile_changed)
     if exit_code != 0:
         verdict = "failed"
     elif metric_ok and not changed:
@@ -1141,9 +1220,12 @@ def compare(original: dict, metrics: dict | None, outputs: list[dict], exit_code
         verdict = "reproduced"
     else:
         verdict = "drifted"
-    return {"verdict": verdict, "rtol": rtol, "atol": atol, "metrics": rows,
-            "outputs": {"identical": identical, "changed": changed,
-                        "new": sorted(p for p in after if p not in before)}}
+    result = {"verdict": verdict, "rtol": rtol, "atol": atol, "metrics": rows,
+              "outputs": {"identical": identical, "changed": changed,
+                          "new": sorted(p for p in after if p not in before)}}
+    if vol["outputs"] or vol["keys"]:
+        result["volatile"] = {**vol, "changed": volatile_changed}
+    return result
 
 
 def build_manifest(settings: Settings, args, node: str, kind: str, code: list[dict], data: list[dict],
@@ -1158,6 +1240,9 @@ def build_manifest(settings: Settings, args, node: str, kind: str, code: list[di
         "tolerance": {"rtol": args.rtol if args.rtol is not None else settings.rtol,
                       "atol": args.atol if args.atol is not None else settings.atol},
     }
+    volatile = merge_volatile(settings.volatile, cli_volatile(args))
+    if volatile["outputs"] or volatile["keys"]:
+        manifest["volatile"] = volatile
     if datasets:
         manifest["datasets"] = datasets
     if runtime:
@@ -1355,7 +1440,9 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         if prior:
             tol = manifest["tolerance"]
             manifest["retest_of"] = f"{node}/{prior_id}"
-            manifest["comparison"] = compare(prior, metrics, outputs, code_rc, tol["rtol"], tol["atol"])
+            manifest["comparison"] = compare(prior, metrics, outputs, code_rc, tol["rtol"], tol["atol"],
+                                             merge_volatile(prior.get("volatile"), manifest.get("volatile")),
+                                             retest_reader(backend, prior, root))
         ref = write_capsule(backend, settings.project, node, manifest, blobs, files)
         record_uses(backend, settings.project, node, ref["id"], manifest)
     if datasets:
@@ -1608,7 +1695,13 @@ def cmd_replay(settings: Settings, args) -> int:
         tol = manifest.get("tolerance", {})
         rtol = args.rtol if args.rtol is not None else tol.get("rtol", settings.rtol)
         atol = args.atol if args.atol is not None else tol.get("atol", settings.atol)
-        comparison = compare(manifest, metrics, outputs, rc, rtol, atol)
+        volatile = merge_volatile(manifest.get("volatile"), settings.volatile, cli_volatile(args))
+
+        def read(path: str, which: str) -> bytes | None:
+            f = (dest / "original-outputs" / path) if which == "was" else (main / path)
+            return f.read_bytes() if f.is_file() else None
+
+        comparison = compare(manifest, metrics, outputs, rc, rtol, atol, volatile, read)
         print_comparison(comparison)
         if not args.no_record:
             environment = capture_environment(py, False, work, blobs, False)
@@ -1627,6 +1720,8 @@ def cmd_replay(settings: Settings, args) -> int:
                                     environment, new_run, outputs, metrics, manifest.get("datasets"),
                                     manifest.get("evidence"), runtime)
             retest["tolerance"] = {"rtol": rtol, "atol": atol}
+            if volatile["outputs"] or volatile["keys"]:
+                retest["volatile"] = volatile
             retest["retest_of"] = f"{node}/{cid}"
             retest["comparison"] = comparison
             if upgrade:
@@ -1638,6 +1733,24 @@ def cmd_replay(settings: Settings, args) -> int:
     return {"identical": 0, "reproduced": 0, "drifted": 3}.get(comparison["verdict"], 1)
 
 
+def retest_reader(backend: "Backend", prior: dict, root: Path) -> Callable[[str, str], bytes | None]:
+    """For a run that retests an earlier capsule: the earlier output from the vault, the new one from disk.
+    Only outputs that differ are fetched, and only when volatile keys are declared."""
+    shas = {o["path"]: o["sha256"] for o in prior.get("outputs", [])}
+
+    def read(path: str, which: str) -> bytes | None:
+        if which == "now":
+            f = root / path
+            return f.read_bytes() if f.is_file() else None
+        if path not in shas:
+            return None
+        with tempfile.TemporaryDirectory(prefix="vault-was-") as td:
+            backend.get_blobs([shas[path]], Path(td))
+            f = Path(td) / shas[path]
+            return f.read_bytes() if f.is_file() else None
+    return read
+
+
 def print_comparison(c: dict) -> None:
     print(f"Verdict: {c['verdict']} (rtol {c['rtol']}, atol {c['atol']})")
     for k, row in c["metrics"].items():
@@ -1647,6 +1760,12 @@ def print_comparison(c: dict) -> None:
     o = c["outputs"]
     print(f"  outputs: {o['identical']} identical, {len(o['changed'])} changed"
           + (f": {', '.join(o['changed'][:5])}" if o["changed"] else ""))
+    v = c.get("volatile")
+    if v and (v["changed"] or any(r.get("volatile") for r in c["metrics"].values())):
+        keys = [k for k, r in c["metrics"].items() if r.get("volatile")]
+        print(f"  volatile, left out of the verdict: {len(v['changed'])} output(s)"
+              + (f" ({', '.join(v['changed'][:5])})" if v["changed"] else "")
+              + (f"; metrics {', '.join(keys[:5])}" if keys else ""))
 
 
 # ---------------------------------------------------------------- runtimes
@@ -2720,6 +2839,12 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--rtol", type=float, help="Relative tolerance a replay's metrics must meet")
         p.add_argument("--atol", type=float, help="Absolute tolerance a replay's metrics must meet")
         p.add_argument("--retest-of", help="A capsule this run retests; the result is compared with it")
+        p.add_argument("--volatile-output", action="append", metavar="GLOB",
+                       help="An output a replay may change without the result changing, such as a timing log; "
+                            "kept, but left out of the comparison (repeatable; adds to vault.volatile)")
+        p.add_argument("--volatile-key", action="append", metavar="GLOB",
+                       help="A metric or JSON output key a replay may change, such as fit_ms or '*_ms' "
+                            "(repeatable; adds to vault.volatile)")
         p.add_argument("--note", help="Why this run was made")
         p.add_argument("--agent", help="Who ran it: an agent handle or a person")
         p.add_argument("--work-item", help="The work item the run belongs to")
@@ -2784,6 +2909,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--note")
     p.add_argument("--agent")
     p.add_argument("--work-item")
+    p.add_argument("--volatile-output", action="append", metavar="GLOB",
+                   help="Also leave this output out of the comparison (repeatable)")
+    p.add_argument("--volatile-key", action="append", metavar="GLOB",
+                   help="Also leave this metric or JSON key out of the comparison, such as fit_ms (repeatable)")
     p.add_argument("--no-record", action="store_true", help="Do not keep the replay as a retest capsule")
     p.add_argument("--no-link", action="store_true", help="Do not record the retest on the DAG node")
     p = sub.add_parser("parity", help="Whether a capsule was replayed identically on another machine in its runtime")
