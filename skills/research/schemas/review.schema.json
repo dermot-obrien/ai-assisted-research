@@ -119,7 +119,10 @@
           "capsules",
           "pool",
           "descendants",
-          "details"
+          "details",
+          "created_at",
+          "last_activity_at",
+          "repeatability"
         ],
         "properties": {
           "id": {
@@ -204,6 +207,56 @@
           "descendants": {
             "type": "integer"
           },
+          "repeatability": {
+            "type": "object",
+            "required": [
+              "state",
+              "at",
+              "capsule"
+            ],
+            "additionalProperties": false,
+            "description": "Whether the node's result can be made again, from its capsules and retest verdicts (the research-dag skill's node schema, Repeatability).",
+            "properties": {
+              "state": {
+                "enum": [
+                  "not_captured",
+                  "captured",
+                  "repeated",
+                  "differs",
+                  "broken",
+                  "unverifiable"
+                ]
+              },
+              "at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "When that state was last shown"
+              },
+              "capsule": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The capsule that showed it"
+              }
+            }
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When the node was added (UTC, to the second): from its add event in a DAG store, or stamped by dag_update.py in a plain file. Null when the DAG has no date for it."
+          },
+          "last_activity_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When anything last happened to the node (UTC, to the second): its latest event in a DAG store, or dag_update.py's latest stamp in a plain file."
+          },
           "verdict": {
             "type": "object",
             "properties": {
@@ -219,6 +272,10 @@
                 ]
               }
             }
+          },
+          "in_campaign": {
+            "type": "boolean",
+            "description": "Present when the campaign is narrowed with path_to in research.yaml: whether this node is on one of its paths."
           },
           "details": {
             "type": "object",

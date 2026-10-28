@@ -61,6 +61,7 @@ except ImportError:
 DAG_BIN = Path(os.environ.get("RESEARCH_DAG_BIN") or Path(__file__).resolve().parents[2] / "research-dag" / "bin")
 sys.path.insert(0, str(DAG_BIN))
 
+import dag_store  # noqa: E402
 import rms_config  # noqa: E402
 
 RESOLVED = {"completed", "validated", "ineffective", "holdout_passed", "forward_testing", "retired"}
@@ -121,6 +122,13 @@ def details_of(n: dict) -> dict:
     return {k: v for k, v in out.items() if v not in (None, [], False) or k in ("notes", "audits")}
 
 
+def _date(v) -> str | None:
+    """A derived date as text, whatever YAML made of it; None when the node has none."""
+    if not v:
+        return None
+    return v.isoformat().replace("+00:00", "Z") if hasattr(v, "isoformat") else str(v)
+
+
 def now() -> str:
     return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -145,6 +153,26 @@ class Pool:
         for n in self.nodes:
             for p in self.parents(n):
                 self.children.setdefault(p, []).append(n["id"])
+        self.scope = self.campaign_scope(pool)
+
+    def campaign_scope(self, pool: dict) -> set[str] | None:
+        """The nodes a campaign covers, or None for the whole DAG. research.yaml can narrow a campaign to the
+        paths from the root to some nodes (pool: campaigns: RT1: path_to: [...]): those nodes and every node
+        above them, so the order still runs from the root down."""
+        if not self.campaign:
+            return None
+        spec = ((pool.get("campaigns") or {}).get(self.campaign) or {})
+        targets = spec.get("path_to")
+        if not targets:
+            return None
+        targets = [str(t) for t in ([targets] if isinstance(targets, str) else targets)]
+        missing = [t for t in targets if t not in self.by_id]
+        if missing:
+            raise PoolError(f"campaign {self.campaign}: path_to names nodes the DAG does not have: {', '.join(missing)}")
+        scope = set(targets)
+        for t in targets:
+            scope.update(self.ancestors(t))
+        return scope
 
     # ---- the DAG
 
@@ -182,6 +210,8 @@ class Pool:
         """Whether a node's work may start now, and if not, what it waits for."""
         n = self.by_id[nid]
         if self.campaign:
+            if self.scope is not None and nid not in self.scope:
+                return False, f"is outside campaign {self.campaign}"
             if n.get("status") not in RESULT:
                 return False, "has no result to retest"
             if self.verdict(nid):
@@ -423,8 +453,12 @@ class Pool:
                          "waits_for": why[len("waits for "):].split(", ") if pool_state == "waiting" else [],
                          "result": (s.get("done") or {}).get("note")},
                 "descendants": len(self.descendants(nid)),
+                "repeatability": dag_store.repeatability(n),
+                "created_at": _date(n.get("created_at")), "last_activity_at": _date(n.get("last_activity_at")),
                 "details": details_of(n),
             }
+            if self.scope is not None:
+                entry["in_campaign"] = nid in self.scope
             if verdict:
                 entry["verdict"] = {k: verdict.get(k) for k in ("verdict", "capsule", "note", "by", "at") if verdict.get(k)}
             nodes.append(entry)
@@ -445,7 +479,8 @@ class Pool:
         review = {"format": "research-review/1", "generated_at": now(), "project": self.cfg._get("dag_project", None),
                   "campaign": self.campaign, "board": None if not board else ({"error": board_error} if board_error else {"ok": True}),
                   "summary": {"nodes": len(nodes), "by_status": by_status, "pool": pool_counts,
-                              **({"verdicts": verdicts, "in_scope": sum(1 for n in self.nodes if n.get("status") in RESULT)}
+                              **({"verdicts": verdicts, "in_scope": sum(1 for n in self.nodes if n.get("status") in RESULT
+                                                                         and (self.scope is None or n["id"] in self.scope))}
                                  if self.campaign else {})},
                   "attention": attention, "nodes": nodes}
         if as_json:

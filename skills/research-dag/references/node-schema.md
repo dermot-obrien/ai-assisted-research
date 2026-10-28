@@ -24,6 +24,12 @@ A node is a YAML mapping in the DAG's `nodes` list. The tools keep any field a n
 | `runtime` | The runtime every evidence run must match: machine type, Python build, lock and determinism settings (the experiment-vault skill's `references/runtimes.md`); fixed at framing | `set` |
 | `runner` | The board role that runs this node instead of any agent, such as `local-gpu` for `runner:local-gpu` | `set` |
 | `retests` | Retest campaign verdicts, newest last: `campaign`, `verdict` (`reproduced`, `rebuilt`, `differs`, `unverifiable`), `capsule`, `note`, `by`, `at`; append only | `pool.py record` (the research skill), `append` |
+| `created_at` | When the node was added, UTC to the second | derived: never set |
+| `last_activity_at` | When anything last happened to the node: a status, a note, a capsule, a verdict, a new child | derived: never set |
+| `repeatability` | Whether its result can be made again: `not_captured`, `captured`, `repeated`, `differs`, `broken` or `unverifiable` (below) | derived: never set |
+| `repeated_at` | When the result was last shown to repeat; only with `repeatability: repeated` | derived: never set |
+
+The four derived fields are written by the tools, never by hand, and `dag_update.py --action set` refuses them. In a DAG store they come from the events: `created_at` from the node's add, `last_activity_at` from its latest event (a node imported from a file keeps the dates the file carried until it is next changed), and they never become events themselves, so they cannot conflict. In a plain YAML file `dag_update.py` stamps them on each change; adding a child is activity on its parent too.
 
 ## Statuses
 
@@ -46,6 +52,21 @@ A node's status says how strong its evidence is, and the strength depends on whe
 An `exploratory` test never moves a node past `in_progress`, and a backtest alone never makes it `validated` when the node fixed a holdout or forward window at framing. Children become ready when their parent is `validated`, `ineffective`, `holdout_passed`, `forward_testing` or `retired`: from a passed holdout on, further evidence only adds to the parent's.
 
 `dag_update.py --action update` accepts only these. Older DAGs also use `completed`, `tested`, `partially_tested`, `blocked` and `proposed`; the reading tools still treat `completed` as resolved, but write new results with the statuses above, and record a block in `notes` rather than as a status.
+
+## Repeatability
+
+A status says how strong the evidence is; `repeatability` says whether that evidence can be made again, so the DAG separates results with a repeatable test from those without one. It is derived from `capsules` and `retests`, the newest check first:
+
+| `repeatability` | When |
+|---|---|
+| `not_captured` | No run capsule with a result: nothing in the vault can re-run it |
+| `captured` | A run capsule keeps the code, data, environment and command, and no replay or campaign has checked it yet |
+| `repeated` | A replay of it was `identical` or `reproduced`, or a campaign `rebuilt` or `reproduced` it; `repeated_at` says when |
+| `differs` | The newest replay or rebuild gave a different result |
+| `broken` | The newest replay could not run at all, or every run capsule failed before giving a result |
+| `unverifiable` | A campaign could not find or run its code, data or command; a run captured later lifts it to `captured` |
+
+So a node that is `validated` and `repeated` stands on a test anyone can run again; `validated` and `not_captured` is a result taken on trust until a campaign rebuilds it. `pool.py review` gives each node's `repeatability` with the capsule that showed it.
 
 ## A reproducible result
 

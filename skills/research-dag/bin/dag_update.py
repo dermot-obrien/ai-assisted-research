@@ -12,6 +12,7 @@ the change is made to the YAML file directly, as it always was.
 import yaml
 import argparse
 import copy
+import datetime as dt
 import re
 import sys
 import os
@@ -235,7 +236,25 @@ def relink_node(dag, node_id, new_parent):
     return None
 
 
-PROTECTED_FIELDS = {'id': 'ids never change', 'parent': 'use --action relink'}
+PROTECTED_FIELDS = {'id': 'ids never change', 'parent': 'use --action relink',
+                    'created_at': 'the tools date a node from its history',
+                    'last_activity_at': 'the tools date a node from its history',
+                    'repeatability': 'the tools derive it from the capsules and retests',
+                    'repeated_at': 'the tools derive it from the capsules and retests'}
+
+
+def stamp(dag, node_id, added=False):
+    """Date a change in a plain YAML DAG: last_activity_at on the node changed, and created_at on a new one.
+    In a DAG store the dates come from the events instead, and these stamps are never written as events."""
+    node = find_node(dag, node_id) if node_id else None
+    if node is None:
+        return
+    now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if added:
+        node['created_at'] = now
+    node['last_activity_at'] = now
+    import dag_store
+    dag_store.derive(node)
 
 
 def set_node_field(dag, node_id, field, value):
@@ -456,7 +475,10 @@ def main():
         sys.exit(1)
     with DAGLock(args.dag):
         dag = load_dag(args.dag)
-        message, _ = apply_action(dag, args)
+        message, new_id = apply_action(dag, args)
+        stamp(dag, new_id or args.node_id, added=bool(new_id))
+        if new_id or args.action == 'relink':
+            stamp(dag, args.parent)  # its avenues changed, as a store would date it
         print(message)
         save_dag(args.dag, dag)
 
