@@ -13,6 +13,7 @@ Skills.
 | [Concepts](concepts.md) | The ideas you need, in the order you need them |
 | [User guide](user-guide.md) | The full research cycle, step by step |
 | [Skills](skills.md) | What the four skills and the research flows do, when to use each, what each needs |
+| [Pool playbook](pool-playbook.md) | Running hypotheses with agents on several platforms at once, and retesting the whole DAG ([architecture](architecture.svg)) |
 
 ## Reference
 

@@ -5,9 +5,9 @@ license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apac
 compatibility: Reads research.yaml at the workspace root. Python 3.10 or newer with PyYAML, and git. Changes the DAG through the research-dag skill and keeps experiments through the experiment-vault skill, both installed beside it. The start, frame, run, progress and sync flows hand the work item to the work skill (/work start, /work progress, /work initiative), so work must be installed for them; the start flow uses literature-discovery when it is installed.
 metadata:
   author: dermot-obrien
-  version: "4.1.0"
+  version: "4.2.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
-  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0, pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^2.1.0, pkg:generic/dermot-obrien/ai-assisted-research/experiment-vault ^1.3.0"
+  x-skill-requires: "pkg:generic/dermot-obrien/ai-assisted-work/work ^3.0.0, pkg:generic/dermot-obrien/ai-assisted-research/research-dag ^2.2.0, pkg:generic/dermot-obrien/ai-assisted-research/experiment-vault ^1.4.0"
 ---
 
 # Research
@@ -30,6 +30,8 @@ This skill is the method: the flows. It stands on two skills of the same bundle 
 | `/research audit <node>`, "audit", "verify a result" | Replay the capsule, re-run the benchmark in a clean room and check the claims agree | [references/audit.md](references/audit.md) |
 | `/research retest <node> [what changed]`, "does it still hold", "reproduce" a prior result | Replay a node's capsule under a library, data or code change, and record whether it held | [references/retest.md](references/retest.md) |
 | `/research reconcile`, "is the research live", "check adoption" | Check the running system embodies what the research established | [references/reconcile.md](references/reconcile.md) |
+| `/research pool`, "put the hypotheses on the board", "run the pool", "pick up a hypothesis" | Offer every node that may start to a pool of agents on any platform; a worker takes one, runs it and closes it; a held node locks its chain | [references/pool.md](references/pool.md) |
+| `/research campaign <id>`, "retest everything", "check the whole tree reproduces" | Retest every result from the root down, one node per agent, within a time box, recording reproduced, rebuilt, differs or unverifiable | [references/pool.md](references/pool.md#a-retest-campaign) |
 | `/research housekeep`, "refresh the dashboard", "regenerate the node index" | Sync statuses, recompute the index, check references, rebuild the dashboard | [references/housekeep.md](references/housekeep.md) |
 | `/research dag`, or any flow that changes the DAG | The DAG tools every flow uses, and the optional shared DAG store | The research-dag skill: [tools](../research-dag/references/tools.md), [node schema](../research-dag/references/node-schema.md) |
 
@@ -48,7 +50,7 @@ Read the flow's reference before acting, and the references it names when it nam
 | Folder | Holds |
 |---|---|
 | `bin/` | The post-install check, and launchers that keep the DAG tools' old paths (`research/bin/dag_update.py` and the rest) working until 5.0.0; the tools are in research-dag |
-| `scripts/` | The flows' own tools: `discovery.py` (init), `audit_verify.py` (audit), `reconcile.py` (reconcile) |
+| `scripts/` | The flows' own tools: `discovery.py` (init), `audit_verify.py` (audit), `reconcile.py` (reconcile), `pool.py` (pool and campaign) |
 | `references/` | One file per flow, and the shared `node-selection.md`, `finding-kinds.md`, the research principles (`principles.md`) and how an inquiry becomes a hypothesis (`inquiry-seam.md`) |
 | `assets/` | `research.yaml.example` and the run flow's output templates |
 | `schemas/` | The flows' tools' argument schemas |

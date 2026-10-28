@@ -47,6 +47,11 @@ Usage: `/research sync {node_id} {WI_id}`, for example
    | `forward`, at a checkpoint | `forward_testing`, and `validated` at the checkpoint the rule names | `contested`, or `retired` by the retire rule |
    | `untracked` | `validated`, for a node that fixed no window | `ineffective` |
 
+   With a runtime that requires parity, no status moves until
+   `vault.py parity <node>/<capsule>` exits 0: another machine or platform has replayed the
+   capsule identically. Until then the node stays `in_progress`, and a parity replay that
+   differs makes it `contested`.
+
    `ineffective` is a result, not a failure. Record it with the same care as a success; the
    next person needs to know this avenue was tried.
 

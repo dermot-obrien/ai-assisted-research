@@ -31,6 +31,8 @@ description. [Skills](skills.md) describes each.
 | `/research audit` | None, or a node id |
 | `/research retest {node_id} [what changed]` | e.g. `H-001 "numpy 2.1"`; or `--all-validated "<what changed>"` |
 | `/research reconcile` | None |
+| `/research pool` | None: offer what may start, or take a hypothesis as a worker |
+| `/research campaign {id}` | e.g. `RT1`: retest every result from the root down |
 | `/research housekeep` | None |
 | `/research dag` | Points to the research-dag skill's tools |
 | `/literature-discovery` | Searches the literature; `/research start` uses it for the baseline |
@@ -227,6 +229,9 @@ Both go before the command. A relative folder resolves against the folder holdin
 | `dataset list`, `show`, `diff`, `fetch` | `show NAME[@VERSION] [--files]`, `diff A B`, `fetch NAME[@VERSION] [--to DIR]` | Read datasets, their versions and windows; fetch a version, hash-checked |
 | `dataset uses` | `NAME`, `--window WINDOW` | The capsules that read a dataset, and a holdout's claims and overrides |
 | `dataset impact` | `NAME@VERSION`, `--strict` | The capsules built on earlier versions; `--strict` exits 1 when there are any |
+| `runtime create` | `NAME`, `--python PY` (required), `--profile cpu-deterministic-v1\|none`, `--rtol` (default 0), `--atol` (default 0), `--no-parity`, `--note` | Define a runtime from an interpreter, once: machine type, Python build, uv lock, settings, tolerance |
+| `runtime show`, `runtime check` | `show [NAME]`; `check NAME [--python PY] [--cwd DIR]` | What a runtime holds; whether this machine and environment match it (exit 2 when not) |
+| `parity` | `<capsule>`, `--node ID` | Exit 0 when the capsule was replayed identically on another machine or platform that matched its runtime |
 | `lifecycle` | `--nearline DAYS` (default 30), `--coldline DAYS` (default 90), `--archive DAYS` (default 365) | Print Cloud Storage lifecycle rules, as JSON, that move old objects to colder classes |
 
 The capture options, for `run` and `capture`:
@@ -241,6 +246,8 @@ The capture options, for `run` and `capture`:
 | `--dataset NAME@VERSION:MOUNT[:WINDOW]` | A registered dataset the run reads, linked at the git-ignored folder `MOUNT`; `VERSION` may be `latest`. Repeatable. The run finds them in the file `VAULT_DATASETS` names |
 | `--exploratory` | The run is not evidence: its capsule's evidence class is `exploratory` |
 | `--override-holdout REASON` | Look again at a sealed holdout; a person confirms at a terminal |
+| `--runtime NAME` | The runtime the run must match, when the node fixes none; refused when it names another than the node's |
+| `--tool NAME` | The agent platform making the run (`claude-code`, `cursor`, `codex`, …); default `VAULT_AGENT_TOOL`, or detected |
 | `--outputs PATH` | A file or folder the run writes. Repeatable |
 | `--metrics FILE` | The JSON file of metrics the run writes |
 | `--metric KEY` | The metric (a dotted key in `--metrics`) that is the node's result |
@@ -317,6 +324,18 @@ Without `--output` each prints YAML to the terminal. A failed request prints
 ```bash
 python <skills>/literature-discovery/bin/sota_baseline.py --query "graph neural networks drug discovery" --limit 5 --output baseline.yaml
 ```
+
+## research: scripts/pool.py
+
+The hypothesis pool and retest campaigns on the board ([pool](../skills/research/references/pool.md)). It reads `research.yaml`'s `pool:` section and runs the thread skill's CLI.
+
+| Command | Options | Effect |
+|---|---|---|
+| `offer` | `--campaign ID`, `--dry-run` | Post every node that may start now and is not on the board: research nodes whose parents are resolved, or campaign nodes whose ancestors have their verdicts. A node with `runner` goes to that role |
+| `status` | `--campaign ID` | Held (by whom), offered, ready to post, waiting (on what) and done; a campaign's verdict counts |
+| `check NODE` | `--campaign ID` | Exit 0 when an agent may work on the node: it may start, and nothing in its chain is held |
+| `record NODE` | `--campaign ID`, `--verdict reproduced\|rebuilt\|differs\|unverifiable`, `--capsule ID`, `--note`, `--agent` | Append the verdict to the node's `retests`; `differs` makes the node `contested` |
+| `revisit` | `--campaign ID` | The unverifiable nodes, the most depended on first |
 
 ## research: scripts/reconcile.py
 

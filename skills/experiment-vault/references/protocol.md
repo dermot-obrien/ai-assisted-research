@@ -158,7 +158,25 @@ Never get round a refusal by renaming or re-parenting a node, defining a new win
 
 6.7.3. After a revision (the person's, or yours on a `revisable` dataset), run `<vault.py> dataset impact <name>@<new version>` and pass every listed capsule to `/research retest`, except holdout results, which go to the person (6.6).
 
-## 7. When something goes wrong
+## 7. Runtimes: the same result on any machine
+
+The steps for a node whose result must not depend on where it ran or which agent platform ran it. [Runtimes](runtimes.md) explains the ideas.
+
+7.1. A node that will be tested more than once, on more than one machine, or by more than one agent platform SHOULD fix a runtime at framing; a node in a pool (the research skill's `references/pool.md`) MUST. Use one the project already has (`<vault.py> runtime show`) unless the plan needs other packages, a newer Python or other settings; then define a new one ([runtimes](runtimes.md), Making one) and set it on the node: `dag_update.py --action set --node-id <node> --field runtime --value <name>`. Never change a runtime; define a new one.
+
+7.2. Before running on a machine for the first time, check it: `uv python install <the runtime's Python>`, `uv sync --frozen --python <version> --managed-python`, then `<vault.py> runtime check <name> --python .venv/bin/python`. It MUST print `matches runtime <name>`. On a Windows PC, do all of this in WSL2.
+
+7.3. Run with the project's environment: `--python .venv/bin/python`, and the same interpreter in the command after `--`. The vault sets the profile's variables itself; do not set them by hand, and do not pass `--rtol` or `--atol`, which the runtime fixes. Pass `--tool <your platform>` (`claude-code`, `cursor`, `codex`, `copilot`, `jules`, `devin`, `openhands`) unless `VAULT_AGENT_TOOL` is set.
+
+7.4. Write the experiment by the rules in [runtimes](runtimes.md) (Writing experiments that give the same numbers anywhere): money in integers, sums in a fixed order, float64, no parallel reductions, every seed passed, metrics rounded at the precision the plan fixed.
+
+7.5. A run refused with `cannot be evidence` did not run. Fix what it lists; never get round it with `--exploratory` for a number that will be reported, by another runtime, or by removing the node's runtime.
+
+7.6. Parity. When the runtime requires it, a result counts only once another machine or platform has replayed its capsule identically: `<vault.py> replay <node>/<capsule> --tool <platform>` in a different session or tool, then `<vault.py> parity <node>/<capsule>` MUST exit 0 before the node's status moves. A parity replay that is not `identical` is a finding: report it, and the node becomes `contested`.
+
+7.7. Report a runtime result as 4.3 gives it, with `runtime <name>, parity <yes or pending>`.
+
+## 8. When something goes wrong
 
 | The tool says | Do |
 |---|---|
@@ -177,9 +195,14 @@ Never get round a refusal by renaming or re-parenting a node, defining a new win
 | `has a sealed holdout, so a run on it names its window`, `overlaps` | Name the window the plan fixed (6.5.1); windows that overlap are refused, so take it to the person |
 | `is not in the DAG` | Add the node, or refresh the view, and run again |
 | `the run changed dataset` | The experiment wrote into its input. Fix it to write under `--outputs` and run again |
+| `cannot be evidence`, `is not the project's environment`, `does not match uv.lock` | The run does not match the node's runtime (7.5). `uv sync --frozen` and run with `.venv/bin/python`; on another machine type, run where the runtime's machine type is |
+| `lacks`, `which profile` | This CPU cannot run the profile's code path; run on another machine |
+| `there is no runtime` | The node names a runtime the vault does not hold; define it (7.1) or fix the node |
+| `a capture cannot show the machine a past run ran on` | Run it again through `vault.py run` (7.5) |
+| `has no identical replay on another machine in its runtime yet` | Replay it in another session or platform (7.6) before the status moves |
 | `not initialised, or not reachable` | Check `vault.uri` and the gcloud sign-in; a person creates the bucket ([storage](storage.md)) |
 
-## 8. Never
+## 9. Never
 
 - Never edit, overwrite, move or delete anything in the vault, or a `vault/*` tag.
 - Never record a number as a result without the capsule it came from.
@@ -188,3 +211,4 @@ Never get round a refusal by renaming or re-parenting a node, defining a new win
 - Never hand-write a manifest or a `capsules` entry: copy the one the tool printed.
 - Never revise an append-only dataset, override a holdout, or answer a prompt that asks for a person (6.1).
 - Never read a registered dataset except through `vault.py run --dataset`, or outside the window the run names (6.5).
+- Never report a number from a run its node's runtime refused, or move a node whose runtime requires parity before `parity` passes (7).

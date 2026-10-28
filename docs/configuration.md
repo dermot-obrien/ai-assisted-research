@@ -104,6 +104,18 @@ with `gcloud storage rsync`:
 manifest, and [its JSON Schema](../skills/experiment-vault/schemas/capsule.schema.json)
 validates it.
 
+### The pool
+
+`pool:` configures the hypothesis pool ([pool](../skills/research/references/pool.md)), read by
+`scripts/pool.py`:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `pool.thread` | `thread` | How to run the thread skill's CLI, such as `node .claude/skills/thread/bin/thread.mjs`; `THREAD_CMD` overrides it |
+| `pool.source` | the board's default | The board path the pool works in |
+| `pool.on_thread` | none | The thread the pool's calls hang under (not `on`, which YAML reads as true) |
+| `pool.as` | none | The coordinator's handle, which posts the calls; `BOARD_AS` overrides it |
+
 ### How research.yaml is found
 
 1. `RMS_ROOT`, when set, names the folder. If that folder has no `research.yaml` the tools
@@ -125,7 +137,10 @@ a `research.yaml` it cannot find as absent rather than an error.
 | `RESEARCH_VAULT_PROJECT` | `vault.py` | unset | The vault project, as `--project` takes it; overrides `vault.project` and `dag_project` |
 | `RESEARCH_VAULT_GCP_KEY` | `vault.py` | unset | A service account key, as the key file's JSON on one line or the file in base64, for the vault's own gcloud calls; for cloud sessions. Never printed, recorded or passed to the experiment ([storage](../skills/experiment-vault/references/storage.md#how-vaultpy-uses-the-key)) |
 | `RESEARCH_VAULT_GCP_KEY_FILE` | `vault.py` | unset | The same, as the path to a key file |
-| `RESEARCH_DAG_BIN` | `vault.py` | the research-dag skill beside experiment-vault | The folder holding `dag_update.py`, used to record capsules on the node |
+| `RESEARCH_DAG_BIN` | `vault.py`, `pool.py` | the research-dag skill beside experiment-vault | The folder holding `dag_update.py`, used to record capsules and verdicts on the node |
+| `VAULT_AGENT_TOOL` | `vault.py` | detected (`claude-code`, `claude-code-remote`), else `unknown` | The agent platform a capsule records; `--tool` wins over it |
+| `THREAD_CMD` | `pool.py` | `pool.thread` | How to run the thread skill's CLI |
+| `BOARD_AS` | `pool.py`, the thread skill | `pool.as` | The board handle that posts |
 | `OPENALEX_EMAIL` | `openalex_discovery.py`, `sota_baseline.py` | `user@example.com` | Sent as `mailto`, which puts requests in OpenAlex's polite pool. Set it to an address you read |
 | `S2_API_KEY` | `s2_ranking.py`, `sota_baseline.py` | unset | Semantic Scholar API key, raising its rate limit. `s2_ranking.py --api-key` wins over it |
 | `SKILL_DIR` | every `bin/check.py` | the folder above the script | Which skill the check is for; installers set it |

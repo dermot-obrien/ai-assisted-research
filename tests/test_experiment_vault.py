@@ -764,7 +764,8 @@ class TestGuarantees(unittest.TestCase):
         rows = [line for line in page.splitlines() if re.match(r"^\| G\d+ \|", line)]
         self.assertGreaterEqual(len(rows), 20)
         sources = "".join((REPO / "tests" / f).read_text(encoding="utf-8")
-                          for f in ("test_experiment_vault.py", "test_dag_store.py", "test_datasets.py"))
+                          for f in ("test_experiment_vault.py", "test_dag_store.py", "test_datasets.py",
+                                    "test_runtimes.py", "test_pool.py"))
         ci = (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         ids = []
         for row in rows:

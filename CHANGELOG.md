@@ -5,6 +5,25 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.4.0
+
+### Added
+- `experiment-vault` 1.4.0: runtimes, so the same experiment gives the same result on any machine or agent platform. See [runtimes](skills/experiment-vault/references/runtimes.md) and protocol section 7.
+  - `vault.py runtime create` writes a runtime once: the machine type, the exact Python build, the project's `uv.lock`, a determinism profile and a tolerance (0 by default). `runtime check` says whether a machine matches, and `runtime show` what a runtime holds.
+  - A node fixes its runtime (`runtime` on the node). An evidence run of it is refused when the machine type or Python build differs, or the environment has drifted from `uv.lock` (`uv sync --frozen --check`), and it is refused before any holdout is claimed. An exploratory run is kept, with what differed.
+  - The `cpu-deterministic-v1` profile is applied by the vault over whatever the caller set, and recorded for the replay. It sets one thread for every numeric library, a fixed OpenBLAS and MKL code path, AVX-512 off in the form the run's numpy accepts, deterministic GPU settings, the hash seed, the time zone and the locale.
+  - A replay of a capsule with a runtime rebuilds the locked environment in the runtime's Python (`--setup uv`). `vault.py parity` passes only for an identical replay on another machine or platform that matched the runtime.
+  - Every capsule records where it ran (`environment.machine`): the agent platform (`--tool`, `VAULT_AGENT_TOOL`, or detected), the OS, the architecture, the kernel, the C library, the CPU and its features, and the Python build. The node's capsule entry carries the platform, OS, architecture, CPU, Python and whether the runtime matched.
+- `research` 4.2.0: the hypothesis pool and retest campaigns, run through the thread skill's board ([pool](skills/research/references/pool.md)).
+  - `scripts/pool.py offer` posts every node whose parents are resolved as an open call. A node with `runner: local-gpu` goes only to the session holding `runner:local-gpu`.
+  - `check` refuses work in the chain of a held node, so a held node locks its whole chain. `status` shows what is held, offered and waiting, and on what.
+  - A campaign (`--campaign RT1`) retests every result from the root down, each node within a time box, and records `reproduced`, `rebuilt`, `differs` (the node becomes contested) or `unverifiable`.
+  - An unverifiable node changes no result and never blocks its children. `revisit` lists the unverifiable nodes, the most depended on first.
+  - Framing fixes a runtime. Sync waits for parity, and lineage changes check the chain is not held.
+- `research-dag` 2.2.0: the node fields `runtime`, `runner` and `retests`.
+- [Pool playbook](docs/pool-playbook.md): setting up Claude Code, Cursor, Codex, the other platforms and a GPU runner on your PC, running the pool and a campaign, and keeping it in proportion. Also an [architecture diagram](docs/architecture.svg).
+- Guarantees G33 to G42, with their tests (`tests/test_runtimes.py`, `tests/test_pool.py`). Each of G34 to G42 was checked by breaking the code on purpose.
+
 ## 4.3.0
 
 ### Added

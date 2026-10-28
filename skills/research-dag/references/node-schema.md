@@ -21,6 +21,9 @@ A node is a YAML mapping in the DAG's `nodes` list. The tools keep any field a n
 | `branch` | The research branch the experiment ran on | `branch_manager.py`, `set` |
 | `capsules` | The experiment capsules that hold the run and every retest, newest last; append only | `vault.py` (the experiment-vault skill), `append` |
 | `adoption` | Whether the running system carries the finding: state, artefact, verification | `adopt` |
+| `runtime` | The runtime every evidence run must match: machine type, Python build, lock and determinism settings (the experiment-vault skill's `references/runtimes.md`); fixed at framing | `set` |
+| `runner` | The board role that runs this node instead of any agent, such as `local-gpu` for `runner:local-gpu` | `set` |
+| `retests` | Retest campaign verdicts, newest last: `campaign`, `verdict` (`reproduced`, `rebuilt`, `differs`, `unverifiable`), `capsule`, `note`, `by`, `at`; append only | `pool.py record` (the research skill), `append` |
 
 ## Statuses
 
@@ -46,7 +49,7 @@ An `exploratory` test never moves a node past `in_progress`, and a backtest alon
 
 ## A reproducible result
 
-A node in `validated`, `ineffective` or `contested` should name at least one capsule in `capsules`. A capsule (the experiment-vault skill) holds the exact code at its commit, the data the run read, the Python environment and optionally its wheels, the command, its seeds, the console output, the outputs and the metrics, in cloud storage, so a later agent can replay it. Each entry in `capsules` is written by `vault.py` and looks like:
+A node in `validated`, `ineffective` or `contested` should name at least one capsule in `capsules`. With a `runtime`, each entry also says where it ran (`env`: the agent platform, OS, architecture, CPU and Python) and whether the runtime matched (`runtime`), and a runtime that requires parity holds the status until another machine has replayed the capsule identically. A capsule (the experiment-vault skill) holds the exact code at its commit, the data the run read, the Python environment and optionally its wheels, the command, its seeds, the console output, the outputs and the metrics, in cloud storage, so a later agent can replay it. Each entry in `capsules` is written by `vault.py` and looks like:
 
 ```yaml
 capsules:

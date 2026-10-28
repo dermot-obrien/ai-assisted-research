@@ -1,6 +1,6 @@
 # Guarantees
 
-What the vault promises, each promise with the tests that prove it. Research results are going to rest on these, so none is a claim without a test: `tests/test_experiment_vault.py` reads this table and fails if a test it names does not exist, and the tests are written so that breaking the behaviour fails them. G1, G3, G4, G5, G6, G8, G12, G18, G19, G21 and G24 to G31 were checked that way, by breaking the code on purpose and watching their tests fail. A change that weakens a guarantee changes this page in the same pull request.
+What the vault promises, each promise with the tests that prove it. Research results are going to rest on these, so none is a claim without a test: `tests/test_experiment_vault.py` reads this table and fails if a test it names does not exist, and the tests are written so that breaking the behaviour fails them. G1, G3, G4, G5, G6, G8, G12, G18, G19, G21, G24 to G31 and G34 to G42 were checked that way, by breaking the code on purpose and watching their tests fail. A change that weakens a guarantee changes this page in the same pull request.
 
 The tests use a folder vault and, for Cloud Storage, a stand-in for `gcloud`. What has not been tested against a real bucket is said in the last section.
 
@@ -38,12 +38,22 @@ The tests use a folder vault and, for Cloud Storage, a stand-in for `gcloud`. Wh
 | G30 | Every capsule has one evidence class, from its window or `--exploratory`, recorded on the capsule and on the node | `test_one_test_has_one_evidence_class`, `test_an_exploratory_run_is_never_evidence`, `test_the_node_records_each_capsules_evidence_class` |
 | G31 | Datasets are read-only to a run: one that writes into its dataset, or a mount git does not ignore, is not recorded, and a damaged cache is rebuilt from the vault | `test_a_run_that_writes_into_its_dataset_is_not_recorded`, `test_a_mount_that_is_not_git_ignored_is_refused` |
 | G32 | A revision lists every result built on an earlier version, to be retested | `test_a_person_revises_and_is_shown_what_to_retest` |
+| G33 | A runtime is written once and records the machine type, the exact Python build, the uv lock, the determinism profile and the tolerance | `test_a_runtime_is_defined_once` |
+| G34 | An evidence run on a node with a runtime is refused when the machine type, the Python build or the environment differs from the runtime, or the environment has drifted from `uv.lock`; nothing is kept | `test_an_evidence_run_must_match_the_nodes_runtime`, `test_an_environment_that_drifts_from_its_lock_is_refused`, `test_a_capture_cannot_be_evidence_for_a_runtime` |
+| G35 | A run that does not match its runtime is kept only as exploratory, with every difference recorded | `test_an_exploratory_run_is_kept_with_what_differed` |
+| G36 | The runtime's settings and tolerance are applied by the vault over whatever the caller set, and recorded for the replay | `test_the_runtime_sets_the_settings_and_the_tolerance` |
+| G37 | A run refused for its runtime spends no holdout look | `test_a_refused_runtime_spends_no_holdout_look` |
+| G38 | Every capsule, and its entry on the node, records where it ran: the agent platform, the OS, the architecture, the CPU and the Python build, with the runtime and whether it matched | `test_the_node_and_capsule_record_where_it_ran` |
+| G39 | A replay rebuilds the locked environment in the runtime's Python, and parity passes only for an identical replay on another machine or platform that matched the runtime | `test_a_replay_rebuilds_the_locked_environment_and_parity_needs_another_machine`, `test_a_replay_outside_the_runtime_is_not_parity` |
+| G40 | The pool offers a node only when its parents are resolved, never twice, and a node with a runner only to that role | `test_only_nodes_whose_parents_are_resolved_are_offered`, `test_offering_twice_posts_nothing_new`, `test_a_node_with_a_runner_goes_to_that_role_only`, `test_a_finished_node_releases_its_children` |
+| G41 | A held node locks its chain: no agent may work on a node above or below it | `test_a_held_node_locks_its_chain` |
+| G42 | A retest campaign goes from the root down, keeps its verdicts apart from other campaigns, never lets an unverifiable node block its children or change its result, and makes a node whose result differs contested | `test_a_campaign_retests_from_the_root_down`, `test_campaigns_are_kept_apart`, `test_a_node_that_cannot_be_reproduced_does_not_block_its_children`, `test_a_result_that_differs_makes_the_node_contested`, `test_a_verdict_names_its_capsule_or_what_is_missing`, `test_revisit_lists_the_most_depended_on_first` |
 
 ## Limits
 
 These are not guaranteed, and the capsule records what is needed to see them:
 
-- Bit-identical results on different hardware, or with non-deterministic GPU kernels: the capsule records the hardware, and the tolerance decides what counts as the same result.
+- Bit-identical results on different hardware without a runtime, on ARM against x86-64, or with non-deterministic GPU kernels: the capsule records the hardware, and the tolerance decides what counts as the same result. With a runtime on x86-64 Linux, parity (G39) shows whether a result held on a second machine.
 - Inputs fetched from the network while the experiment runs: anything not written under `--data` or `--outputs` is not in the capsule.
 - System libraries outside Python (a C library, a CUDA driver): the capsule records the platform and GPUs, not the libraries.
 - A real Cloud Storage bucket: the `gcloud` commands are the ones the documentation gives and are tested against a stand-in that implements them. Run the round trip in [storage](storage.md) once when the bucket is created.

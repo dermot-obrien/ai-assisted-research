@@ -194,6 +194,29 @@ then a hypothesis test like any other: developed on the backtest window, judged 
 holdout, and tested again on each new version of the data as it arrives. The experiment-vault
 skill's [datasets](../skills/experiment-vault/references/datasets.md) reference has the commands.
 
+### Runtimes: the same result on any machine
+
+A runtime pins what an evidence run must match: the machine type (`linux-x86_64`), the exact
+Python build, the project's `uv.lock`, and a determinism profile the vault applies itself (one
+thread for every numeric library, one CPU code path, fixed seeds, zone and locale). A node fixes
+its runtime at framing, and the vault refuses an evidence run of it anywhere that does not match.
+So a result made by Claude Code, Cursor, Codex or your PC is the same number, and `vault.py parity`
+shows it was replayed identically on another platform before it counts. Every capsule records
+where it ran. The experiment-vault skill's [runtimes](../skills/experiment-vault/references/runtimes.md)
+reference has the details and the rules for writing experiments that give the same numbers anywhere.
+
+### The hypothesis pool
+
+Many agents, on several platforms, can run hypotheses at once. A coordinator offers every node
+whose parents are resolved on the thread skill's board; an agent takes one, runs it on its
+runtime and closes it, which releases its children. A held node keeps its whole chain closed to
+other agents. A retest campaign uses the same machinery to retest every result from the root
+down, each within a time box, recording reproduced, rebuilt, differs or unverifiable; an
+unverifiable node never blocks its children. The research skill's [pool](../skills/research/references/pool.md)
+reference is what agents follow, and the [playbook](pool-playbook.md) is how to set it up.
+
+![Architecture of the hypothesis pool](architecture.svg)
+
 ## Audit: is it sound?
 
 `/research audit` first replays the node's capsule, where it has one, which shows the

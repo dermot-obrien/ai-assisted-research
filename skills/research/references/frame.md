@@ -53,6 +53,10 @@ trading strategy's backtest, fix its evidence too ([datasets](../../experiment-v
   tested on as data arrive. Define the backtest and forward windows that do not exist yet; a
   holdout window only for a span the person approved in the plan. The steps, and who does each, are
   the experiment-vault [protocol](../../experiment-vault/references/protocol.md), section 6.
+- **The runtime**: the runtime every evidence run of the node must match (the experiment-vault
+  [protocol](../../experiment-vault/references/protocol.md), section 7), set on the node with
+  `dag_update.py --action set --field runtime`. A node that will go to the pool, or be tested on
+  more than one machine, must have one.
 - **The decision rule**: the target on the backtest, the target on the holdout, the forward
   checkpoints (after how much new data, against what threshold), and the rule that retires it.
   Which statuses the node can reach follows from the windows (the research-dag skill's
