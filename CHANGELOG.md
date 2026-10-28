@@ -5,6 +5,11 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.8.1
+
+### Fixed
+- `experiment-vault` 1.6.1: a `gs://` vault that gcloud cannot list (no credentials, no access, no bucket) now fails with gcloud's error. It used to list as empty, so `list` said there were no capsules and `tags --push` reported nothing to push and exited 0. Only a prefix with no objects lists as empty.
+
 ## 4.8.0
 
 ### Added

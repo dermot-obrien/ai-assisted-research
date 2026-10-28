@@ -435,7 +435,12 @@ class GCSBackend(Backend):
     def list(self, prefix: str) -> list[str]:
         p = self.gcloud(["storage", "ls", self.url(prefix) + "**"], check=False)
         if p.returncode != 0:
-            return []
+            # An empty prefix is not an error; anything else (no credentials, no access, no bucket) is,
+            # or a caller would read an unreadable vault as an empty one.
+            err = (p.stderr or p.stdout or "").lower()
+            if any(t in err for t in ("no urls matched", "matched no objects", "one or more urls matched no")):
+                return []
+            raise VaultError(f"gcloud storage ls {self.url(prefix)} failed: {(p.stderr or p.stdout).strip()[:300]}")
         return sorted(line.strip()[len(self.base):] for line in p.stdout.splitlines()
                       if line.strip().startswith(self.base) and not line.strip().endswith("/"))
 
