@@ -5,6 +5,11 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.5.0
+
+### Added
+- `research` 4.3.0: `pool.py review` gives each node's `details`: its title, result, evidence and refutation as text, its newest five notes, work item, branch, code, datasets, adoption, whether it is contested, and its audit findings, long fields cut. It is what a person reads on clicking a hypothesis in mission control's graph, as the research dashboard shows it.
+
 ## 4.4.0
 
 ### Added
