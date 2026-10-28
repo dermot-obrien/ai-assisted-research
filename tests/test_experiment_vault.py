@@ -781,6 +781,23 @@ class TestGuarantees(unittest.TestCase):
         self.assertEqual(ids, [f"G{i}" for i in range(1, len(ids) + 1)], "guarantee ids must run G1, G2, ...")
 
 
+class TestGitCalls(unittest.TestCase):
+    def test_the_vaults_git_calls_never_start_background_maintenance(self):
+        """git may run gc or maintenance in the background after a fetch, still writing into a temporary
+        repository the vault is deleting; every git call the vault makes turns both off."""
+        from unittest import mock
+        seen = []
+        real = subprocess.run
+
+        def spy(argv, **kw):
+            seen.append(argv)
+            return real(argv, **kw)
+
+        with mock.patch.object(vault.subprocess, "run", spy):
+            vault.git(["--version"], Path("."))
+        self.assertEqual(seen[0][1:6], ["-c", "gc.auto=0", "-c", "maintenance.auto=false", "--version"])
+
+
 class TestComparison(unittest.TestCase):
     def test_tolerances(self):
         original = {"metrics": {"a": 1.0, "b": {"c": 2.0}, "label": "x"},

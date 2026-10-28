@@ -151,8 +151,13 @@ def canonical(manifest: dict) -> bytes:
 def run_cmd(argv: list[str], cwd: Path | str | None = None, check: bool = True,
             input_text: str | None = None, env: dict | None = None) -> subprocess.CompletedProcess:
     exe = shutil.which(argv[0]) or argv[0]
+    rest = argv[1:]
+    if Path(argv[0]).name.lower() in ("git", "git.exe"):
+        # No automatic gc or maintenance: git (2.56 on) may start it in the background after a fetch or
+        # commit, still writing into .git/objects when the vault deletes a temporary repository.
+        rest = ["-c", "gc.auto=0", "-c", "maintenance.auto=false", *rest]
     try:
-        p = subprocess.run([exe, *argv[1:]], cwd=cwd, input=input_text, capture_output=True,
+        p = subprocess.run([exe, *rest], cwd=cwd, input=input_text, capture_output=True,
                            text=True, encoding="utf-8", errors="replace", env=env)
     except FileNotFoundError as e:
         raise VaultError(f"{argv[0]} is not installed or not on PATH") from e

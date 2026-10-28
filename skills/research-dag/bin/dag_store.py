@@ -180,8 +180,19 @@ def host_name() -> str:
     return re.sub(r"[^a-z0-9-]", "", socket.gethostname().lower())[:20] or "host"
 
 
+_last_now: dt.datetime | None = None
+
+
 def utc_now() -> str:
-    return dt.datetime.now(dt.timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+    """The time now, strictly later than the last time this process asked, so events written one after the
+    other keep their order even within one tick of a coarse clock (Windows), where equal times would be
+    ordered by the random part of their file names."""
+    global _last_now
+    now = dt.datetime.now(dt.timezone.utc)
+    if _last_now is not None and now <= _last_now:
+        now = _last_now + dt.timedelta(microseconds=1)
+    _last_now = now
+    return now.isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 class FileLock:
