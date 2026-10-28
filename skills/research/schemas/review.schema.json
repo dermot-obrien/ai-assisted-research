@@ -118,7 +118,8 @@
           "status",
           "capsules",
           "pool",
-          "descendants"
+          "descendants",
+          "details"
         ],
         "properties": {
           "id": {
@@ -216,6 +217,77 @@
                   "changed",
                   "broken"
                 ]
+              }
+            }
+          },
+          "details": {
+            "type": "object",
+            "description": "What a person reads beyond the status, as text: long fields cut, newest notes kept",
+            "required": [
+              "notes",
+              "audits"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "result": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "string"
+              },
+              "notes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "notes_total": {
+                "type": "integer"
+              },
+              "refuted_if": {
+                "type": "string"
+              },
+              "work_item": {
+                "type": "string"
+              },
+              "branch": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "datasets": {
+                "type": "string"
+              },
+              "adoption": {
+                "type": "string"
+              },
+              "contested": {
+                "type": "boolean"
+              },
+              "audits": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "severity",
+                    "finding",
+                    "resolved"
+                  ],
+                  "properties": {
+                    "severity": {
+                      "type": "string"
+                    },
+                    "finding": {
+                      "type": "string"
+                    },
+                    "resolved": {
+                      "type": "boolean"
+                    }
+                  }
+                }
               }
             }
           }

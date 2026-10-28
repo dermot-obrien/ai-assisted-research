@@ -54,8 +54,8 @@
     {
       "name": "research",
       "path": "skills/research",
-      "version": "4.2.0",
-      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research@4.2.0",
+      "version": "4.3.0",
+      "purl": "pkg:generic/dermot-obrien/ai-assisted-research/research@4.3.0",
       "requires": [
         {
           "purl": "pkg:generic/dermot-obrien/ai-assisted-work/work",

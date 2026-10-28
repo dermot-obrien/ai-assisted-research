@@ -77,6 +77,50 @@ class PoolError(Exception):
     pass
 
 
+TEXT_MAX = 2000
+NOTES_KEPT = 5
+
+
+def _text(v, limit: int = TEXT_MAX) -> str | None:
+    """A field as text, whatever the DAG held, cut to `limit` characters."""
+    if v is None or v == "" or v == []:
+        return None
+    if isinstance(v, dict):
+        t = ", ".join(f"{k}: {x}" for k, x in v.items() if x not in (None, ""))
+    else:
+        t = v if isinstance(v, str) else json.dumps(v, default=str, ensure_ascii=False)
+    t = " ".join(t.split()) if "\n" not in t else t.strip()
+    return t if len(t) <= limit else t[:limit - 1].rstrip() + "…"
+
+
+def details_of(n: dict) -> dict:
+    """What a person reads about a node beyond its status: its evidence, notes, audits and the rest, as text,
+    so the review stays the same shape whatever the DAG holds. Long fields are cut, and only the newest notes
+    are kept."""
+    notes = n.get("notes")
+    notes = notes if isinstance(notes, list) else ([notes] if notes else [])
+    adoption = n.get("adoption") if isinstance(n.get("adoption"), dict) else {}
+    audits = [a for a in n.get("audit_findings") or [] if isinstance(a, dict)]
+    contested = bool(n.get("contested")) or bool(n.get("contested_by"))
+    out = {
+        "title": _text(n.get("title"), 200),
+        "result": _text(n.get("actual_performance"), 600),
+        "evidence": _text(n.get("evidence")),
+        "notes": [t for t in (_text(x, 800) for x in notes[-NOTES_KEPT:]) if t],
+        "notes_total": len(notes),
+        "refuted_if": _text(n.get("refuted_if"), 600),
+        "work_item": _text(n.get("work_item_id") or n.get("work_item"), 120),
+        "branch": _text(n.get("branch"), 200),
+        "code": _text(n.get("code"), 400),
+        "datasets": _text(n.get("datasets"), 400),
+        "adoption": adoption.get("state") if adoption.get("state") not in (None, "not_assessed") else None,
+        "contested": contested,
+        "audits": [{"severity": str(a.get("severity") or ""), "finding": _text(a.get("finding"), 600) or "",
+                    "resolved": bool(a.get("resolution") or a.get("resolved_by_experiment"))} for a in audits],
+    }
+    return {k: v for k, v in out.items() if v not in (None, [], False) or k in ("notes", "audits")}
+
+
 def now() -> str:
     return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -379,6 +423,7 @@ class Pool:
                          "waits_for": why[len("waits for "):].split(", ") if pool_state == "waiting" else [],
                          "result": (s.get("done") or {}).get("note")},
                 "descendants": len(self.descendants(nid)),
+                "details": details_of(n),
             }
             if verdict:
                 entry["verdict"] = {k: verdict.get(k) for k in ("verdict", "capsule", "note", "by", "at") if verdict.get(k)}

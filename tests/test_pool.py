@@ -269,6 +269,24 @@ class TestReview(PoolTestCase):
         self.assertEqual([(a["node"], a["level"]) for a in r["attention"]], [("H-1", "decision"), ("H-1.3", "look")])
         self.assertEqual(r["summary"]["verdicts"], {"unverifiable": 1, "differs": 1})
 
+    def test_the_review_carries_what_a_person_reads_about_a_node(self):
+        import yaml
+        dag = yaml.safe_load((self.ws / "research" / "dag.yaml").read_text())
+        root = dag["nodes"][0]
+        root.update(title="Momentum", evidence="Two papers and the parent's run.", notes=[f"note {i}" for i in range(8)],
+                    actual_performance={"sharpe": 0.74, "trades": 412}, work_item_id="WI-039", contested_by=["H-9"],
+                    audit_findings=[{"severity": "critical", "finding": "Look-ahead in the tree bounds", "resolution": "causal trees"}],
+                    refuted_if="Sharpe below 0.3 " + "x" * 3000)
+        (self.ws / "research" / "dag.yaml").write_text(yaml.safe_dump(dag), encoding="utf-8")
+        d = next(n for n in self.review("--no-board")["nodes"] if n["id"] == "H-1")["details"]
+        self.assertEqual((d["title"], d["evidence"], d["work_item"], d["contested"]), ("Momentum", "Two papers and the parent's run.", "WI-039", True))
+        self.assertEqual((d["notes"], d["notes_total"]), ([f"note {i}" for i in range(3, 8)], 8), "the newest five notes")
+        self.assertEqual(d["result"], "sharpe: 0.74, trades: 412")
+        self.assertEqual(d["audits"], [{"severity": "critical", "finding": "Look-ahead in the tree bounds", "resolved": True}])
+        self.assertLessEqual(len(d["refuted_if"]), 600)
+        bare = next(n for n in self.review("--no-board")["nodes"] if n["id"] == "H-2.1")["details"]
+        self.assertEqual(bare, {"notes": [], "audits": []})
+
     def test_the_review_works_without_a_board(self):
         self.env["THREAD_CMD"] = "no-such-thread-cli"
         r = self.review()
