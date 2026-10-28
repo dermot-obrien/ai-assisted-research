@@ -25,12 +25,11 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `review [--json]` gives one domain-free snapshot of every hypothesis: a summary, what waits on a person, and each node's result, evidence, where it ran and pool state. Its contract is `skills/research/schemas/review.schema.json` (`research-review/1`), which mission control's Hypotheses view reads.
 - `research-dag` 2.2.0: the node fields `runtime`, `runner` and `retests`.
 - [Pool playbook](docs/pool-playbook.md): setting up Claude Code, Cursor, Codex, the other platforms and a GPU runner on your PC, running the pool and a campaign, and keeping it in proportion. Also an [architecture diagram](docs/architecture.svg).
+- Guarantees G33 to G43, with their tests (`tests/test_runtimes.py`, `tests/test_pool.py`). Each of G34 to G43 was checked by breaking the code on purpose.
+
 ### Fixed
 - The vault's git calls run with automatic gc and maintenance off. From git 2.56, a fetch or commit may start them in the background, still writing into a temporary repository the vault is deleting, which failed `verify --deep` with "Directory not empty".
 - The DAG store's event times are strictly increasing within a process. On a coarse clock (Windows), two batches written one after the other could get the same time and replay in random order.
-
-### Added
-- Guarantees G33 to G43, with their tests (`tests/test_runtimes.py`, `tests/test_pool.py`). Each of G34 to G43 was checked by breaking the code on purpose.
 
 ## 4.3.0
 
