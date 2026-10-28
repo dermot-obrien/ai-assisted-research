@@ -21,6 +21,8 @@ Two kinds of work go on the board:
     python pool.py record <node> --campaign RT1 --verdict reproduced|rebuilt|differs|unverifiable
                           [--capsule ID] [--note TEXT] [--agent HANDLE]
     python pool.py revisit --campaign RT1                 the unverifiable nodes, the most depended on first
+    python pool.py review [--campaign RT1] [--json] [--no-board]
+                                                          one snapshot of every hypothesis, for a person or a view
 
 It reads research.yaml (dag_path, and a pool: section) and runs the thread skill's CLI for the board:
 
@@ -311,6 +313,92 @@ class Pool:
         if p.returncode != 0:
             raise PoolError(f"dag_update failed: {(p.stdout + p.stderr).strip()[:300]}")
 
+    def review(self, as_json: bool, board: bool) -> int:
+        """One snapshot of the hypotheses for a person or a view (mission control reads the JSON): every node
+        with its status, result, evidence, where its latest capsule ran, its pool state and, in a campaign,
+        its verdict; then what waits on the person. It knows nothing of the domain, so the same review serves
+        basic research and trading models."""
+        state: dict[str, dict] = {}
+        board_error = None
+        if board:
+            try:
+                state = self.board_state()
+            except (PoolError, FileNotFoundError, json.JSONDecodeError) as e:
+                board_error = str(e)[:300]
+        nodes, by_status, pool_counts, verdicts = [], {}, {}, {}
+        attention = []
+        for n in self.nodes:
+            nid = n["id"]
+            status = str(n.get("status", "pending"))
+            by_status[status] = by_status.get(status, 0) + 1
+            caps = [c for c in n.get("capsules") or [] if isinstance(c, dict)]
+            runs = [c for c in caps if c.get("kind") == "run"]
+            latest = caps[-1] if caps else None
+            s = state.get(self.ref(nid)) or {}
+            ok, why = self.startable(nid)
+            if s.get("holder"):
+                pool_state = "held"
+            elif s.get("done"):
+                pool_state = "done"
+            elif s:
+                pool_state = "offered"
+            elif ok:
+                pool_state = "ready"
+            elif why.startswith("waits"):
+                pool_state = "waiting"
+            else:
+                pool_state = "settled"
+            pool_counts[pool_state] = pool_counts.get(pool_state, 0) + 1
+            verdict = self.verdict(nid) if self.campaign else None
+            if verdict:
+                verdicts[verdict.get("verdict")] = verdicts.get(verdict.get("verdict"), 0) + 1
+            entry = {
+                "id": nid, "parents": self.parents(n), "hypothesis": n.get("hypothesis"), "status": status,
+                "metric": n.get("metric"), "target": n.get("target_improvement", n.get("target")),
+                "actual": n.get("actual_performance"), "runtime": n.get("runtime"), "runner": n.get("runner"),
+                "evidence": (runs[-1] if runs else latest or {}).get("evidence"),
+                "capsules": len(caps),
+                "latest_capsule": {k: latest.get(k) for k in ("id", "kind", "at", "verdict", "evidence", "env", "runtime",
+                                                               "result") if latest.get(k) is not None} if latest else None,
+                "pool": {"state": pool_state, "who": (s.get("holder") or {}).get("who"),
+                         "waits_for": why[len("waits for "):].split(", ") if pool_state == "waiting" else [],
+                         "result": (s.get("done") or {}).get("note")},
+                "descendants": len(self.descendants(nid)),
+            }
+            if verdict:
+                entry["verdict"] = {k: verdict.get(k) for k in ("verdict", "capsule", "note", "by", "at") if verdict.get(k)}
+            nodes.append(entry)
+            if status == "contested":
+                attention.append({"node": nid, "level": "decision", "why": "contested: a retest, audit or parity "
+                                  "replay disagrees with the recorded result"})
+            if verdict and verdict.get("verdict") == "unverifiable":
+                attention.append({"node": nid, "level": "look", "why": f"unverifiable in {self.campaign}: "
+                                  f"{verdict.get('note', '')}", "descendants": entry["descendants"]})
+            if status in RESULT and status != "contested" and not runs and n.get("runtime"):
+                attention.append({"node": nid, "level": "look", "why": "a result with a runtime but no run capsule"})
+        order = {"decision": 0, "look": 1}
+        attention.sort(key=lambda a: (order[a["level"]], -a.get("descendants", 0), a["node"]))
+        review = {"format": "research-review/1", "generated_at": now(), "project": self.cfg._get("dag_project", None),
+                  "campaign": self.campaign, "board": None if not board else ({"error": board_error} if board_error else {"ok": True}),
+                  "summary": {"nodes": len(nodes), "by_status": by_status, "pool": pool_counts,
+                              **({"verdicts": verdicts, "in_scope": sum(1 for n in self.nodes if n.get("status") in RESULT)}
+                                 if self.campaign else {})},
+                  "attention": attention, "nodes": nodes}
+        if as_json:
+            print(json.dumps(review, indent=2, default=str))
+            return 0
+        sm = review["summary"]
+        print(f"{len(nodes)} hypotheses · " + ", ".join(f"{k} {v}" for k, v in sorted(sm["by_status"].items())))
+        print("pool: " + ", ".join(f"{k} {v}" for k, v in sorted(sm["pool"].items())))
+        if self.campaign:
+            print(f"campaign {self.campaign}: " + ", ".join(f"{k} {v}" for k, v in sorted(sm["verdicts"].items()))
+                  + f" of {sm['in_scope']}")
+        if board_error:
+            print(f"board not read: {board_error}")
+        for a in attention:
+            print(f"  {'DECIDE' if a['level'] == 'decision' else 'look  '} {a['node']}: {a['why']}")
+        return 0
+
     def revisit(self) -> int:
         if not self.campaign:
             raise PoolError("revisit needs --campaign")
@@ -334,13 +422,16 @@ class Pool:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="The hypothesis pool on the board")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("offer", "status", "check", "record", "revisit"):
+    for name in ("offer", "status", "check", "record", "revisit", "review"):
         p = sub.add_parser(name)
         p.add_argument("--campaign", help="A retest campaign id, such as RT1")
         if name == "offer":
             p.add_argument("--dry-run", action="store_true")
         if name in ("check", "record"):
             p.add_argument("node")
+        if name == "review":
+            p.add_argument("--json", action="store_true", help="The snapshot as JSON, as mission control reads it")
+            p.add_argument("--no-board", action="store_true", help="Read the DAG only, without the board")
         if name == "record":
             p.add_argument("--verdict", choices=VERDICTS, required=True)
             p.add_argument("--capsule")
@@ -354,6 +445,8 @@ def main(argv: list[str] | None = None) -> int:
         pool = Pool(rms_config.load(), args.campaign)
         if args.cmd == "offer":
             return pool.offer(args.dry_run)
+        if args.cmd == "review":
+            return pool.review(args.json, not args.no_board)
         if args.cmd == "status":
             return pool.status()
         if args.cmd == "check":

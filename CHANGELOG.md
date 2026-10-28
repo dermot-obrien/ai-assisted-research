@@ -20,6 +20,7 @@ Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - A campaign (`--campaign RT1`) retests every result from the root down, each node within a time box, and records `reproduced`, `rebuilt`, `differs` (the node becomes contested) or `unverifiable`.
   - An unverifiable node changes no result and never blocks its children. `revisit` lists the unverifiable nodes, the most depended on first.
   - Framing fixes a runtime. Sync waits for parity, and lineage changes check the chain is not held.
+  - `review [--json]` gives one domain-free snapshot of every hypothesis: a summary, what waits on a person, and each node's result, evidence, where it ran and pool state. Its contract is `skills/research/schemas/review.schema.json` (`research-review/1`), which mission control's Hypotheses view reads.
 - `research-dag` 2.2.0: the node fields `runtime`, `runner` and `retests`.
 - [Pool playbook](docs/pool-playbook.md): setting up Claude Code, Cursor, Codex, the other platforms and a GPU runner on your PC, running the pool and a campaign, and keeping it in proportion. Also an [architecture diagram](docs/architecture.svg).
 - Guarantees G33 to G42, with their tests (`tests/test_runtimes.py`, `tests/test_pool.py`). Each of G34 to G42 was checked by breaking the code on purpose.

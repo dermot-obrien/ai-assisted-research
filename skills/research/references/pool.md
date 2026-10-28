@@ -86,6 +86,17 @@ Order is the lock. A node is offered only when every ancestor with a result has 
 
 `<pool> revisit --campaign RT1` lists the unverifiable nodes, the most depended on first: those with the most live descendants are the enablers and blockers of whole chains. For each one worth it, the person decides whether to frame a reconstruction as a new node, a child of the original that states its design explicitly, so the chain below it gets a result it can stand on.
 
+## The review
+
+`<pool> review [--campaign RT1]` is one snapshot of every hypothesis, for a person; `--json` is the same for a view, and is what mission control's Hypotheses tab reads. It knows nothing of the domain, so it serves basic research and trading models alike. [schemas/review.schema.json](../schemas/review.schema.json) is its contract (`research-review/1`):
+
+| Part | Holds |
+|---|---|
+| `summary` | Node counts by status and by pool state (`held`, `offered`, `done`, `ready`, `waiting`, `settled`), and in a campaign its verdicts and how many nodes it covers |
+| `attention` | What waits on a person, decisions first: `contested` nodes (a retest, audit or parity replay disagrees), then unverifiable nodes (the most depended on first) and results with a runtime but no run capsule |
+| `nodes` | Each node: parents, hypothesis, status, metric, target and actual, runtime and runner, evidence class, how many capsules and the latest (with where it ran and whether the runtime matched), its pool state (who holds it, what it waits for, the result its call closed with), how many nodes depend on it, and its campaign verdict |
+| `board` | Whether the board was read; `--no-board` reads the DAG only |
+
 ## Rules
 
 1. Take a node only through the board (`next --claim` or a claim), and only when `pool.py check` says yes.

@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-review/1",
+  "title": "research review",
+  "description": "One snapshot of every hypothesis in a DAG, from scripts/pool.py review --json: what mission control's Hypotheses view reads. Domain-free: the same for basic research and trading models.",
+  "type": "object",
+  "required": [
+    "format",
+    "generated_at",
+    "campaign",
+    "summary",
+    "attention",
+    "nodes"
+  ],
+  "properties": {
+    "format": {
+      "const": "research-review/1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "campaign": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "board": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "nodes",
+        "by_status",
+        "pool"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "integer"
+        },
+        "by_status": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "pool": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "verdicts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "in_scope": {
+          "type": "integer"
+        }
+      }
+    },
+    "attention": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "node",
+          "level",
+          "why"
+        ],
+        "properties": {
+          "node": {
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "decision",
+              "look"
+            ]
+          },
+          "why": {
+            "type": "string"
+          },
+          "descendants": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "parents",
+          "hypothesis",
+          "status",
+          "capsules",
+          "pool",
+          "descendants"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hypothesis": {},
+          "status": {
+            "type": "string"
+          },
+          "metric": {},
+          "target": {},
+          "actual": {},
+          "runtime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runner": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capsules": {
+            "type": "integer"
+          },
+          "latest_capsule": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "pool": {
+            "type": "object",
+            "required": [
+              "state"
+            ],
+            "properties": {
+              "state": {
+                "enum": [
+                  "held",
+                  "offered",
+                  "done",
+                  "ready",
+                  "waiting",
+                  "settled"
+                ]
+              },
+              "who": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "waits_for": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "result": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "descendants": {
+            "type": "integer"
+          },
+          "verdict": {
+            "type": "object",
+            "properties": {
+              "verdict": {
+                "enum": [
+                  "reproduced",
+                  "rebuilt",
+                  "differs",
+                  "unverifiable"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -336,6 +336,7 @@ The hypothesis pool and retest campaigns on the board ([pool](../skills/research
 | `check NODE` | `--campaign ID` | Exit 0 when an agent may work on the node: it may start, and nothing in its chain is held |
 | `record NODE` | `--campaign ID`, `--verdict reproduced\|rebuilt\|differs\|unverifiable`, `--capsule ID`, `--note`, `--agent` | Append the verdict to the node's `retests`; `differs` makes the node `contested` |
 | `revisit` | `--campaign ID` | The unverifiable nodes, the most depended on first |
+| `review` | `--campaign ID`, `--json`, `--no-board` | One snapshot of every hypothesis: summary, what waits on a person, and each node with its result, evidence, where it ran and pool state. The JSON (`research-review/1`, `skills/research/schemas/review.schema.json`) is what mission control reads |
 
 ## research: scripts/reconcile.py
 

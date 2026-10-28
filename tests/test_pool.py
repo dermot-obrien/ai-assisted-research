@@ -217,5 +217,45 @@ class TestCampaign(PoolTestCase):
         self.assertEqual(sorted(self.posts()), ["RT2-H-1"], "RT1's verdict does not settle RT2")
 
 
+class TestReview(PoolTestCase):
+    SCHEMA = json.loads((REPO / "skills" / "research" / "schemas" / "review.schema.json").read_text(encoding="utf-8"))
+
+    def review(self, *args):
+        data = json.loads(self.pool("review", "--json", *args).stdout)
+        try:
+            import jsonschema
+            jsonschema.validate(data, self.SCHEMA)
+        except ImportError:
+            if os.environ.get("CI"):
+                self.fail("jsonschema is not installed, so the review is not checked against its schema")
+        return data
+
+    def test_the_review_shows_every_node_with_its_pool_state(self):
+        self.pool("offer")
+        self.claim("H-1.1")
+        r = self.review()
+        nodes = {n["id"]: n for n in r["nodes"]}
+        self.assertEqual(r["summary"]["nodes"], 7)
+        self.assertEqual((nodes["H-1.1"]["pool"]["state"], nodes["H-1.1"]["pool"]["who"]), ("held", "agent-a"))
+        self.assertEqual(nodes["H-1.2"]["pool"]["state"], "offered")
+        self.assertEqual(nodes["H-1.1.1"]["pool"]["waits_for"], ["H-1.1"])
+        self.assertEqual(nodes["H-1"]["descendants"], 4)
+
+    def test_what_waits_on_a_person_comes_first(self):
+        self.pool("record", "H-1.3", "--campaign", "RT1", "--verdict", "unverifiable", "--note", "lost")
+        self.pool("record", "H-1", "--campaign", "RT1", "--verdict", "differs", "--capsule", "c-1")
+        r = self.review("--campaign", "RT1")
+        self.assertEqual([(a["node"], a["level"]) for a in r["attention"]], [("H-1", "decision"), ("H-1.3", "look")])
+        self.assertEqual(r["summary"]["verdicts"], {"unverifiable": 1, "differs": 1})
+
+    def test_the_review_works_without_a_board(self):
+        self.env["THREAD_CMD"] = "no-such-thread-cli"
+        r = self.review()
+        self.assertIn("error", r["board"])
+        r = self.review("--no-board")
+        self.assertIsNone(r["board"])
+        self.assertEqual({n["pool"]["state"] for n in r["nodes"]} - {"ready", "waiting", "settled"}, set())
+
+
 if __name__ == "__main__":
     unittest.main()
