@@ -27,6 +27,9 @@ node_index_path: "research/node-index.yaml"
 #   vendor_wheels: true     # also keep every package's wheel, for replay with no package index
 #   rtol: 1.0e-9            # how close a replay's metrics must be, unless a run sets its own
 #   atol: 1.0e-12
+#   volatile:               # what a replay may change without the result changing: timings and the like
+#     keys: ["fit_ms"]      # metric and JSON output keys (name or dotted path globs)
+#     outputs: []           # whole output files (path globs)
 
 # Optional: the hypothesis pool (the research skill's references/pool.md), where agents on any
 # platform take hypotheses from the thread skill's board. thread is how to run its CLI (or set

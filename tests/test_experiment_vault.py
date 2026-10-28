@@ -40,6 +40,14 @@ TRAIN = textwrap.dedent("""\
     os.makedirs("out", exist_ok=True)
     json.dump({"score": score, "n": len(values)}, open("out/metrics.json", "w"))
     open("out/pred.txt", "w").write(f"{score:.12f}\\n")
+    if os.environ.get("TIMING"):
+        # A wall-clock timing beside the result, as real experiments write one: it differs on every run.
+        import time
+        fit_ms = time.perf_counter_ns() % 100000 / 7
+        json.dump({"auroc": score, "fit_ms": fit_ms, "folds": [{"auroc": score, "fit_ms": fit_ms}]},
+                  open("out/results.json", "w"))
+        json.dump({"score": score, "n": len(values), "fit_ms": fit_ms}, open("out/metrics.json", "w"))
+        open("out/timing.log", "w").write(f"{fit_ms}\\n")
     print("score", score)
     """)
 
@@ -797,6 +805,90 @@ class TestGitCalls(unittest.TestCase):
             vault.git(["--version"], Path("."))
         self.assertEqual(seen[0][1:6], ["-c", "gc.auto=0", "-c", "maintenance.auto=false", "--version"])
 
+
+class TestVolatile(VaultTestCase):
+    """Wall-clock timings and the like: declared volatile, they never make an identical result look drifted."""
+
+    def setUp(self):
+        super().setUp()
+        self.env["TIMING"] = "1"
+
+    def replay(self, ref, name, *extra):
+        return self.vault("replay", ref, "--setup", "none", "--to", str(self.base / name), "--no-link", *extra,
+                          check=False)
+
+    def test_undeclared_timings_drift(self):
+        ref = self.run_experiment()
+        p = self.replay(ref, "r0", "--no-record")
+        self.assertIn("Verdict: drifted", p.stdout)
+
+    def test_declared_at_the_run_the_replay_is_identical(self):
+        ref = self.run_experiment("H-001", "--volatile-key", "fit_ms", "--volatile-output", "out/timing.log")
+        self.assertEqual(self.manifest(ref)["volatile"], {"outputs": ["out/timing.log"], "keys": ["fit_ms"]})
+        p = self.replay(ref, "r1")
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertIn("Verdict: identical", p.stdout)
+        self.assertIn("volatile, left out of the verdict: 3 output(s)", p.stdout)
+        # The run and its replay can share a second, so the listing's order says nothing: pick by kind.
+        retest = next(line.split()[0] for line in self.vault("list", "--node", "H-001", "--long").stdout.splitlines()
+                      if line.split()[1:2] == ["retest"])
+        comparison = self.manifest(retest)["comparison"]
+        self.assertEqual(sorted(comparison["volatile"]["changed"]), ["out/metrics.json", "out/results.json", "out/timing.log"])
+        self.assertTrue(comparison["metrics"]["fit_ms"]["volatile"])
+        self.assertEqual(comparison["outputs"]["changed"], [])
+
+    def test_declared_at_the_replay_for_an_older_capsule(self):
+        ref = self.run_experiment()
+        p = self.replay(ref, "r2", "--no-record", "--volatile-key", "fit_ms", "--volatile-output", "out/timing.log")
+        self.assertIn("Verdict: identical", p.stdout)
+
+    def test_a_real_change_still_drifts(self):
+        ref = self.run_experiment("H-001", "--volatile-key", "fit_ms", "--volatile-output", "out/timing.log")
+        self.env["DRIFT"] = "1"
+        p = self.replay(ref, "r3", "--no-record")
+        self.assertEqual(p.returncode, 3)
+        self.assertIn("Verdict: drifted", p.stdout)
+        self.assertIn("DIFF score", p.stdout)
+
+    def test_a_retest_run_uses_the_declaration_too(self):
+        ref = self.run_experiment("H-001", "--volatile-key", "fit_ms", "--volatile-output", "out/timing.log")
+        new = self.run_experiment("H-001", "--retest-of", ref, "--volatile-key", "fit_ms",
+                                  "--volatile-output", "out/timing.log")
+        self.assertEqual(self.manifest(new)["comparison"]["verdict"], "identical")
+
+    def test_research_yaml_declares_it_for_every_run(self):
+        (self.exp / "research.yaml").write_text("vault:\n  volatile:\n    keys: ['*_ms']\n    outputs: ['out/*.log']\n",
+                                                encoding="utf-8")
+        sh(["git", "add", "research.yaml"], self.exp)
+        sh(["git", "commit", "-q", "-m", "volatile"], self.exp)
+        ref = self.run_experiment()
+        self.assertEqual(self.manifest(ref)["volatile"], {"outputs": ["out/*.log"], "keys": ["*_ms"]})
+        self.assertIn("Verdict: identical", self.replay(ref, "r4", "--no-record").stdout)
+
+
+class TestComparison(unittest.TestCase):
+    def test_volatile_keys_and_outputs(self):
+        was = {"auroc": 0.94, "fit_ms": 12, "runs": [{"fit_ms": 3, "seed": 1}]}
+        files = {("res.json", "was"): json.dumps(was).encode(),
+                 ("res.json", "now"): json.dumps({**was, "fit_ms": 99, "runs": [{"fit_ms": 4, "seed": 1}]}).encode(),
+                 ("other.json", "was"): json.dumps(was).encode(),
+                 ("other.json", "now"): json.dumps({**was, "auroc": 0.95}).encode()}
+        original = {"metrics": {"auroc": 0.94, "timing": {"fit_ms": 1}},
+                    "outputs": [{"path": p, "sha256": "1"} for p in ("res.json", "other.json", "log.txt")]}
+        new = [{"path": p, "sha256": "2"} for p in ("res.json", "other.json", "log.txt")]
+        vol = {"outputs": ["*.txt"], "keys": ["fit_ms"]}
+        c = vault.compare(original, {"auroc": 0.94, "timing": {"fit_ms": 2}}, new, 0, 0, 0, vol,
+                          lambda p, w: files.get((p, w)))
+        self.assertEqual(c["outputs"]["changed"], ["other.json"], "a real change in a JSON output is still a change")
+        self.assertEqual(sorted(c["volatile"]["changed"]), ["log.txt", "res.json"])
+        self.assertTrue(c["metrics"]["timing.fit_ms"]["volatile"])
+        self.assertEqual(c["verdict"], "reproduced")
+        self.assertNotIn("volatile", vault.compare(original, None, [], 0, 0, 0))
+        with self.assertRaises(vault.VaultError):
+            vault.read_volatile(["fit_ms"], "x")
+        with self.assertRaises(vault.VaultError):
+            vault.read_volatile({"keys": ["a"], "paths": ["b"]}, "x")
+        self.assertEqual(vault.read_volatile({"keys": "fit_ms"}, "x"), {"outputs": [], "keys": ["fit_ms"]})
 
 class TestComparison(unittest.TestCase):
     def test_tolerances(self):

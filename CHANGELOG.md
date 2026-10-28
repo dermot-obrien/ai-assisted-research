@@ -5,6 +5,16 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.7.0
+
+### Added
+- `experiment-vault` 1.5.0: volatile outputs ([replaying](skills/experiment-vault/references/replaying.md), G44).
+  - Outputs that differ on every run without the result differing, such as wall-clock timings, can be declared volatile: in `research.yaml` (`vault: volatile: keys: [...]` and `outputs: [...]`), with `--volatile-key` and `--volatile-output` on `run`, or on `replay` for an older capsule.
+  - A replay leaves them out of its comparison and lists them apart, so a run that repeats its result exactly is `identical` instead of `drifted`. A JSON output that differs only in volatile keys counts as unchanged, and any other change still decides the verdict.
+  - The capsule records the declaration, and every later replay uses it.
+- `research` 4.4.1: a campaign replay where only timings moved is `reproduced`, and the pool reference says how to declare them.
+- `research-dag` 2.3.1: its example `research.yaml` shows `vault.volatile` too.
+
 ## 4.6.0
 
 ### Added

@@ -16,6 +16,19 @@ python <skills>/experiment-vault/bin/vault.py replay H-204.4.16/20261021T101500Z
 | `drifted` | A metric moved beyond the tolerance, or is missing | 3 |
 | `failed` | The command exited non-zero | 1 |
 
+### Volatile outputs: timings and the like
+
+Some outputs differ on every run without the result differing: wall-clock timings (`fit_ms`), a timing log, a hostname. Declare them volatile and the comparison leaves them out, listing them apart, so a replay that repeats the result exactly is `identical` instead of `drifted`:
+
+```yaml
+vault:
+  volatile:
+    keys: ["fit_ms", "*_ms", "timing.*"]   # metric and JSON output keys, by name or dotted path
+    outputs: ["logs/*.log"]                # whole output files
+```
+
+A JSON output that differs only in volatile keys, at any depth, counts as unchanged; any other change in it is still a change, and a metric outside the volatile keys still decides the verdict. `run` records the declaration in the capsule (`volatile`), so every later replay of it uses it; `--volatile-key` and `--volatile-output` on `run` or `replay` add to it, which is how an older capsule's timings are declared at replay. Declare only what cannot carry the result. A key that is the result, or that a decision reads, is never volatile.
+
 The tolerance is the one fixed at capture (`--rtol`, `--atol`), unless the replay overrides it. The replay is kept as a new capsule of kind `retest`, pointing at the original (`retest_of`) and carrying the comparison, and appended to the node's `capsules`; `--no-record` skips that for a dry run. Use `--python` to choose the base interpreter, ideally the recorded version: `replay` warns when it differs.
 
 ## Retest after something changed
