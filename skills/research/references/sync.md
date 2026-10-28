@@ -55,6 +55,11 @@ Usage: `/research sync {node_id} {WI_id}`, for example
    `ineffective` is a result, not a failure. Record it with the same care as a success; the
    next person needs to know this avenue was tried.
 
+   Give the plain summary with the status: `--plain-result` says what was found and
+   `--plain-meaning` what that means for the work, both in words someone outside the research
+   follows (no ids, no unexplained metric names). `update` refuses a result status without them,
+   and refuses one on a node with no `plain.tested` until `--plain-tested` is given too.
+
 2. **Record the metrics** in the node's `actual_performance`.
 3. **Link the deliverables** to the node.
 4. **Append the evidence**: a note summarising the finding and linking the work item.

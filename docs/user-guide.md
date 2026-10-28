@@ -108,7 +108,7 @@ start from the [quick start's example](quick-start.md#4-write-a-tiny-dag).
 or directly:
 
 ```bash
-python <skills>/research-dag/bin/dag_update.py --action add --parent H-001 --hypothesis "New variant description" --target 0.05 --metric accuracy
+python <skills>/research-dag/bin/dag_update.py --action add --parent H-001 --hypothesis "New variant description" --plain-tested "What it tests, in plain words" --target 0.05 --metric accuracy
 python <skills>/research-dag/bin/generate_node_index.py
 ```
 

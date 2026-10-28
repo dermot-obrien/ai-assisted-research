@@ -103,7 +103,10 @@ def details_of(n: dict) -> dict:
     adoption = n.get("adoption") if isinstance(n.get("adoption"), dict) else {}
     audits = [a for a in n.get("audit_findings") or [] if isinstance(a, dict)]
     contested = bool(n.get("contested")) or bool(n.get("contested_by"))
+    plain = n.get("plain") if isinstance(n.get("plain"), dict) else {}
+    plain = {k: t for k in ("tested", "result", "meaning") if (t := _text(plain.get(k), 800))}
     out = {
+        "plain": plain or None,
         "title": _text(n.get("title"), 200),
         "result": _text(n.get("actual_performance"), 600),
         "evidence": _text(n.get("evidence")),

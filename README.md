@@ -81,7 +81,7 @@ The first prints a tick for each installed skill. The second needs a `research.y
 After installing, with `research.yaml` in place and a root node H-000 in `research/hypothesis-dag.yaml` ([quick start, step 4](docs/quick-start.md#4-write-a-tiny-dag)), add a hypothesis and see it become ready:
 
 ```bash
-python .agents/skills/research-dag/bin/dag_update.py --dag research/hypothesis-dag.yaml --action add --parent H-000 --hypothesis "Adding day-of-week features lifts accuracy by at least 0.03" --target 0.03
+python .agents/skills/research-dag/bin/dag_update.py --dag research/hypothesis-dag.yaml --action add --parent H-000 --hypothesis "Adding day-of-week features lifts accuracy by at least 0.03" --plain-tested "Whether knowing the day of the week helps predict better" --target 0.03
 python .agents/skills/research-dag/bin/generate_node_index.py
 ```
 

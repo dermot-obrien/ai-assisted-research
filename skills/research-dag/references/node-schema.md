@@ -9,6 +9,7 @@ A node is a YAML mapping in the DAG's `nodes` list. The tools keep any field a n
 | `id` | `H-NNN`, or hierarchical `H-204.4.25`; never changes | `dag_update.py --action add` |
 | `parent` | The id of the node it builds on (`parents: []` in a flat DAG) | `add`, `relink` |
 | `hypothesis` | The claim, in one sentence, measurable | `add` |
+| `plain` | The node in plain words, for someone outside the research: `tested` (what the experiment tests), `result` (what it found) and `meaning` (what that means for the work); required, below | `add --plain-tested`, `update --plain-result --plain-meaning`, `explain` |
 | `status` | One of the statuses below | `update` |
 | `metric` | The evaluation metric, the same one the target is in | `add --metric`, `set` |
 | `target_improvement` | The number the result must reach, fixed before the run, with the state-of-the-art source in `evidence` | `add --target` |
@@ -30,6 +31,25 @@ A node is a YAML mapping in the DAG's `nodes` list. The tools keep any field a n
 | `repeated_at` | When the result was last shown to repeat; only with `repeatability: repeated` | derived: never set |
 
 The four derived fields are written by the tools, never by hand, and `dag_update.py --action set` refuses them. In a DAG store they come from the events: `created_at` from the node's add, `last_activity_at` from its latest event (a node imported from a file keeps the dates the file carried until it is next changed), and they never become events themselves, so they cannot conflict. In a plain YAML file `dag_update.py` stamps them on each change; adding a child is activity on its parent too.
+
+## The plain summary
+
+`hypothesis`, `metric` and `actual_performance` are written for the researcher. `plain` says the same in words a person outside the research follows without the jargon: no ids, no metric names without saying what they measure, no numbers without what they mean. Mission control shows it first, as "What does this mean?".
+
+```yaml
+plain:
+  tested: Whether smoothing the prices before finding turning points still finds the same turning points.
+  result: It found the same turning points in 98 of 100 series, and was four times faster.
+  meaning: Smoothing first is safe, so later work can use the faster method.
+```
+
+| Part | Required | Written |
+|---|---|---|
+| `tested` | On every node | At `add`, with `--plain-tested`: `add` refuses a node without it |
+| `result` | With a result status (`backtested`, `holdout_passed`, `validated`, `ineffective`) | With the status, `update --plain-result`: `update` refuses a result status while it is missing |
+| `meaning` | With a result status | With the status, `update --plain-meaning` |
+
+`--action explain --node-id <node>` with any of the three flags writes or revises them without a status change, keeping the parts not given; it is how an older node gets its summary. `contested`, `retired` and `forward_testing` move on later evidence and do not demand a new summary, but revise `meaning` with `explain` when the later evidence changes it.
 
 ## Statuses
 

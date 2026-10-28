@@ -124,7 +124,7 @@ Change the DAG through `dag_update.py`, never by hand, so ids, parents and statu
 consistent:
 
 ```bash
-python .agents/skills/research-dag/bin/dag_update.py --dag research/hypothesis-dag.yaml --action add --parent H-000 --hypothesis "Adding day-of-week features lifts accuracy by at least 0.03" --target 0.03 --metric accuracy
+python .agents/skills/research-dag/bin/dag_update.py --dag research/hypothesis-dag.yaml --action add --parent H-000 --hypothesis "Adding day-of-week features lifts accuracy by at least 0.03" --plain-tested "Whether knowing the day of the week helps predict better" --target 0.03 --metric accuracy
 ```
 
 ```text

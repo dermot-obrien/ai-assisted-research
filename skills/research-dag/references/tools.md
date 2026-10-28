@@ -29,8 +29,9 @@ When two writers change the same field at once, the later one wins and the view 
 
 | Task | Command |
 |---|---|
-| Add a node under a parent | `python <skills>/research-dag/bin/dag_update.py --action add --parent H-001 --hypothesis "..." --target 0.05` |
-| Update a node's status or result | `python <skills>/research-dag/bin/dag_update.py --action update --node-id H-001 --status validated --performance 0.07` |
+| Add a node under a parent | `python <skills>/research-dag/bin/dag_update.py --action add --parent H-001 --hypothesis "..." --plain-tested "..." --target 0.05` |
+| Update a node's status or result | `python <skills>/research-dag/bin/dag_update.py --action update --node-id H-001 --status validated --performance 0.07 --plain-result "..." --plain-meaning "..."` |
+| Write or revise a node's plain summary | `python <skills>/research-dag/bin/dag_update.py --action explain --node-id H-001 --plain-tested "..." --plain-result "..." --plain-meaning "..."` |
 | Record whether a node was adopted | `python <skills>/research-dag/bin/dag_update.py --action adopt --node-id H-001 --adoption adopted --artefact <path> --verification "<command>"` |
 | Move a node under another parent | `python <skills>/research-dag/bin/dag_update.py --action relink --node-id H-001.2 --parent H-003` |
 | Add an item to a list field, such as a capsule | `python <skills>/research-dag/bin/dag_update.py --action append --node-id H-001 --field capsules --value '{id: ..., sha256: ...}'` |

@@ -5,6 +5,16 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.9.0
+
+### Added
+- `research-dag` 2.4.0: a plain summary on every node ([node schema](skills/research-dag/references/node-schema.md#the-plain-summary)).
+  - `plain` holds `tested`, `result` and `meaning`: what the node tests, what it found and what that means, in words someone outside the research follows.
+  - `dag_update.py --action add` requires `--plain-tested`.
+  - `--action update` to `backtested`, `holdout_passed`, `validated` or `ineffective` requires the whole summary, given with `--plain-result` and `--plain-meaning` or already on the node.
+  - `--action explain` writes or revises the summary without a status change, keeping the parts not given, so older nodes can get one.
+- `research` 4.5.0: `pool.py review` carries the summary as `details.plain`, and the sync flow writes it with the result.
+
 ## 4.8.1
 
 ### Fixed

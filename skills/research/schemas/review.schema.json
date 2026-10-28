@@ -288,6 +288,22 @@
               "title": {
                 "type": "string"
               },
+              "plain": {
+                "description": "The node's plain-language summary: what it tests, what the result was and what that means",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "tested": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "type": "string"
+                  },
+                  "meaning": {
+                    "type": "string"
+                  }
+                }
+              },
               "result": {
                 "type": "string"
               },

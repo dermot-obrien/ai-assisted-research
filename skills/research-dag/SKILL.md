@@ -5,7 +5,7 @@ license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apac
 compatibility: Python 3.10 or newer with PyYAML, and git for a shared DAG store. Reads research.yaml, found by searching upward from the working directory (or $RMS_ROOT), for the DAG, node index, work items and dashboard paths, and the optional DAG store.
 metadata:
   author: dermot-obrien
-  version: "2.3.2"
+  version: "2.4.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: ""
 ---
@@ -30,6 +30,7 @@ The hypothesis DAG in plain files, and the only tools that change it. Each node 
 2. With a DAG store, run `dag_store.py view` before reading the DAG when others may have written since, and report the id `dag_update.py` prints for a new node, which may carry a suffix.
 3. Recompute the node index after any change to the DAG (`generate_node_index.py`), since flows read readiness from the index rather than walking the DAG.
 4. Add to a list field (notes, avenues, capsules) with `--action note` or `--action append`, never by setting the whole list, so concurrent writers' items all survive.
+5. Every node carries a plain summary (`plain`: what it tests, what it found, what that means) in words someone outside the research follows: `add` requires `--plain-tested`, and a result status requires `--plain-result` and `--plain-meaning` ([node schema](references/node-schema.md#the-plain-summary)).
 
 ## What is in this skill
 
