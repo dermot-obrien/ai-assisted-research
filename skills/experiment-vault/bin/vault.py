@@ -68,7 +68,7 @@ from typing import Any, Callable, Iterable
 
 FORMAT = "experiment-vault/2"
 FORMATS = ("experiment-vault/1", "experiment-vault/2")
-TOOL_VERSION = "1.5.0"
+TOOL_VERSION = "1.6.0"
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 CAPSULE_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{12}$")
@@ -218,6 +218,9 @@ class Settings:
         self.atol = float(vault.get("atol", 1e-12))
         # What a replay may change without the result changing: wall-clock timings and the like.
         self.volatile = read_volatile(vault.get("volatile"), "vault.volatile in research.yaml")
+        # Whether to push each capsule's vault/<commit> tag to origin. The bundles hold the commits either
+        # way; a host whose credential cannot push tags (some cloud agent platforms) sets this false.
+        self.push_tags = bool(vault.get("push_tags", True))
         self.dag_path = (self.root / cfg["dag_path"]) if self.root and cfg.get("dag_path") else None
         # Files the research tools rewrite; a change to them does not make the code dirty.
         self.managed = {(self.root / cfg[k]).resolve() for k in ("dag_path", "node_index_path")
@@ -1368,7 +1371,7 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         blobs: dict[str, Path] = {}
         files: dict[str, Path] = {}
         storage = args.code_storage or settings.code_storage
-        pin = dict(backend=backend, files=files, storage=storage, push_tag=not args.no_push_tag)
+        pin = dict(backend=backend, files=files, storage=storage, push_tag=settings.push_tags and not args.no_push_tag)
         code = []
         for path, name, rel in repos_to_capture(root, args.repo or []):
             code.append(capture_repo(path, (args.name or name) if rel is None else name, args.allow_dirty,
@@ -2629,6 +2632,76 @@ def cmd_dataset_impact(settings: Settings, args) -> int:
 
 # ---------------------------------------------------------------- reading
 
+def cmd_tags(settings: Settings, args) -> int:
+    """Put every capsule's vault/<commit> tag on origin, for capsules of the repository this is run in.
+
+    Agents on some platforms cannot push tags, so their capsules keep the commit only in the vault's bundles.
+    Run from a machine or CI job that can (a GitHub Actions job with contents: write), this finds each tag
+    origin lacks, takes the commit from the bundles when this clone does not have it (a squash-merged,
+    deleted branch), and pushes the tags in one go. Without --push it only reports."""
+    settings.need()
+    backend = open_backend(settings.uri)
+    top = Path(git(["rev-parse", "--show-toplevel"], Path.cwd()))
+    roots = set(git(["rev-list", "--max-parents=0", "HEAD"], top).split())
+    prefix = f"capsules/{settings.project}/" + (f"{check_node_id(args.node)}/" if args.node else "")
+    wanted: dict[str, tuple[str, str, list[str]]] = {}
+    for k in backend.list(prefix):
+        if not k.endswith(".json"):
+            continue
+        m = json.loads(backend.read(k) or b"{}")
+        for repo in m.get("code", []):
+            if repo.get("storage") == "bundle" and repo.get("root") in roots and repo.get("tag"):
+                wanted[repo["tag"]] = (repo["commit"], repo["root"], repo.get("bundles", []))
+    if not wanted:
+        print("No capsule of this repository is stored as bundles.")
+        return 0
+    remote = {}
+    for line in git(["ls-remote", "--tags", "origin", "refs/tags/vault/*"], top).splitlines():
+        sha, ref = line.split("\t", 1)
+        remote[ref[len("refs/tags/"):]] = sha
+    missing = {t: v for t, v in sorted(wanted.items()) if t not in remote}
+    clashes = sorted(t for t, (commit, _, _) in wanted.items() if t in remote and remote[t] != commit)
+    for t in clashes:
+        print(f"warning: origin's {t} points at {remote[t][:12]}, not the capsule's {wanted[t][0][:12]}; left as it is",
+              file=sys.stderr)
+    print(f"{len(wanted)} vault tag(s) for this repository; {len(wanted) - len(missing)} on origin, "
+          f"{len(missing)} missing")
+    if not missing or not args.push:
+        for t, (commit, _, _) in missing.items():
+            print(f"  missing {t} -> {commit[:12]}")
+        return 0
+    have = lambda c: run_cmd(["git", "cat-file", "-e", f"{c}^{{commit}}"], cwd=top, check=False).returncode == 0
+    absent = {r: tips for t, (c, r, tips) in missing.items() if not have(c)}
+    if absent:
+        with tempfile.TemporaryDirectory(prefix="vault-tags-") as td:
+            for root, _ in absent.items():
+                tips = sorted({tip for c, r, ts in missing.values() if r == root for tip in ts})
+                folder = Path(td) / root
+                backend.get_keys([bundle_key(root, t) for t in tips], folder)
+                pending = sorted(folder.glob("*.bundle"))
+                while pending:
+                    ready = [b for b in pending if run_cmd(["git", "bundle", "verify", "-q", str(b)], cwd=top,
+                                                            check=False).returncode == 0]
+                    if not ready:
+                        raise VaultError(f"{len(pending)} bundle(s) need commits neither this clone nor the vault holds")
+                    for b in ready:
+                        run_cmd(["git", "fetch", "-q", str(b), "+refs/tags/vault/*:refs/tags/vault/*"], cwd=top)
+                        pending.remove(b)
+    for t, (commit, _, _) in missing.items():
+        if not have(commit):
+            raise VaultError(f"{t}: commit {commit[:12]} is in neither this clone nor the vault's bundles")
+        at = git(["rev-parse", "-q", "--verify", f"refs/tags/{t}^{{commit}}"], top, check=False)
+        if not at:
+            git(["tag", t, commit], top)
+        elif at != commit:
+            raise VaultError(f"the local tag {t} points at {at[:12]}, not {commit[:12]}")
+    p = run_cmd(["git", "push", "-q", "origin", *[f"refs/tags/{t}" for t in missing]], cwd=top, check=False)
+    if p.returncode != 0:
+        raise VaultError(f"pushing {len(missing)} tag(s) failed: {(p.stderr or p.stdout).strip()[:300]}")
+    print(f"Pushed {len(missing)} tag(s) to origin")
+    return 0
+
+
 def cmd_list(settings: Settings, args) -> int:
     settings.need()
     backend = open_backend(settings.uri)
@@ -2874,6 +2947,10 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("list", help="List capsules")
     p.add_argument("--node")
     p.add_argument("--long", action="store_true", help="Read each manifest for its kind, result and verdict")
+    p = sub.add_parser("tags", help="Push the vault/<commit> tags of this repository's capsules that origin lacks "
+                                    "(from a machine or CI job that may push tags)")
+    p.add_argument("--node", help="Only this node's capsules")
+    p.add_argument("--push", action="store_true", help="Push them (default: only report what is missing)")
     p = sub.add_parser("show", help="Summarise one capsule")
     p.add_argument("capsule")
     p.add_argument("--node")
@@ -3009,6 +3086,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_run(settings, args, observed=False)
         if args.command_name == "list":
             return cmd_list(settings, args)
+        if args.command_name == "tags":
+            return cmd_tags(settings, args)
         if args.command_name == "show":
             return cmd_show(settings, args)
         if args.command_name == "verify":

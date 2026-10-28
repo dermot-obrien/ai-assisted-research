@@ -5,6 +5,15 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.8.0
+
+### Added
+- `experiment-vault` 1.6.0: tags pushed from where they can be (G45).
+  - Some cloud agent platforms cannot push git tags, so a capsule made there keeps its `vault/<commit12>` tag local while its bundles hold the commit.
+  - `vault.push_tags: false` in `research.yaml` stops trying.
+  - `vault.py tags --push`, run in the experiment repository by a machine or CI job that may push tags, pushes every tag `origin` lacks. When the clone lacks the commit, as with a squash-merged and deleted branch, it takes it from the vault's bundles.
+- `research` 4.4.2 and `research-dag` 2.3.2: the example `research.yaml` shows `vault.push_tags`.
+
 ## 4.7.0
 
 ### Added

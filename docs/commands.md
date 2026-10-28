@@ -218,6 +218,7 @@ Both go before the command. A relative folder resolves against the folder holdin
 | `run` | the capture options below, then `-- COMMAND` | Run the command and keep everything it used and produced as a capsule |
 | `capture` | the capture options, `--cmd CMD` (required), `--exit-code N` (default 0), `--stdout FILE`, `--stderr FILE` | Keep a run that already happened as a capsule. `--cmd` is the command as one string |
 | `list` | `--node ID`, `--long` | List capsules, one per line; `--long` reads each manifest for its kind, exit code, result and verdict |
+| `tags` | `--node ID`, `--push` | Run in the experiment repository: the `vault/<commit12>` tags of its capsules that `origin` lacks. `--push` pushes them, taking each commit from the vault's bundles when the clone lacks it. For a machine or CI job that may push tags, when capsules are made where tags cannot be pushed (`vault.push_tags: false`) |
 | `show` | `<capsule>`, `--node ID`, `--json` | Summarise one capsule: code, data, environment, run, outputs, result, retest; `--json` prints the manifest |
 | `verify` | `[<capsule>]`, `--node ID`, `--all`, `--sha256 HASH`, `--deep` | Check the manifest hashes to its id and every blob is present. `--sha256` is the hash the DAG records, to check against; `--deep` downloads and re-hashes every blob. Name a capsule, or pass `--node` or `--all` |
 | `restore` | `<capsule>`, `--node ID`, `--to DIR` (required) | Materialise a capsule into an empty folder: `repos/<name>/` with the data in place, `env/`, `original-outputs/`, `CAPSULE.json`, and `replay.sh` and `replay.ps1` to run it by hand |
@@ -258,7 +259,7 @@ The capture options, for `run` and `capture`:
 | `--vendor-wheels` | Store the wheel of every pinned package too (or set `vault.vendor_wheels: true`) |
 | `--allow-dirty` | Allow uncommitted changes, stored as a patch; the capsule is marked dirty |
 | `--code-storage bundle\|archive` | `bundle` (default, or `vault.code_storage`): tag the commit and keep the repository as incremental git bundles; `archive`: a compressed snapshot of the commit. A shallow clone always gets `archive` |
-| `--no-push-tag` | Create the `vault/<commit12>` tag locally without pushing it to `origin` |
+| `--no-push-tag` | Create the `vault/<commit12>` tag locally without pushing it to `origin` (or set `vault.push_tags: false` for every run; `tags --push` pushes them later) |
 | `--dry-run` | Check everything the capture needs (vault reachable, clean full clones, submodules checked out, paths inside the repository, no secret `--env`, pip available) and print the plan; run, tag and upload nothing. Exit 0 and `ready`, or 2 with a `PROBLEM` line for each problem |
 | `--strict` | Fail when the environment cannot be fully captured, instead of warning |
 | `--rtol NUMBER`, `--atol NUMBER` | The relative and absolute tolerance a replay's metrics must meet (default: `vault.rtol` and `vault.atol`, else 1e-9 and 1e-12) |

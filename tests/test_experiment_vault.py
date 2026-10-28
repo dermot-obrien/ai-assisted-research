@@ -457,6 +457,45 @@ class TestCodeBundles(VaultTestCase):
         tags = sh(["git", "ls-remote", "--tags", str(remote)], self.base).stdout
         self.assertIn(commit, tags)
 
+    def test_push_tags_false_in_research_yaml_skips_the_push(self):
+        remote = self.base / "remote.git"
+        sh(["git", "init", "-q", "--bare", str(remote)], self.base)
+        sh(["git", "remote", "add", "origin", str(remote)], self.exp)
+        (self.exp / "research.yaml").write_text("vault:\n  push_tags: false\n", encoding="utf-8")
+        sh(["git", "add", "research.yaml"], self.exp)
+        sh(["git", "commit", "-q", "-m", "no tag pushes"], self.exp)
+        p = self.vault("run", "--node", "H-001", "--data", "data", "--no-link", "--", sys.executable, "train.py",
+                       "--seed", "1")
+        self.assertNotIn("could not push tag", p.stderr)
+        ref = p.stdout.split("Capsule ", 1)[1].split(":", 1)[0]
+        self.assertNotIn("tag_pushed", self.manifest(ref)["code"][0])
+        self.assertEqual(sh(["git", "ls-remote", "--tags", str(remote)], self.base).stdout, "")
+
+    def test_tags_pushes_what_origin_lacks_even_from_a_clone_without_the_commit(self):
+        """A platform that cannot push tags leaves the commit only in the vault; tags --push, run where
+        tags may be pushed (a CI job on a fresh clone), restores it from the bundles and pushes the tag."""
+        remote = self.base / "remote.git"
+        sh(["git", "init", "-q", "--bare", "-b", "main", str(remote)], self.base)
+        sh(["git", "remote", "add", "origin", str(remote)], self.exp)
+        (self.exp / "research.yaml").write_text("vault:\n  push_tags: false\n", encoding="utf-8")
+        sh(["git", "add", "research.yaml"], self.exp)
+        sh(["git", "commit", "-q", "-m", "no tag pushes"], self.exp)
+        sh(["git", "push", "-q", "origin", "main"], self.exp)
+        sh(["git", "checkout", "-q", "-b", "rebuild"], self.exp)
+        commit = self.commit("rebuilt", "a rebuild nobody pushed")
+        ref = self.run_experiment()
+        tag = self.manifest(ref)["code"][0]["tag"]
+        fresh = self.base / "fresh"
+        sh(["git", "clone", "-q", str(remote), str(fresh)], self.base)
+        self.assertNotEqual(sh(["git", "cat-file", "-e", f"{commit}^{{commit}}"], fresh, check=False).returncode, 0)
+        report = self.vault("tags", cwd=fresh).stdout
+        self.assertIn("1 missing", report)
+        self.assertIn(f"missing {tag} -> {commit[:12]}", report)
+        self.assertEqual(sh(["git", "ls-remote", "--tags", str(remote)], self.base).stdout, "", "a report pushes nothing")
+        self.assertIn("Pushed 1 tag(s)", self.vault("tags", "--push", cwd=fresh).stdout)
+        self.assertIn(f"{commit}\trefs/tags/{tag}", sh(["git", "ls-remote", "--tags", str(remote)], self.base).stdout)
+        self.assertIn("0 missing", self.vault("tags", "--push", cwd=fresh).stdout)
+
     def test_a_missing_bundle_fails_verification(self):
         ref = self.run_experiment()
         for b in self.bundles():
