@@ -113,6 +113,17 @@ The same three credentials as each platform's secrets, `pip install uv` in its s
 3. Follow it with `pool.py status --campaign RT1`, which counts the verdicts.
 4. When it is done, `pool.py revisit --campaign RT1` lists the unverifiable nodes, the most depended on first. Decide which ones are worth a reconstruction, and frame each as a new child node that states its design explicitly.
 
+## 5. Run an upgrade campaign (regression testing)
+
+When you want newer libraries (a new pandas, numpy or a broker SDK), test every result against them before switching:
+
+1. On a branch such as `upgrade/2027-01`: `uv lock --upgrade` (or `--upgrade-package <name>`), `uv sync --frozen`, the unit tests, commit, push, and define the runtime: `vault.py runtime create lx-py3128-2027-01 --python .venv/bin/python`.
+2. Tell the coordinator to offer `pool.py offer --campaign UP1 --upgrade-to lx-py3128-2027-01 --upgrade-branch upgrade/2027-01` in its loop.
+3. Each worker replays one node's newest run with the new packages and records `unchanged`, `changed`, `broken` or `unverifiable`.
+4. `pool.py review --campaign UP1` lists what changed or broke, the most depended on first. A changed result is not wrong; decide whether to keep the old pins, fix the code, or rerun that research on the new packages. Merge the upgrade branch only when you are content with the list.
+
+To test your own newer code as well, a worker runs the latest commit with `vault.py run --retest-of <node>/<capsule>` instead of a replay.
+
 ## Keeping it in proportion
 
 - **Start small.** Two or three agents on one platform until a few nodes have gone through cleanly, then add platforms.

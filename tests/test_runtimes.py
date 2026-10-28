@@ -21,11 +21,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import test_experiment_vault as tev  # noqa: E402
 
 EXPERIMENT = textwrap.dedent("""\
-    import json, os
+    import json, os, re
+    # Stands in for a library whose new version changes the result: the factor comes with the project files.
+    found = re.search(r"factor = (\\d+)", open("pyproject.toml").read())
+    factor = int(found.group(1)) if found else 1
     os.makedirs("out", exist_ok=True)
-    json.dump({"score": 0.25, "threads": os.environ.get("OMP_NUM_THREADS"),
+    json.dump({"score": 0.25 * factor, "threads": os.environ.get("OMP_NUM_THREADS"),
                "hashseed": os.environ.get("PYTHONHASHSEED")}, open("out/metrics.json", "w"))
-    open("out/pred.txt", "w").write("0.25\\n")
+    open("out/pred.txt", "w").write(f"{0.25 * factor}\\n")
     """)
 
 PYPROJECT = textwrap.dedent("""\
@@ -220,6 +223,56 @@ class TestReplayAndParity(RuntimeTestCase):
         self.vault("replay", ref, "--setup", "none", "--python", sys.executable, "--to", str(self.base / "r"),
                    "--no-link")
         self.assertEqual(self.vault("parity", ref, check=False).returncode, 1)
+
+
+class TestUpgrade(RuntimeTestCase):
+    """Regression testing: the pinned code with newer packages, compared with what it gave before."""
+
+    def upgraded(self, factor=None):
+        up = self.base / "upgrade"
+        up.mkdir(exist_ok=True)
+        text = (self.exp / "pyproject.toml").read_text(encoding="utf-8")
+        if factor:
+            text += f"\n[tool.exp]\nfactor = {factor}\n"
+        (up / "pyproject.toml").write_text(text, encoding="utf-8", newline="\n")
+        shutil.copyfile(self.exp / "uv.lock", up / "uv.lock")
+        return up
+
+    def test_an_upgrade_that_changes_nothing_is_identical(self):
+        self.define()
+        ref = self.evaluate()
+        p = self.vault("replay", ref, "--upgrade", str(self.upgraded()), "--to", str(self.base / "r"), "--no-link")
+        self.assertIn("Verdict: identical", p.stdout)
+
+    def test_an_upgrade_that_changes_the_result_is_drift_and_never_parity(self):
+        self.define()
+        self.vault("runtime", "create", "rt2", "--python", self.py, "--profile", "none")
+        ref = self.evaluate()
+        p = self.vault("replay", ref, "--upgrade", str(self.upgraded(2)), "--runtime", "rt2",
+                       "--to", str(self.base / "r"), check=False)
+        self.assertEqual(p.returncode, 3)
+        self.assertIn("Verdict: drifted", p.stdout)
+        retest_id = p.stdout.split("Capsule H-1/", 1)[1].split(":", 1)[0]
+        m = self.manifest(f"H-1/{retest_id}")
+        self.assertEqual(m["metrics"]["score"], 0.5)
+        self.assertEqual((m["upgrade"]["runtime"], m["runtime"]["name"]), ("rt2", "rt2"))
+        self.assertEqual(m["comparison"]["verdict"], "drifted")
+        import yaml
+        dag = yaml.safe_load((self.exp / "research" / "dag.yaml").read_text(encoding="utf-8"))
+        self.assertTrue(dag["nodes"][0]["capsules"][-1]["upgrade"])
+        self.env["VAULT_AGENT_TOOL"] = "codex"
+        self.vault("replay", ref, "--upgrade", str(self.upgraded()), "--to", str(self.base / "r2"), "--no-link")
+        self.assertEqual(self.vault("parity", ref, check=False).returncode, 1,
+                         "a replay with other packages is a regression test, not parity")
+
+    def test_an_upgrade_needs_the_project_files(self):
+        self.define()
+        ref = self.evaluate()
+        empty = self.base / "empty"
+        empty.mkdir()
+        p = self.vault("replay", ref, "--upgrade", str(empty), "--to", str(self.base / "r"), check=False)
+        self.assertEqual(p.returncode, 2)
+        self.assertIn("must be a folder with pyproject.toml and uv.lock", p.stderr)
 
 
 @unittest.skipUnless(sys.platform == "linux", "the AVX-512 setting is checked on x86-64 Linux")

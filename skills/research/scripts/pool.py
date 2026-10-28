@@ -21,6 +21,10 @@ Two kinds of work go on the board:
     python pool.py record <node> --campaign RT1 --verdict reproduced|rebuilt|differs|unverifiable
                           [--capsule ID] [--note TEXT] [--agent HANDLE]
     python pool.py revisit --campaign RT1                 the unverifiable nodes, the most depended on first
+    python pool.py offer --campaign UP1 --upgrade-to <runtime> --upgrade-branch <branch>
+                                                          an upgrade campaign: each result's pinned code with newer
+                                                          packages, a regression test; verdicts unchanged, changed,
+                                                          broken or unverifiable
     python pool.py review [--campaign RT1] [--json] [--no-board]
                                                           one snapshot of every hypothesis, for a person or a view
 
@@ -65,6 +69,8 @@ STARTABLE = {"pending", "framed"}
 RESULT = {"validated", "ineffective", "contested", "backtested", "holdout_passed", "forward_testing", "retired",
           "completed", "tested", "partially_tested"}
 VERDICTS = ("reproduced", "rebuilt", "differs", "unverifiable")
+# An upgrade campaign is a regression test: each result's pinned code, replayed with newer packages.
+UPGRADE_VERDICTS = ("unchanged", "changed", "broken")
 
 
 class PoolError(Exception):
@@ -76,9 +82,10 @@ def now() -> str:
 
 
 class Pool:
-    def __init__(self, cfg: rms_config.Config, campaign: str | None):
+    def __init__(self, cfg: rms_config.Config, campaign: str | None, upgrade: tuple[str, str] | None = None):
         self.cfg = cfg
         self.campaign = campaign
+        self.upgrade = upgrade
         pool = cfg._get("pool", None) or {}
         self.thread = shlex.split(os.environ.get("THREAD_CMD") or pool.get("thread") or "thread")
         self.source = pool.get("source")
@@ -224,6 +231,14 @@ class Pool:
 
     def call_text(self, n: dict) -> str:
         nid, hyp = n["id"], " ".join(str(n.get("hypothesis", "")).split())[:160]
+        if self.campaign and self.upgrade:
+            runtime, branch = self.upgrade
+            return (f"{self.campaign} upgrade {nid}: {hyp}\n"
+                    f"Regression test in upgrade campaign {self.campaign}, as the research skill's references/pool.md "
+                    f"(Upgrade campaigns) says: check out branch {branch} of the experiment repository into a folder, "
+                    f"then vault.py replay <the node's newest run capsule> --upgrade <that folder> --runtime {runtime}. "
+                    f"Record the verdict with scripts/pool.py record {nid} --campaign {self.campaign} "
+                    f"--verdict <unchanged|changed|broken|unverifiable>, and close this call with it.")
         if self.campaign:
             return (f"{self.campaign} retest {nid}: {hyp}\n"
                     f"Retest this node's result in campaign {self.campaign}, as the research skill's "
@@ -257,7 +272,7 @@ class Pool:
         print(f"{title}: {len(rows['held'])} held, {len(rows['offered'])} offered, {len(rows['ready'])} ready to "
               f"post, {len(rows['waiting'])} waiting, {len(rows['done'])} done on the board")
         if self.campaign:
-            counts = {v: 0 for v in VERDICTS}
+            counts = {v: 0 for v in VERDICTS + UPGRADE_VERDICTS}
             for n in self.nodes:
                 v = self.verdict(n["id"])
                 if v:
@@ -291,7 +306,7 @@ class Pool:
             raise PoolError("record needs --campaign")
         if nid not in self.by_id:
             raise PoolError(f"{nid} is not in the DAG")
-        if verdict in ("reproduced", "rebuilt", "differs") and not capsule:
+        if verdict in ("reproduced", "rebuilt", "differs", "unchanged", "changed", "broken") and not capsule:
             raise PoolError(f"a {verdict} verdict names the capsule it rests on (--capsule)")
         if verdict == "unverifiable" and not note:
             raise PoolError("an unverifiable verdict says what is missing (--note), so the node can be revisited")
@@ -374,6 +389,10 @@ class Pool:
             if verdict and verdict.get("verdict") == "unverifiable":
                 attention.append({"node": nid, "level": "look", "why": f"unverifiable in {self.campaign}: "
                                   f"{verdict.get('note', '')}", "descendants": entry["descendants"]})
+            if verdict and verdict.get("verdict") in ("changed", "broken"):
+                attention.append({"node": nid, "level": "look", "why": f"{verdict['verdict']} under the upgrade in "
+                                  f"{self.campaign}: {verdict.get('note', '')}".rstrip(": "),
+                                  "descendants": entry["descendants"]})
             if status in RESULT and status != "contested" and not runs and n.get("runtime"):
                 attention.append({"node": nid, "level": "look", "why": "a result with a runtime but no run capsule"})
         order = {"decision": 0, "look": 1}
@@ -427,13 +446,17 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--campaign", help="A retest campaign id, such as RT1")
         if name == "offer":
             p.add_argument("--dry-run", action="store_true")
+            p.add_argument("--upgrade-to", metavar="RUNTIME",
+                           help="Make the campaign an upgrade campaign: replay each result with the packages of "
+                                "--upgrade-branch, checked against this runtime")
+            p.add_argument("--upgrade-branch", help="The experiment repository's branch with the upgraded uv.lock")
         if name in ("check", "record"):
             p.add_argument("node")
         if name == "review":
             p.add_argument("--json", action="store_true", help="The snapshot as JSON, as mission control reads it")
             p.add_argument("--no-board", action="store_true", help="Read the DAG only, without the board")
         if name == "record":
-            p.add_argument("--verdict", choices=VERDICTS, required=True)
+            p.add_argument("--verdict", choices=VERDICTS + UPGRADE_VERDICTS, required=True)
             p.add_argument("--capsule")
             p.add_argument("--note")
             p.add_argument("--agent")
@@ -442,7 +465,12 @@ def main(argv: list[str] | None = None) -> int:
         print("Error: a campaign id is letters and digits, such as RT1", file=sys.stderr)
         return 2
     try:
-        pool = Pool(rms_config.load(), args.campaign)
+        upgrade = None
+        if getattr(args, "upgrade_to", None) or getattr(args, "upgrade_branch", None):
+            if not (args.upgrade_to and args.upgrade_branch and args.campaign):
+                raise PoolError("an upgrade campaign needs --campaign, --upgrade-to and --upgrade-branch")
+            upgrade = (args.upgrade_to, args.upgrade_branch)
+        pool = Pool(rms_config.load(), args.campaign, upgrade)
         if args.cmd == "offer":
             return pool.offer(args.dry_run)
         if args.cmd == "review":

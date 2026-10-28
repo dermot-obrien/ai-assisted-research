@@ -176,6 +176,8 @@ The steps for a node whose result must not depend on where it ran or which agent
 
 7.7. Report a runtime result as 4.3 gives it, with `runtime <name>, parity <yes or pending>`.
 
+7.8. Upgrades. To test newer packages against a result, replay it with `--upgrade <checkout of the upgrade branch> --runtime <the upgrade's runtime>` ([runtimes](runtimes.md), Upgrades). Report a `drifted` upgrade replay as a regression finding, with every metric that moved; it never changes the node's status.
+
 ## 8. When something goes wrong
 
 | The tool says | Do |

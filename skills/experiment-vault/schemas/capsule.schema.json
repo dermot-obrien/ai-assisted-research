@@ -583,6 +583,28 @@
           }
         }
       }
+    },
+    "upgrade": {
+      "type": "object",
+      "description": "A regression replay: the capsule's code with a newer pyproject.toml and uv.lock",
+      "required": [
+        "lock_sha256",
+        "pyproject_sha256"
+      ],
+      "properties": {
+        "lock_sha256": {
+          "type": "string"
+        },
+        "pyproject_sha256": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   }
 }

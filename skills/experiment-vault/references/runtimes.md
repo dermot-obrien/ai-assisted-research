@@ -73,6 +73,16 @@ The runtime removes what the machine changes. What the code itself does still ma
 
 A runtime with `parity` (the default) holds a result back until it has been replayed identically on another machine or agent platform in the same runtime: the original capsule was made in one place, and `vault.py replay <capsule>` in another gives `identical` with the runtime matched. `<vault.py> parity <node>/<capsule>` exits 0 when such a replay exists. The research flow's sync reads it before moving the node's status. A parity replay that does not come back `identical` is a finding: the node is `contested`, and the difference is what to look at.
 
+## Upgrades: regression testing
+
+Pinning is also what makes upgrading safe. To see whether newer packages change any result, keep the code pinned and change only the packages:
+
+1. On a branch of the experiment repository, `uv lock --upgrade` (or `uv lock --upgrade-package pandas`), `uv sync --frozen`, run the unit tests, commit, and define a runtime from the new environment: `vault.py runtime create lx-py3128-2027-01 --python .venv/bin/python`.
+2. For a result: `vault.py replay <node>/<capsule> --upgrade <a checkout of that branch> --runtime lx-py3128-2027-01`. The capsule's own code runs with the branch's `pyproject.toml` and `uv.lock`, in the new runtime, and is compared with the original at its tolerance.
+3. `identical` means the upgrade changed nothing for this result. `drifted` (exit 3) is a regression finding: the metrics that moved are printed and kept in the retest capsule, marked `upgrade`. It never makes the original result wrong; it says the new packages give another number.
+
+An upgrade replay is never parity: its packages differ from the original's. To test newer code as well, run the latest commit with `vault.py run --retest-of <node>/<capsule>`. The research skill's pool runs either over the whole DAG as an upgrade campaign (its `references/pool.md`).
+
 ## What each capsule records about where it ran
 
 Every capsule now records `environment.machine`: the agent platform (`--tool`, else `VAULT_AGENT_TOOL`, else what the environment shows), the OS and its version, the architecture, the kernel, the C library, the CPU model and its relevant features, and the Python version and build. The DAG's capsule entry carries the platform, OS, architecture, CPU and Python, with the runtime's name and whether it matched, so a node shows where each of its results was made.

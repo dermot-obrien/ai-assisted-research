@@ -211,7 +211,10 @@
                   "reproduced",
                   "rebuilt",
                   "differs",
-                  "unverifiable"
+                  "unverifiable",
+                  "unchanged",
+                  "changed",
+                  "broken"
                 ]
               }
             }

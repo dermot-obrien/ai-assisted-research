@@ -82,6 +82,19 @@ Order is the lock. A node is offered only when every ancestor with a result has 
 
 `unverifiable` changes no status and deletes nothing. The result stays as it was recorded, marked as one that could not be made again.
 
+### Upgrade campaigns: regression testing
+
+An upgrade campaign asks whether newer packages change any result. Someone prepares a branch of the experiment repository with `uv lock --upgrade` and a runtime defined from it (the experiment-vault skill's [runtimes](../../experiment-vault/references/runtimes.md), Upgrades). Then the coordinator offers the campaign: `<pool> offer --campaign UP1 --upgrade-to <runtime> --upgrade-branch <branch>`. It goes from the root down like any campaign. Each worker replays the node's newest run capsule with `--upgrade` and records one verdict:
+
+| Verdict | When |
+|---|---|
+| `unchanged` | The replay is `identical`, or `reproduced` within the tolerance |
+| `changed` | The replay is `drifted`: a regression finding. The note says which metrics moved and by how much |
+| `broken` | The code no longer runs with the new packages |
+| `unverifiable` | The node has no capsule to replay, or it cannot be restored within the time box |
+
+A `changed` or `broken` node is not `contested`: the original result still stands for its own packages. The review lists those nodes for a person to look at, and the choice is theirs: keep the old pins, fix the code for the new packages, or rerun the research on them.
+
 ### Coming back to unverifiable nodes
 
 `<pool> revisit --campaign RT1` lists the unverifiable nodes, the most depended on first: those with the most live descendants are the enablers and blockers of whole chains. For each one worth it, the person decides whether to frame a reconstruction as a new node, a child of the original that states its design explicitly, so the chain below it gets a result it can stand on.

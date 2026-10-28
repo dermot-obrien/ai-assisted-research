@@ -988,6 +988,8 @@ def write_capsule(backend: Backend, project: str, node: str, manifest: dict, blo
     machine = manifest.get("environment", {}).get("machine")
     if machine:
         ref["env"] = {k: machine.get(k) for k in ("tool", "os", "arch", "cpu", "python")}
+    if manifest.get("upgrade"):
+        ref["upgrade"] = True
     return ref
 
 
@@ -1518,7 +1520,20 @@ def cmd_replay(settings: Settings, args) -> int:
     settings.need()
     backend = open_backend(settings.uri)
     node, cid, manifest, _ = resolve(backend, settings, args.capsule, args.node)
-    rt_record = load_runtime(backend, manifest["runtime"]["name"])[0] if manifest.get("runtime") else None
+    rt_name = args.runtime or (manifest.get("runtime") or {}).get("name")
+    rt_record, rt_digest = load_runtime(backend, rt_name) if rt_name else (None, None)
+    upgrade = None
+    if args.upgrade:
+        # A regression test: the capsule's own code, with the packages of a newer lock (and its runtime).
+        source = Path(args.upgrade).resolve()
+        if not (source / "uv.lock").is_file() or not (source / "pyproject.toml").is_file():
+            raise VaultError(f"--upgrade {args.upgrade} must be a folder with pyproject.toml and uv.lock, such as "
+                             f"a checkout where `uv lock --upgrade` was run")
+        if args.setup not in (None, "uv"):
+            raise VaultError("--upgrade installs the new uv.lock, so it needs --setup uv")
+        args.setup = "uv"
+        upgrade = {"lock_sha256": sha256_file(source / "uv.lock")[0],
+                   "pyproject_sha256": sha256_file(source / "pyproject.toml")[0], "runtime": rt_name}
     if args.setup is None:
         args.setup = "uv" if rt_record else "venv"
     if args.pip and args.setup != "venv":
@@ -1539,6 +1554,10 @@ def cmd_replay(settings: Settings, args) -> int:
     if args.setup == "venv":
         py = setup_venv(dest, manifest, base_python, args.pip or [])
     elif args.setup == "uv":
+        if upgrade:
+            for f in ("pyproject.toml", "uv.lock"):
+                shutil.copyfile(Path(args.upgrade).resolve() / f, main_dir / f)
+            print(f"Upgrading: the capsule's code with the packages of {args.upgrade}")
         py = setup_uv(main_dir, rt_record)
     else:
         py = base_python
@@ -1562,8 +1581,12 @@ def cmd_replay(settings: Settings, args) -> int:
         problems = check_runtime(rt_record, py, main_dir)
         for line in problems:
             print(f"warning: runtime {rt_record['name']}: {line}", file=sys.stderr)
-        runtime = {**manifest["runtime"], "match": not problems, "problems": problems,
+        runtime = {**(manifest.get("runtime") or {}), "name": rt_name, "sha256": rt_digest,
+                   "profile": rt_record["profile"], "match": not problems, "problems": problems,
                    "tolerance": rt_record["tolerance"]}
+        if rt_name != (manifest.get("runtime") or {}).get("name"):
+            runtime["env"] = runtime_env(rt_record, py)
+            env.update(runtime["env"])
     with tempfile.TemporaryDirectory(prefix="vault-") as td:
         work = Path(td)
         blobs: dict[str, Path] = {}
@@ -1589,6 +1612,10 @@ def cmd_replay(settings: Settings, args) -> int:
                        "duration_s": secs, "exit_code": rc,
                        "stdout": blob_entry(out_p, blobs), "stderr": blob_entry(err_p, blobs),
                        "replay": {"setup": args.setup, "pip": args.pip or []}}
+            if upgrade:
+                new_run["replay"]["upgrade"] = upgrade
+            if runtime:
+                new_run["env"] = {**run.get("env", {}), **runtime["env"]}
             args.metric = (manifest.get("result") or {}).get("metric")
             args.target = (manifest.get("result") or {}).get("target")
             retest = build_manifest(settings, args, node, "retest", manifest["code"], manifest.get("data", []),
@@ -1597,6 +1624,8 @@ def cmd_replay(settings: Settings, args) -> int:
             retest["tolerance"] = {"rtol": rtol, "atol": atol}
             retest["retest_of"] = f"{node}/{cid}"
             retest["comparison"] = comparison
+            if upgrade:
+                retest["upgrade"] = upgrade
             ref = write_capsule(backend, settings.project, node, retest, blobs)
             record_uses(backend, settings.project, node, ref["id"], retest)
             if not args.no_link:
@@ -1889,8 +1918,9 @@ def cmd_parity(settings: Settings, args) -> int:
             continue
         other = m.get("environment", {}).get("machine", {})
         elsewhere = m.get("host") != manifest.get("host") or other.get("tool") != where.get("tool")
+        same_runtime = (m.get("runtime") or {}).get("name") == (manifest.get("runtime") or {}).get("name")
         ok = ((m.get("comparison") or {}).get("verdict") == "identical" and (m.get("runtime") or {}).get("match")
-              and elsewhere)
+              and same_runtime and not m.get("upgrade") and elsewhere)
         found.append((ok, key.rsplit("/", 1)[1][:-5], m, other))
     for ok, rid, m, other in found:
         print(f"{'ok  ' if ok else '    '}{rid}  {(m.get('comparison') or {}).get('verdict')}  "
@@ -2737,6 +2767,11 @@ def main(argv: list[str] | None = None) -> int:
                         "runtime); venv: a fresh virtual environment from the capsule's lock (the default "
                         "otherwise); none: this interpreter as it is, to retest against what has changed")
     p.add_argument("--tool", help="The agent platform making the replay (default: VAULT_AGENT_TOOL, or detected)")
+    p.add_argument("--upgrade", metavar="DIR",
+                   help="A regression test: replay the capsule's code with the pyproject.toml and uv.lock in DIR "
+                        "(a checkout where `uv lock --upgrade` was run), and compare")
+    p.add_argument("--runtime", help="The runtime to check the replay against (default: the capsule's); with "
+                                     "--upgrade, the runtime defined from the upgraded environment")
     p.add_argument("--python", help="The base interpreter (default: this one)")
     p.add_argument("--pip", action="append", help="A requirement to install over the lock, e.g. numpy==2.1.0 (repeatable)")
     p.add_argument("--rtol", type=float)

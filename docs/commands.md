@@ -278,7 +278,10 @@ The replay options:
 |---|---|---|
 | `--node ID` | | The node, when `<capsule>` is a bare id |
 | `--to DIR` | `.vault-replay/<capsule id>` | Where to restore; must be empty or new |
-| `--setup {venv,none}` | `venv` | `venv`: a fresh virtual environment from the capsule's lock, from its vendored wheels with no package index when it has them; `none`: this interpreter as it is, to retest against what has changed |
+| `--setup {uv,venv,none}` | `uv` for a capsule with a runtime, else `venv` | `uv`: the project's `uv.lock` in the runtime's Python; `venv`: a fresh virtual environment from the capsule's lock, from its vendored wheels with no package index when it has them; `none`: this interpreter as it is, to retest against what has changed |
+| `--upgrade DIR` | none | A regression test: the capsule's code with the `pyproject.toml` and `uv.lock` in `DIR` (a checkout where `uv lock --upgrade` ran); a changed result is drift, and the retest is marked `upgrade` |
+| `--runtime NAME` | the capsule's | The runtime the replay is checked against; with `--upgrade`, the upgrade's runtime |
+| `--tool NAME` | `VAULT_AGENT_TOOL`, or detected | The agent platform making the replay |
 | `--python PATH` | this one | The base interpreter; a version other than the recorded one is warned about |
 | `--pip REQ` | | A requirement to install over the lock, for example `numpy==2.1.0`. Repeatable. Needs `--setup venv` |
 | `--rtol NUMBER`, `--atol NUMBER` | the capsule's | Override the tolerance fixed at capture |
@@ -331,10 +334,10 @@ The hypothesis pool and retest campaigns on the board ([pool](../skills/research
 
 | Command | Options | Effect |
 |---|---|---|
-| `offer` | `--campaign ID`, `--dry-run` | Post every node that may start now and is not on the board: research nodes whose parents are resolved, or campaign nodes whose ancestors have their verdicts. A node with `runner` goes to that role |
+| `offer` | `--campaign ID`, `--dry-run`, `--upgrade-to RUNTIME --upgrade-branch BRANCH` (an upgrade campaign) | Post every node that may start now and is not on the board: research nodes whose parents are resolved, or campaign nodes whose ancestors have their verdicts. A node with `runner` goes to that role |
 | `status` | `--campaign ID` | Held (by whom), offered, ready to post, waiting (on what) and done; a campaign's verdict counts |
 | `check NODE` | `--campaign ID` | Exit 0 when an agent may work on the node: it may start, and nothing in its chain is held |
-| `record NODE` | `--campaign ID`, `--verdict reproduced\|rebuilt\|differs\|unverifiable`, `--capsule ID`, `--note`, `--agent` | Append the verdict to the node's `retests`; `differs` makes the node `contested` |
+| `record NODE` | `--campaign ID`, `--verdict reproduced\|rebuilt\|differs\|unverifiable` (or, in an upgrade campaign, `unchanged\|changed\|broken\|unverifiable`), `--capsule ID`, `--note`, `--agent` | Append the verdict to the node's `retests`; `differs` makes the node `contested` |
 | `revisit` | `--campaign ID` | The unverifiable nodes, the most depended on first |
 | `review` | `--campaign ID`, `--json`, `--no-board` | One snapshot of every hypothesis: summary, what waits on a person, and each node with its result, evidence, where it ran and pool state. The JSON (`research-review/1`, `skills/research/schemas/review.schema.json`) is what mission control reads |
 

@@ -1,6 +1,6 @@
 # Guarantees
 
-What the vault promises, each promise with the tests that prove it. Research results are going to rest on these, so none is a claim without a test: `tests/test_experiment_vault.py` reads this table and fails if a test it names does not exist, and the tests are written so that breaking the behaviour fails them. G1, G3, G4, G5, G6, G8, G12, G18, G19, G21, G24 to G31 and G34 to G42 were checked that way, by breaking the code on purpose and watching their tests fail. A change that weakens a guarantee changes this page in the same pull request.
+What the vault promises, each promise with the tests that prove it. Research results are going to rest on these, so none is a claim without a test: `tests/test_experiment_vault.py` reads this table and fails if a test it names does not exist, and the tests are written so that breaking the behaviour fails them. G1, G3, G4, G5, G6, G8, G12, G18, G19, G21, G24 to G31 and G34 to G43 were checked that way, by breaking the code on purpose and watching their tests fail. A change that weakens a guarantee changes this page in the same pull request.
 
 The tests use a folder vault and, for Cloud Storage, a stand-in for `gcloud`. What has not been tested against a real bucket is said in the last section.
 
@@ -48,6 +48,7 @@ The tests use a folder vault and, for Cloud Storage, a stand-in for `gcloud`. Wh
 | G40 | The pool offers a node only when its parents are resolved, never twice, and a node with a runner only to that role | `test_only_nodes_whose_parents_are_resolved_are_offered`, `test_offering_twice_posts_nothing_new`, `test_a_node_with_a_runner_goes_to_that_role_only`, `test_a_finished_node_releases_its_children` |
 | G41 | A held node locks its chain: no agent may work on a node above or below it | `test_a_held_node_locks_its_chain` |
 | G42 | A retest campaign goes from the root down, keeps its verdicts apart from other campaigns, never lets an unverifiable node block its children or change its result, and makes a node whose result differs contested | `test_a_campaign_retests_from_the_root_down`, `test_campaigns_are_kept_apart`, `test_a_node_that_cannot_be_reproduced_does_not_block_its_children`, `test_a_result_that_differs_makes_the_node_contested`, `test_a_verdict_names_its_capsule_or_what_is_missing`, `test_revisit_lists_the_most_depended_on_first` |
+| G43 | An upgrade replay runs the capsule's own code with the given pyproject.toml and uv.lock in the given runtime, reports a changed result as drift, is marked as an upgrade, and never counts as parity; an upgrade campaign's changed result never contests the node | `test_an_upgrade_that_changes_nothing_is_identical`, `test_an_upgrade_that_changes_the_result_is_drift_and_never_parity`, `test_an_upgrade_needs_the_project_files`, `test_an_upgrade_campaign_asks_for_a_regression_replay`, `test_a_changed_result_is_a_finding_not_a_contested_node` |
 
 ## Limits
 

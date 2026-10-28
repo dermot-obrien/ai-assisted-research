@@ -217,6 +217,27 @@ class TestCampaign(PoolTestCase):
         self.assertEqual(sorted(self.posts()), ["RT2-H-1"], "RT1's verdict does not settle RT2")
 
 
+class TestUpgradeCampaign(PoolTestCase):
+    def test_an_upgrade_campaign_asks_for_a_regression_replay(self):
+        p = self.pool("offer", "--campaign", "UP1", "--upgrade-to", "rt-2027", check=False)
+        self.assertEqual(p.returncode, 2)
+        self.assertIn("needs --campaign, --upgrade-to and --upgrade-branch", p.stderr)
+        self.pool("offer", "--campaign", "UP1", "--upgrade-to", "rt-2027", "--upgrade-branch", "upgrade/2027-01")
+        text = self.posts()["UP1-H-1"]["text"]
+        self.assertIn("--upgrade <that folder> --runtime rt-2027", text)
+        self.assertIn("branch upgrade/2027-01", text)
+
+    def test_a_changed_result_is_a_finding_not_a_contested_node(self):
+        self.pool("record", "H-1", "--campaign", "UP1", "--verdict", "changed", "--capsule", "c-9",
+                  "--note", "sharpe 1.41 -> 1.39 with pandas 3")
+        self.assertEqual(self.dag()["H-1"]["status"], "validated")
+        r = json.loads(self.pool("review", "--json", "--campaign", "UP1", "--no-board").stdout)
+        self.assertEqual(r["attention"][0]["node"], "H-1")
+        self.assertIn("changed under the upgrade", r["attention"][0]["why"])
+        self.pool("offer", "--campaign", "UP1", "--upgrade-to", "rt-2027", "--upgrade-branch", "upgrade/2027-01")
+        self.assertIn("UP1-H-1.3", self.posts(), "a verdict releases the children")
+
+
 class TestReview(PoolTestCase):
     SCHEMA = json.loads((REPO / "skills" / "research" / "schemas" / "review.schema.json").read_text(encoding="utf-8"))
 
