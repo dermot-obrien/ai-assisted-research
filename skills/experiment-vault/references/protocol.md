@@ -187,7 +187,7 @@ The steps for a node whose result must not depend on where it ran or which agent
 | `submodule ... is not checked out` | `git submodule update --init --recursive` (2.2) |
 | `is outside ...` | Move or symlink the path inside the repository (2.4) |
 | `looks like a secret` | Remove `--env` for it; pass secrets another way. Secrets never go in a capsule |
-| `could not push tag` | Report it (4.4). The capsule is complete; push the tag later with `git push origin refs/tags/vault/<commit12>` |
+| `could not push tag` | Report it (4.4). The capsule is complete; the bundles hold the commit. Push the tags later with `vault.py tags --push` from a machine or CI job that may push tags, and on a platform that never can, set `vault.push_tags: false` |
 | `no research.yaml with the research-dag skill beside this one` | Record the capsule by hand (4.1) |
 | `is corrupt`, `missing from`, `bundles missing`, `not the recorded` | Stop. Report the capsule and the message to the person. Never repair, rewrite or delete anything in the vault |
 | `cannot read; update the skill` | Update experiment-vault; never edit the manifest |
