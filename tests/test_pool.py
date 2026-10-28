@@ -190,6 +190,34 @@ class TestCampaign(PoolTestCase):
         self.assertIn("RT1-H-1.1", self.posts())
         self.assertEqual(self.dag()["H-1"]["status"], "validated", "unverifiable never changes the result")
 
+    def narrow(self, path_to):
+        with open(self.ws / "research.yaml", "a", encoding="utf-8") as f:
+            f.write(f"  campaigns:\n    RT1:\n      path_to: {path_to}\n")
+        (self.ws / "research" / "dag.yaml").write_text(
+            DAG.replace("Child a, status: pending", "Child a, status: validated")
+               .replace("Grandchild, status: pending", "Grandchild, status: ineffective"), encoding="utf-8")
+
+    def test_a_campaign_can_be_narrowed_to_the_paths_to_some_nodes(self):
+        self.narrow("[H-1.1.1]")
+        self.pool("offer", "--campaign", "RT1")
+        self.assertEqual(sorted(self.posts()), ["RT1-H-1"])
+        self.pool("record", "H-1", "--campaign", "RT1", "--verdict", "rebuilt", "--capsule", "c-1")
+        self.pool("offer", "--campaign", "RT1")
+        self.assertEqual(sorted(self.posts()), ["RT1-H-1", "RT1-H-1.1"], "H-1.3 has a result but is off the path")
+        self.assertIn("outside campaign RT1", self.pool("check", "H-1.3", "--campaign", "RT1").stdout)
+        r = json.loads(self.pool("review", "--json", "--campaign", "RT1", "--no-board").stdout)
+        self.assertEqual(r["summary"]["in_scope"], 3)
+        self.assertEqual({n["id"] for n in r["nodes"] if n["in_campaign"]}, {"H-1", "H-1.1", "H-1.1.1"})
+        whole = json.loads(self.pool("review", "--json", "--no-board").stdout)
+        self.assertNotIn("in_campaign", whole["nodes"][0], "only a narrowed campaign marks its nodes")
+
+    def test_a_path_to_an_unknown_node_is_refused(self):
+        self.narrow("[H-1.1.1, H-7]")
+        p = self.pool("offer", "--campaign", "RT1", check=False)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn("H-7", p.stdout + p.stderr)
+        self.assertEqual(self.posts(), {})
+
     def test_a_verdict_names_its_capsule_or_what_is_missing(self):
         p = self.pool("record", "H-1", "--campaign", "RT1", "--verdict", "reproduced", check=False)
         self.assertEqual(p.returncode, 2)
@@ -286,6 +314,20 @@ class TestReview(PoolTestCase):
         self.assertLessEqual(len(d["refuted_if"]), 600)
         bare = next(n for n in self.review("--no-board")["nodes"] if n["id"] == "H-2.1")["details"]
         self.assertEqual(bare, {"notes": [], "audits": []})
+
+    def test_the_review_dates_each_node(self):
+        import yaml
+        dag = yaml.safe_load((self.ws / "research" / "dag.yaml").read_text())
+        dag["nodes"][0].update(created_at="2026-10-19T14:50:09Z", last_activity_at="2026-10-27T06:21:00Z")
+        (self.ws / "research" / "dag.yaml").write_text(yaml.safe_dump(dag), encoding="utf-8")
+        nodes = {n["id"]: n for n in self.review("--no-board")["nodes"]}
+        self.assertEqual((nodes["H-1"]["created_at"], nodes["H-1"]["last_activity_at"]),
+                         ("2026-10-19T14:50:09Z", "2026-10-27T06:21:00Z"))
+        self.assertEqual((nodes["H-2"]["created_at"], nodes["H-2"]["last_activity_at"]), (None, None))
+        self.assertEqual(nodes["H-2"]["repeatability"], {"state": "not_captured", "at": None, "capsule": None})
+        self.pool("record", "H-1", "--campaign", "RT1", "--verdict", "rebuilt", "--capsule", "c-9")
+        h1 = next(n for n in self.review("--no-board")["nodes"] if n["id"] == "H-1")
+        self.assertEqual((h1["repeatability"]["state"], h1["repeatability"]["capsule"]), ("repeated", "c-9"))
 
     def test_the_review_works_without_a_board(self):
         self.env["THREAD_CMD"] = "no-such-thread-cli"

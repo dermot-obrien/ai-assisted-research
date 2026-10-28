@@ -5,6 +5,15 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.6.0
+
+### Added
+- `research-dag` 2.3.0: every node carries four derived fields, written by the tools and never by hand ([node schema](skills/research-dag/references/node-schema.md)).
+  - `created_at` and `last_activity_at`. In a DAG store they come from the node's events; in a plain file `dag_update.py` stamps them on each change.
+  - `repeatability` says whether the result can be made again: `not_captured`, `captured`, `repeated`, `differs`, `broken` or `unverifiable`. It is read from the capsules and retest verdicts, newest first, and `repeated_at` says when the result last repeated. This separates results that have a repeatable test from those that do not.
+  - In a store the derived fields never become events, so they cannot conflict. `dag_update.py --action set` refuses them, and `verify` and the round trip compare DAGs without them.
+- `research` 4.4.0: a retest campaign can be narrowed to the paths from the root to some nodes, with `pool: campaigns: RT1: path_to: [...]` in `research.yaml`. Only those nodes and their ancestors are offered and counted, and an unknown node in `path_to` stops the campaign. `pool.py review` gives each node `repeatability` (state, when, capsule), `created_at`, `last_activity_at` and, in a narrowed campaign, `in_campaign`.
+
 ## 4.5.0
 
 ### Added

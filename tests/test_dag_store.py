@@ -160,7 +160,7 @@ class RoundTrip(StoreCase):
     def test_import_replays_to_the_same_content_and_order(self):
         store = self.seeded()
         original = yaml.safe_load(FIXTURE)
-        replayed = store.replay().to_dag()
+        replayed = dag_store.without_derived(store.replay().to_dag())
         self.assertEqual(replayed, original)
         self.assertEqual(dag_store.compare(replayed, original), [])
         self.assertEqual([n["id"] for n in replayed["nodes"]], [n["id"] for n in original["nodes"]])
@@ -180,7 +180,7 @@ class RoundTrip(StoreCase):
         view = self.tmp / "view.yaml"
         store.write_view(view)
         text = view.read_text(encoding="utf-8")
-        self.assertEqual(yaml.safe_load(text), yaml.safe_load(FIXTURE))
+        self.assertEqual(dag_store.without_derived(yaml.safe_load(text)), yaml.safe_load(FIXTURE))
         for comment in ("# Hypothesis DAG for a test project", "# === BRANCH ONE ===",
                         "# A comment inside the project block"):
             self.assertIn(comment, text)
@@ -201,7 +201,123 @@ class RoundTrip(StoreCase):
         self.assertIn("reproduces", r.stdout)
         self.run_tool(ws, "dag_store.py", "view")
         view = yaml.safe_load((ws / "research" / "hypothesis-dag.yaml").read_text(encoding="utf-8"))
-        self.assertEqual(view, yaml.safe_load(FIXTURE))
+        self.assertEqual(dag_store.without_derived(view), yaml.safe_load(FIXTURE))
+
+
+class Dates(StoreCase):
+    """created_at and last_activity_at: from the events in a store, stamped in a plain file, never hand-set."""
+
+    def node(self, store, nid):
+        return next(n for n in store.replay().to_dag()["nodes"] if n["id"] == nid)
+
+    def test_a_store_dates_each_node_from_its_events(self):
+        store = self.seeded()
+        imported = self.node(store, "H-100")
+        added = next(e for e in store.events() if e["type"] == "add" and e["id"] == "H-100")["ts"]
+        self.assertEqual(imported["created_at"], dag_store.second(added))
+        self.assertEqual(imported["last_activity_at"], imported["created_at"])
+        self.assertEqual(list(imported)[-3:], ["created_at", "last_activity_at", "repeatability"])
+        self.assertEqual(imported["repeatability"], "not_captured")
+        before, after = begin_change(store)
+        dag_update.add_note(after, "H-100", "a later note")
+        finish_change(store, before, after)
+        noted = self.node(store, "H-100")
+        last = max(e["ts"] for e in store.events() if e.get("id") == "H-100")
+        self.assertEqual(noted["last_activity_at"], dag_store.second(last))
+        self.assertGreaterEqual(noted["last_activity_at"], noted["created_at"])
+        self.assertEqual(noted["created_at"], imported["created_at"])
+        self.assertEqual(self.node(store, "H-000")["last_activity_at"], self.node(store, "H-000")["created_at"],
+                         "a note on one node is not activity on another")
+
+    def test_the_dates_never_become_events(self):
+        store = self.seeded()
+        before, after = begin_change(store)
+        node = next(n for n in after["nodes"] if n["id"] == "H-100")
+        node["created_at"] = "1999-01-01T00:00:00Z"
+        node["last_activity_at"] = "2999-01-01T00:00:00Z"
+        self.assertEqual(dag_store.diff_events(before, after), [])
+        del node["created_at"]
+        self.assertEqual(dag_store.diff_events(before, after), [])
+        after["nodes"].append({"id": "H-999", "parent": "H-000", "hypothesis": "x", "status": "pending",
+                               "created_at": "1999-01-01T00:00:00Z"})
+        (add,) = dag_store.diff_events(before, after)
+        self.assertNotIn("created_at", add["node"])
+
+    def test_an_import_keeps_the_dates_its_file_carried_until_later_work(self):
+        text = FIXTURE.replace('    hypothesis: "The root idea."', "    created_at: '2026-01-02T03:04:05Z'\n"
+                               "    last_activity_at: '2026-02-03T04:05:06Z'\n"
+                               '    hypothesis: "The root idea."', 1)
+        self.assertNotEqual(text, FIXTURE)
+        self.fixture.write_text(text, encoding="utf-8")
+        store = self.seeded()
+        root = self.node(store, "H-000")
+        self.assertEqual((root["created_at"], root["last_activity_at"]), ("2026-01-02T03:04:05Z", "2026-02-03T04:05:06Z"))
+        before, after = begin_change(store)
+        dag_update.add_note(after, "H-000", "new work")
+        finish_change(store, before, after)
+        root = self.node(store, "H-000")
+        self.assertEqual(root["created_at"], "2026-01-02T03:04:05Z")
+        self.assertGreater(root["last_activity_at"], "2026-10-01")
+
+    def test_a_plain_file_is_stamped_and_the_dates_cannot_be_set(self):
+        ws = self.workspace("plain", store_keys=False, dag_text=FIXTURE)
+        self.run_tool(ws, "dag_update.py", "--action", "add", "--parent", "H-100", "--hypothesis", "Child")
+        self.run_tool(ws, "dag_update.py", "--action", "note", "--node-id", "H-000", "--note", "hello")
+        dag = yaml.safe_load((ws / "research" / "hypothesis-dag.yaml").read_text(encoding="utf-8"))
+        by = {n["id"]: n for n in dag["nodes"]}
+        child = next(n for n in dag["nodes"] if n.get("parent") == "H-100" and n["hypothesis"] == "Child")
+        self.assertRegex(child["created_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+        self.assertEqual(child["last_activity_at"], child["created_at"])
+        self.assertIn("last_activity_at", by["H-000"])
+        self.assertNotIn("created_at", by["H-000"])
+        self.assertNotIn("last_activity_at", by["H-101"], "an untouched node is not stamped")
+        self.assertIn("last_activity_at", by["H-100"], "a new child is activity on its parent")
+        r = self.run_tool(ws, "dag_update.py", "--action", "set", "--node-id", "H-000", "--field", "created_at",
+                          "--value", "2000-01-01", check=False)
+        self.assertIn("Cannot set 'created_at'", r.stdout)
+
+
+class Repeatability(unittest.TestCase):
+    """repeatability: whether a node's result can be made again, read from its capsules and retest verdicts."""
+
+    RUN = {"id": "c-run", "kind": "run", "at": "2026-10-20T10:00:00Z", "result": {"metric": "auroc", "value": 0.94}}
+
+    def state(self, **node):
+        return dag_store.repeatability(node)
+
+    def test_the_ladder(self):
+        self.assertEqual(self.state()["state"], "not_captured")
+        self.assertEqual(self.state(capsules=[self.RUN]), {"state": "captured", "at": "2026-10-20T10:00:00Z", "capsule": "c-run"})
+        replay = {"id": "c-re", "kind": "retest", "verdict": "identical", "at": "2026-10-27T06:00:00Z"}
+        self.assertEqual(self.state(capsules=[self.RUN, replay]),
+                         {"state": "repeated", "at": "2026-10-27T06:00:00Z", "capsule": "c-re"})
+        drift = {**replay, "id": "c-dr", "verdict": "drifted", "at": "2026-10-28T06:00:00Z"}
+        self.assertEqual(self.state(capsules=[self.RUN, replay, drift])["state"], "differs", "the newest check wins")
+        failed = {**replay, "id": "c-f", "verdict": "failed"}
+        self.assertEqual(self.state(capsules=[self.RUN, failed])["state"], "broken")
+        no_result = {"id": "c-x", "kind": "run", "at": "2026-10-27T06:19:08Z"}
+        self.assertEqual(self.state(capsules=[no_result])["state"], "broken", "a run that measured nothing")
+        self.assertEqual(self.state(capsules=[no_result, self.RUN])["state"], "captured")
+
+    def test_campaign_verdicts_count(self):
+        rebuilt = {"campaign": "RT1", "verdict": "rebuilt", "capsule": "c-new", "at": "2026-10-29T00:00:00Z"}
+        self.assertEqual(self.state(retests=[rebuilt])["state"], "repeated")
+        lost = {"campaign": "RT1", "verdict": "unverifiable", "note": "data gone", "at": "2026-10-29T00:00:00Z"}
+        self.assertEqual(self.state(retests=[lost])["state"], "unverifiable")
+        later = {**self.RUN, "at": "2026-11-05T00:00:00Z"}
+        self.assertEqual(self.state(retests=[lost], capsules=[later])["state"], "captured",
+                         "a run captured after the verdict is the newer evidence")
+
+    def test_a_view_shows_it_and_it_cannot_be_set(self):
+        node = {"id": "H-1", "capsules": [self.RUN]}
+        dag_store.derive(node)
+        self.assertEqual((node["repeatability"], "repeated_at" in node), ("captured", False))
+        node["capsules"].append({"id": "c-re", "kind": "retest", "verdict": "reproduced", "at": "2026-10-27T06:00:00Z"})
+        dag_store.derive(node)
+        self.assertEqual((node["repeatability"], node["repeated_at"]), ("repeated", "2026-10-27T06:00:00Z"))
+        self.assertEqual(dag_store.diff_events({"nodes": [{"id": "H-1"}]},
+                                               {"nodes": [{"id": "H-1", "repeatability": "repeated"}]}), [])
+        self.assertIn("repeatability", dag_update.PROTECTED_FIELDS)
 
 
 class Ids(unittest.TestCase):

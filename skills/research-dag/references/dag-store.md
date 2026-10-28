@@ -46,6 +46,8 @@ The view at `dag_path` is regenerated on every write. It opens with a banner and
 
 A write that cannot reach the remote is committed to the local clone and pushed by the next write or `sync`.
 
+Replay adds four derived fields to every node, last: `created_at` (its add event), `last_activity_at` (its latest event), and `repeatability` and `repeated_at` (from its capsules and retests). They are read from the events and never written as events, so editing them in the view does nothing. The [node schema](node-schema.md) says what each means.
+
 ## Concurrent writers
 
 Edits never merge-conflict, because every event is a new file. Two cases still need a rule.

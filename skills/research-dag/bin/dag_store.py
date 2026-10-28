@@ -221,6 +221,73 @@ class FileLock:
 
 # ---------------------------------------------------------------- replay
 
+# Fields the tools derive from a node's history, never edited: when it was added, when anything last
+# happened to it, and whether its result has been shown to repeat. Replay writes them; a diff never turns
+# them into events, so they cannot conflict.
+DERIVED = ("created_at", "last_activity_at", "repeatability", "repeated_at")
+
+# Replay and campaign verdicts, by what they say about repeating the result.
+_REPEATS = {"identical": "repeated", "reproduced": "repeated", "rebuilt": "repeated", "unchanged": "repeated",
+            "drifted": "differs", "differs": "differs", "changed": "differs",
+            "failed": "broken", "broken": "broken", "unverifiable": "unverifiable"}
+
+
+def repeatability(node: dict) -> dict:
+    """Whether a node's result can be made again, from its capsules and retest verdicts, newest evidence first:
+
+    not_captured  no run capsule, so nothing in the vault can re-run it
+    captured      a run capsule with a result keeps the code, data, environment and command, and no replay or
+                  campaign has checked it yet
+    repeated      a replay was identical or reproduced, or a campaign rebuilt it and it matched
+    differs       the newest replay or rebuild gave a different result
+    broken        the newest replay could not run at all, or every run capsule failed before giving a result
+    unverifiable  a campaign could not find or run its code, data or command
+
+    Returns {"state", "at", "capsule"}: when the state was last shown, and by which capsule."""
+    caps = [c for c in node.get("capsules") or [] if isinstance(c, dict)]
+    checks = [(str(c.get("at") or ""), _REPEATS[c["verdict"]], c.get("id"))
+              for c in caps if c.get("kind") != "run" and c.get("verdict") in _REPEATS]
+    checks += [(str(r.get("at") or ""), _REPEATS[r["verdict"]], r.get("capsule"))
+               for r in node.get("retests") or [] if isinstance(r, dict) and r.get("verdict") in _REPEATS]
+    # A run capsule that holds no result is a run that failed before measuring anything.
+    runs = [c for c in caps if c.get("kind") == "run" and c.get("result")]
+    failed = [c for c in caps if c.get("kind") == "run" and not c.get("result")]
+    if checks:
+        at, state, capsule = max(checks, key=lambda c: c[0])
+        # A run captured after a campaign gave up on the node is newer evidence than the verdict.
+        newer_run = next((c for c in reversed(runs) if str(c.get("at") or "") > at), None)
+        if state == "unverifiable" and newer_run:
+            return {"state": "captured", "at": str(newer_run.get("at") or "") or None, "capsule": newer_run.get("id")}
+        return {"state": state, "at": at or None, "capsule": capsule}
+    if runs:
+        return {"state": "captured", "at": str(runs[-1].get("at") or "") or None, "capsule": runs[-1].get("id")}
+    if failed:
+        return {"state": "broken", "at": str(failed[-1].get("at") or "") or None, "capsule": failed[-1].get("id")}
+    return {"state": "not_captured", "at": None, "capsule": None}
+
+
+def derive(node: dict) -> None:
+    """Write a node's repeatability fields, last in the node."""
+    for k in ("repeatability", "repeated_at"):
+        node.pop(k, None)
+    r = repeatability(node)
+    node["repeatability"] = r["state"]
+    if r["state"] == "repeated" and r["at"]:
+        node["repeated_at"] = r["at"]
+
+
+def second(ts: str) -> str:
+    """An event time to the second, as the derived dates show it: 2026-10-27T06:15:29Z."""
+    return ts[:19] + "Z" if len(ts) >= 19 else ts
+
+
+def without_derived(dag: dict) -> dict:
+    """A DAG with the derived dates taken off every node, for comparing content."""
+    out = dict(dag)
+    out["nodes"] = [{k: v for k, v in n.items() if k not in DERIVED} for n in iter_nodes(dag)]
+    return out
+
+
 class State:
     """A DAG replayed from events, with what replay noticed on the way."""
 
@@ -236,6 +303,8 @@ class State:
         self.orphans: list[dict] = []       # events naming a node replay does not have
         self.sources: dict[str, list[str]] = {}
         self.last_ts: dict[str, str] = {}
+        self.added_ts: dict[str, str] = {}  # id -> its add event's time
+        self.acted_ts: dict[str, str] = {}  # id -> its latest event other than the add
         self.add_ids: dict[str, str] = {}   # add eid -> id the node goes by
         self.add_was: dict[str, str] = {}   # add eid -> id it was added as
         self.setters: dict[tuple[str, str], dict] = {}
@@ -273,6 +342,8 @@ def replay(events: list[dict]) -> State:
     def touch(nid: str, ev: dict) -> None:
         st.sources.setdefault(nid, []).append(ev["_src"])
         st.last_ts[nid] = max(st.last_ts.get(nid, ""), ev.get("ts", ""))
+        if ev.get("type") != "add":
+            st.acted_ts[nid] = max(st.acted_ts.get(nid, ""), ev.get("ts", ""))
 
     for ev in events:
         kind = ev.get("type")
@@ -306,6 +377,7 @@ def replay(events: list[dict]) -> State:
                 st.node_comments[nid] = ev["comment"]
             st.add_ids[ev.get("eid")] = nid
             st.add_was[ev.get("eid")] = was
+            st.added_ts[nid] = ev.get("ts", "")
             touch(nid, ev)
         elif kind in ("update", "append"):
             nid = ev.get("id")
@@ -325,12 +397,12 @@ def replay(events: list[dict]) -> State:
                             "ts": ev.get("ts"), "host": ev.get("host"), "eid": ev.get("eid"),
                             "replaced_ts": earlier.get("ts"), "replaced_host": earlier.get("host"),
                         })
-                    if field == "id":
+                    if field == "id" or field in DERIVED:
                         continue
                     node[field] = value
                     st.setters[(nid, field)] = {"ts": ev.get("ts"), "host": ev.get("host")}
                 for field in ev.get("unset") or []:
-                    if field != "id":
+                    if field != "id" and field not in DERIVED:
                         node.pop(field, None)
             else:
                 field = ev.get("field")
@@ -346,6 +418,19 @@ def replay(events: list[dict]) -> State:
     for ev in events:
         if ev.get("type") == "alias" and ev.get("id") in st.nodes:
             touch(ev["id"], ev)
+    # The derived dates, last in each node. An imported node keeps the dates its file carried, until a
+    # later event: an import is not activity.
+    for nid, node in st.nodes.items():
+        carried_created, carried_last = node.pop("created_at", None), node.pop("last_activity_at", None)
+        added = second(st.added_ts.get(nid, "")) if st.added_ts.get(nid) else None
+        acted = second(st.acted_ts[nid]) if st.acted_ts.get(nid) else None
+        created = str(carried_created) if carried_created else added
+        if created:
+            node["created_at"] = created
+        last = acted or (str(carried_last) if carried_last else None) or created
+        if last:
+            node["last_activity_at"] = last
+        derive(node)
     return st
 
 
@@ -378,7 +463,8 @@ def diff_events(before: dict, after: dict) -> list[dict]:
     for node in iter_nodes(after):
         nid = node["id"]
         if nid not in old:
-            events.append({"type": "add", "id": nid, "node": encode(node)})
+            events.append({"type": "add", "id": nid,
+                           "node": encode({k: v for k, v in node.items() if k not in DERIVED})})
     for node in iter_nodes(after):
         nid = node["id"]
         if nid not in old:
@@ -387,7 +473,7 @@ def diff_events(before: dict, after: dict) -> list[dict]:
         sets: dict[str, Any] = {}
         prev: dict[str, Any] = {}
         for field, value in node.items():
-            if field in was and was[field] == value:
+            if field in DERIVED or (field in was and was[field] == value):
                 continue
             before_value = was.get(field)
             # Growing a list (or starting one) is an append, so concurrent appends all survive.
@@ -400,7 +486,7 @@ def diff_events(before: dict, after: dict) -> list[dict]:
                 continue
             sets[field] = encode(value)
             prev[field] = encode(before_value)
-        unset = [f for f in was if f not in node]
+        unset = [f for f in was if f not in node and f not in DERIVED]
         if sets or unset:
             ev = {"type": "update", "id": nid, "set": sets, "prev": prev}
             if unset:
@@ -858,7 +944,9 @@ class DagStore:
 # ---------------------------------------------------------------- comparison
 
 def compare(a: dict, b: dict) -> list[str]:
-    """Differences in content between two DAGs, including node and field order."""
+    """Differences in content between two DAGs, including node and field order. The derived dates are left
+    out: a replay adds them, and a source file may not have them."""
+    a, b = without_derived(a), without_derived(b)
     problems = []
     if list(a) != list(b):
         problems.append(f"top-level keys differ: {list(a)} vs {list(b)}")

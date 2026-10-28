@@ -62,6 +62,17 @@ The runner uses the same runtime as every other agent, so a result made on the P
 
 A campaign retests every result in the DAG from the root down, so the research stands on results that can be made again. It is named once (`RT1`) and runs like any other pool work: the coordinator offers it, workers take it.
 
+A campaign can be narrowed to the paths from the root to some nodes, such as the latest line of work, in `research.yaml`:
+
+```yaml
+pool:
+  campaigns:
+    RT1:
+      path_to: [H-000.1.3.14, H-000.1.3.9.1]   # these nodes and every node above them
+```
+
+Then only those nodes and their ancestors are offered, `check` says any other node "is outside campaign RT1", and the review counts only them in the campaign and marks each node `in_campaign`. A name in `path_to` the DAG does not have stops the campaign with an error. Widen it by adding nodes; the verdicts already recorded stay.
+
 Order is the lock. A node is offered only when every ancestor with a result has its verdict, so no agent retests a child while its parent is being retested. A verdict of any kind releases the children: a parent that cannot be reproduced does not stop its children being retested, and a promising branch is never dropped because the node above it was lost.
 
 ### What a campaign worker does with one node
@@ -107,7 +118,7 @@ A `changed` or `broken` node is not `contested`: the original result still stand
 |---|---|
 | `summary` | Node counts by status and by pool state (`held`, `offered`, `done`, `ready`, `waiting`, `settled`), and in a campaign its verdicts and how many nodes it covers |
 | `attention` | What waits on a person, decisions first: `contested` nodes (a retest, audit or parity replay disagrees), then unverifiable nodes (the most depended on first) and results with a runtime but no run capsule |
-| `nodes` | Each node: parents, hypothesis, status, metric, target and actual, runtime and runner, evidence class, how many capsules and the latest (with where it ran and whether the runtime matched), its pool state (who holds it, what it waits for, the result its call closed with), how many nodes depend on it, its campaign verdict, and `details`: its title, result, evidence and refutation as text, its newest five notes, work item, branch, code, datasets, adoption, whether it is contested, and its audit findings, long fields cut |
+| `nodes` | Each node: parents, hypothesis, status, metric, target and actual, runtime and runner, evidence class, how many capsules and the latest (with where it ran and whether the runtime matched), its pool state (who holds it, what it waits for, the result its call closed with), how many nodes depend on it, its campaign verdict and whether it is in a narrowed campaign (`in_campaign`), its `repeatability` (state, when, which capsule: the research-dag skill's node schema), `created_at` and `last_activity_at`, and `details`: its title, result, evidence and refutation as text, its newest five notes, work item, branch, code, datasets, adoption, whether it is contested, and its audit findings, long fields cut |
 | `board` | Whether the board was read; `--no-board` reads the DAG only |
 
 ## Rules

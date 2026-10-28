@@ -108,7 +108,7 @@ The same three credentials as each platform's secrets, `pip install uv` in its s
 
 ## 4. Run a retest campaign
 
-1. Pick an id, `RT1`, and tell the coordinator to offer the campaign: `pool.py offer --campaign RT1` in its loop instead of `pool.py offer`.
+1. Pick an id, `RT1`, and tell the coordinator to offer the campaign: `pool.py offer --campaign RT1` in its loop instead of `pool.py offer`. To retest one line of work first, narrow it in `research.yaml` with `pool: campaigns: RT1: path_to: [<the latest nodes>]`; only those nodes and the nodes above them are offered ([pool reference](../skills/research/references/pool.md#a-retest-campaign)).
 2. Each worker retests one node within the time box and records one verdict: `reproduced`, `rebuilt`, `differs` or `unverifiable`. The order is top-down; a verdict of any kind releases the children.
 3. Follow it with `pool.py status --campaign RT1`, which counts the verdicts.
 4. When it is done, `pool.py revisit --campaign RT1` lists the unverifiable nodes, the most depended on first. Decide which ones are worth a reconstruction, and frame each as a new child node that states its design explicitly.
