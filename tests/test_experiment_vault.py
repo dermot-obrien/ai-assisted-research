@@ -828,6 +828,34 @@ class TestGuarantees(unittest.TestCase):
         self.assertEqual(ids, [f"G{i}" for i in range(1, len(ids) + 1)], "guarantee ids must run G1, G2, ...")
 
 
+class TestGCSListing(unittest.TestCase):
+    """A gs:// listing that gcloud cannot read fails; only an empty prefix lists as nothing."""
+
+    def backend_with(self, stderr: str, code: int):
+        bindir = Path(tempfile.mkdtemp())
+        fake = bindir / "gcloud"
+        fake.write_text(f"#!/bin/sh\necho '{stderr}' >&2\nexit {code}\n")
+        fake.chmod(0o755)
+        old_path = os.environ["PATH"]
+        os.environ["PATH"] = f"{bindir}{os.pathsep}{old_path}"
+        self.addCleanup(os.environ.__setitem__, "PATH", old_path)
+        for var in vault.KEY_VARS:
+            if var in os.environ:
+                self.addCleanup(os.environ.__setitem__, var, os.environ.pop(var))
+        return vault.GCSBackend("gs://bucket/vault")
+
+    @unittest.skipIf(os.name == "nt", "a shell script stands in for gcloud")
+    def test_an_empty_prefix_lists_as_nothing(self):
+        backend = self.backend_with("ERROR: (gcloud.storage.ls) One or more URLs matched no objects.", 1)
+        self.assertEqual(backend.list("capsules/p/"), [])
+
+    @unittest.skipIf(os.name == "nt", "a shell script stands in for gcloud")
+    def test_a_listing_without_access_fails_instead_of_reading_as_empty(self):
+        backend = self.backend_with("ERROR: (gcloud.storage.ls) You do not currently have an active account selected.", 1)
+        with self.assertRaisesRegex(vault.VaultError, "active account"):
+            backend.list("capsules/p/")
+
+
 class TestGitCalls(unittest.TestCase):
     def test_the_vaults_git_calls_never_start_background_maintenance(self):
         """git may run gc or maintenance in the background after a fetch, still writing into a temporary
