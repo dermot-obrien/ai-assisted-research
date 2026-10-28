@@ -90,6 +90,8 @@ FAKE_GCLOUD = textwrap.dedent("""\
                 print(url); found = True
             else:
                 sys.stderr.write(f"ERROR: {url} not found\\n")
+        if not found:  # as real gcloud says it
+            sys.stderr.write("ERROR: (gcloud.storage.ls) One or more URLs matched no objects.\\n")
         sys.exit(0 if found else 1)
     if cmd == "cp":
         srcs = [l.strip() for l in sys.stdin if l.strip()] if "-I" in flags else pos[:-1]
