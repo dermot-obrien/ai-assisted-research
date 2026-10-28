@@ -181,6 +181,7 @@ The fields `dag_update.py --action add` writes on a new node:
 | `id` | string | next id | Never changes |
 | `parent` | id or null | `--parent` | The node that must resolve first. Change it only with `--action relink` |
 | `hypothesis` | string | `--hypothesis` | The claim, specific and measurable |
+| `plain` | map | `tested` from `--plain-tested`, required | The node in plain words; `result` and `meaning` are required with a result status ([node schema](../skills/research-dag/references/node-schema.md#the-plain-summary)) |
 | `status` | enum | `pending` | See [concepts](concepts.md#node-status) |
 | `target_improvement` | number | `--target`, default `0.0` | The improvement that validates it |
 | `metric` | string | `--metric`, else `metadata.primary_metric`, else `Unknown` | What is measured |

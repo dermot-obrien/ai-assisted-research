@@ -153,7 +153,7 @@ jobs:
           mkdir -p /tmp/rws/research && cd /tmp/rws
           cp "$GITHUB_WORKSPACE/skills/research/assets/research.yaml.example" research.yaml
           printf 'nodes:\n- id: H-001\n  hypothesis: Root idea\n  status: framed\n  parents: []\n  target: 0.1\n  metric: accuracy\n' > research/hypothesis-dag.yaml
-          python "$B/dag_update.py" --dag research/hypothesis-dag.yaml --action add --parent H-001 --hypothesis "A variant" --target 0.05
+          python "$B/dag_update.py" --dag research/hypothesis-dag.yaml --action add --parent H-001 --hypothesis "A variant" --plain-tested "Whether the variant helps" --target 0.05
           python "$B/generate_node_index.py"
           python "$B/validate_dag_references.py"
           python "$B/generate_dashboard.py"
@@ -180,7 +180,7 @@ jobs:
           python "$B/dag_store.py" import --from /tmp/seed.yaml
           python "$B/dag_store.py" view
           python "$B/dag_store.py" verify --against /tmp/seed.yaml
-          python "$B/dag_update.py" --action add --parent H-001 --hypothesis "A variant" --target 0.05
+          python "$B/dag_update.py" --action add --parent H-001 --hypothesis "A variant" --plain-tested "Whether the variant helps" --target 0.05
           python "$B/dag_update.py" --action update --node-id H-002 --status in_progress
           grep -q "id: H-002" research/hypothesis-dag.yaml
           python "$B/generate_node_index.py"

@@ -1018,11 +1018,11 @@ class TestDagLink(VaultTestCase):
         self.assertEqual(m["node"]["snapshot"]["hypothesis"], "Seeds matter")
         self.assertEqual(self.vault("verify", f"H-001/{caps[0]['id']}", "--sha256", caps[0]["sha256"]).returncode, 0)
         sh([sys.executable, str(DAG_BIN / "dag_update.py"), "--action", "update", "--node-id", "H-001",
-            "--status", "validated"], ws, self.env)
+            "--status", "validated", "--plain-tested", "t", "--plain-result", "r", "--plain-meaning", "m"], ws, self.env)
         sh([sys.executable, str(DAG_BIN / "dag_update.py"), "--action", "add", "--parent", "H-001",
-            "--hypothesis", "Child", "--target", "0.1"], ws, self.env)
+            "--hypothesis", "Child", "--target", "0.1", "--plain-tested", "t"], ws, self.env)
         sh([sys.executable, str(DAG_BIN / "dag_update.py"), "--action", "update", "--node-id", "H-002",
-            "--status", "ineffective"], ws, self.env)
+            "--status", "ineffective", "--plain-result", "r", "--plain-meaning", "m"], ws, self.env)
         p = self.vault("coverage", "--verify", "--strict", check=False)
         self.assertIn("1 of 2 result nodes have a capsule", p.stdout)
         self.assertIn("no capsule: H-002", p.stdout)

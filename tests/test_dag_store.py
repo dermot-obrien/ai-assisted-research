@@ -261,7 +261,8 @@ class Dates(StoreCase):
 
     def test_a_plain_file_is_stamped_and_the_dates_cannot_be_set(self):
         ws = self.workspace("plain", store_keys=False, dag_text=FIXTURE)
-        self.run_tool(ws, "dag_update.py", "--action", "add", "--parent", "H-100", "--hypothesis", "Child")
+        self.run_tool(ws, "dag_update.py", "--action", "add", "--parent", "H-100", "--hypothesis", "Child",
+                      "--plain-tested", "Whether the child idea helps")
         self.run_tool(ws, "dag_update.py", "--action", "note", "--node-id", "H-000", "--note", "hello")
         dag = yaml.safe_load((ws / "research" / "hypothesis-dag.yaml").read_text(encoding="utf-8"))
         by = {n["id"]: n for n in dag["nodes"]}
@@ -275,6 +276,50 @@ class Dates(StoreCase):
         r = self.run_tool(ws, "dag_update.py", "--action", "set", "--node-id", "H-000", "--field", "created_at",
                           "--value", "2000-01-01", check=False)
         self.assertIn("Cannot set 'created_at'", r.stdout)
+
+
+class PlainSummary(StoreCase):
+    """plain: what a node tests, what it found and what that means, in words for someone outside the research."""
+
+    def dag(self, ws):
+        return {n["id"]: n for n in yaml.safe_load((ws / "research" / "hypothesis-dag.yaml").read_text(encoding="utf-8"))["nodes"]}
+
+    def test_add_needs_what_is_tested(self):
+        ws = self.workspace("plain-add", store_keys=False, dag_text=FIXTURE)
+        r = self.run_tool(ws, "dag_update.py", "--action", "add", "--parent", "H-100", "--hypothesis", "Child", check=False)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("--plain-tested is required", r.stdout)
+        self.run_tool(ws, "dag_update.py", "--action", "add", "--parent", "H-100", "--hypothesis", "Child",
+                      "--plain-tested", "Whether smoothing the prices first finds the same turning points")
+        child = next(n for n in self.dag(ws).values() if n["hypothesis"] == "Child")
+        self.assertEqual(child["plain"], {"tested": "Whether smoothing the prices first finds the same turning points"})
+
+    def test_a_result_status_needs_the_result_and_its_meaning(self):
+        ws = self.workspace("plain-result", store_keys=False, dag_text=FIXTURE)
+        r = self.run_tool(ws, "dag_update.py", "--action", "update", "--node-id", "H-101", "--status", "validated",
+                          check=False)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("--plain-tested, --plain-result, --plain-meaning", r.stdout)
+        self.assertNotEqual(self.dag(ws)["H-101"].get("status"), "validated", "a refused update changes nothing")
+        self.run_tool(ws, "dag_update.py", "--action", "update", "--node-id", "H-101", "--status", "in_progress")
+        self.run_tool(ws, "dag_update.py", "--action", "explain", "--node-id", "H-101", "--plain-tested", "Whether it helps")
+        self.run_tool(ws, "dag_update.py", "--action", "update", "--node-id", "H-101", "--status", "ineffective",
+                      "--plain-result", "It did not", "--plain-meaning", "Drop this avenue")
+        node = self.dag(ws)["H-101"]
+        self.assertEqual(node["status"], "ineffective")
+        self.assertEqual(node["plain"], {"tested": "Whether it helps", "result": "It did not", "meaning": "Drop this avenue"})
+        self.run_tool(ws, "dag_update.py", "--action", "update", "--node-id", "H-101", "--status", "contested")
+        self.run_tool(ws, "dag_update.py", "--action", "explain", "--node-id", "H-101", "--plain-meaning", "Unclear now")
+        self.assertEqual(self.dag(ws)["H-101"]["plain"]["result"], "It did not", "explain keeps the parts not given")
+        self.assertEqual(self.dag(ws)["H-101"]["plain"]["meaning"], "Unclear now")
+
+    def test_it_travels_through_a_store(self):
+        store = self.seeded()
+        before, after = begin_change(store)
+        dag_update.merge_plain(dag_update.find_node(after, "H-101"), tested="Whether it helps", result="Yes")
+        finish_change(store, before, after)
+        node = next(n for n in store.replay().to_dag()["nodes"] if n["id"] == "H-101")
+        self.assertEqual(node["plain"], {"tested": "Whether it helps", "result": "Yes"})
 
 
 class Repeatability(unittest.TestCase):
@@ -523,7 +568,7 @@ class DagUpdateCli(StoreCase):
         flat = "nodes:\n- id: H-001\n  hypothesis: Root idea\n  status: framed\n  parents: []\n"
         ws = self.workspace("ws", store_keys=False, dag_text=flat)
         r = self.run_tool(ws, "dag_update.py", "--dag", "research/hypothesis-dag.yaml", "--action", "add",
-                          "--parent", "H-001", "--hypothesis", "A variant", "--target", "0.05")
+                          "--parent", "H-001", "--hypothesis", "A variant", "--plain-tested", "t", "--target", "0.05")
         self.assertIn("Added new node: H-002", r.stdout)
         dag = yaml.safe_load((ws / "research" / "hypothesis-dag.yaml").read_text(encoding="utf-8"))
         self.assertEqual([n["id"] for n in dag["nodes"]], ["H-001", "H-002"])
@@ -533,7 +578,7 @@ class DagUpdateCli(StoreCase):
         self.seeded("a")
         ws = self.workspace("ws")
         r = self.run_tool(ws, "dag_update.py", "--action", "add", "--parent", "H-204",
-                          "--hypothesis", "Store idea", "--target", "0.05")
+                          "--hypothesis", "Store idea", "--plain-tested", "t", "--target", "0.05")
         self.assertIn("Added new node: H-204.3", r.stdout)
         self.run_tool(ws, "dag_update.py", "--action", "update", "--node-id", "H-204.3", "--status", "in_progress")
         self.run_tool(ws, "dag_update.py", "--action", "relink", "--node-id", "H-204.3", "--parent", "H-100")

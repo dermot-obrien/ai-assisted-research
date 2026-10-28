@@ -119,7 +119,7 @@ class PoolTestCase(unittest.TestCase):
         self.board_file.write_text(json.dumps(s))
         if not ref.startswith("RT"):
             subprocess.run([sys.executable, str(DAG_UPDATE), "--action", "update", "--node-id", ref, "--status",
-                            status], cwd=self.ws, env=self.env, capture_output=True, check=True)
+                            status, "--plain-tested", "t", "--plain-result", "r", "--plain-meaning", "m"], cwd=self.ws, env=self.env, capture_output=True, check=True)
 
     def dag(self):
         import yaml
@@ -304,7 +304,8 @@ class TestReview(PoolTestCase):
         root.update(title="Momentum", evidence="Two papers and the parent's run.", notes=[f"note {i}" for i in range(8)],
                     actual_performance={"sharpe": 0.74, "trades": 412}, work_item_id="WI-039", contested_by=["H-9"],
                     audit_findings=[{"severity": "critical", "finding": "Look-ahead in the tree bounds", "resolution": "causal trees"}],
-                    refuted_if="Sharpe below 0.3 " + "x" * 3000)
+                    refuted_if="Sharpe below 0.3 " + "x" * 3000,
+                    plain={"tested": "Whether buying recent winners pays", "result": "It paid", "meaning": "", "extra": "x"})
         (self.ws / "research" / "dag.yaml").write_text(yaml.safe_dump(dag), encoding="utf-8")
         d = next(n for n in self.review("--no-board")["nodes"] if n["id"] == "H-1")["details"]
         self.assertEqual((d["title"], d["evidence"], d["work_item"], d["contested"]), ("Momentum", "Two papers and the parent's run.", "WI-039", True))
@@ -312,6 +313,8 @@ class TestReview(PoolTestCase):
         self.assertEqual(d["result"], "sharpe: 0.74, trades: 412")
         self.assertEqual(d["audits"], [{"severity": "critical", "finding": "Look-ahead in the tree bounds", "resolved": True}])
         self.assertLessEqual(len(d["refuted_if"]), 600)
+        self.assertEqual(d["plain"], {"tested": "Whether buying recent winners pays", "result": "It paid"},
+                         "the three plain parts that hold text, and nothing else")
         bare = next(n for n in self.review("--no-board")["nodes"] if n["id"] == "H-2.1")["details"]
         self.assertEqual(bare, {"notes": [], "audits": []})
 

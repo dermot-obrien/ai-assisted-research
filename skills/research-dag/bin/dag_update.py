@@ -107,7 +107,31 @@ def hierarchical_child_id(ids, parent_id):
     return f"{parent_id}.{n}"
 
 
-def add_node(dag, parent_id, hypothesis, target_improvement, metric=None):
+PLAIN_KEYS = ('tested', 'result', 'meaning')
+
+# Statuses that record a node's own result, so its plain summary must say what
+# the result was and what it means. contested, retired and forward_testing move
+# on evidence that came later, and keep the summary the result was recorded with.
+RESULT_STATUSES = {'backtested', 'holdout_passed', 'validated', 'ineffective'}
+
+
+def merge_plain(node, tested=None, result=None, meaning=None):
+    """Fill in the node's plain-language summary, keeping any part not given."""
+    given = {k: v for k, v in zip(PLAIN_KEYS, (tested, result, meaning)) if v is not None}
+    if not given:
+        return
+    current = node.get('plain') if isinstance(node.get('plain'), dict) else {}
+    node['plain'] = {k: given.get(k, current.get(k)) for k in PLAIN_KEYS
+                     if given.get(k, current.get(k)) is not None}
+
+
+def missing_plain(node, keys):
+    """The parts of the node's plain summary that are absent or blank."""
+    plain = node.get('plain') if isinstance(node.get('plain'), dict) else {}
+    return [k for k in keys if not str(plain.get(k) or '').strip()]
+
+
+def add_node(dag, parent_id, hypothesis, target_improvement, metric=None, plain_tested=None):
     """
     Add a new proposed node to the DAG.
     """
@@ -144,6 +168,7 @@ def add_node(dag, parent_id, hypothesis, target_improvement, metric=None):
         'blocked_by': [],
         'contested_by': [],
     }
+    merge_plain(new_node, tested=plain_tested)
 
     dag['nodes'].append(new_node)
     
@@ -317,8 +342,12 @@ def apply_action(dag, args):
     if args.action == 'add':
         if not args.parent or not args.hypothesis:
             fail("Error: --parent and --hypothesis are required for 'add' action.")
+        if not (args.plain_tested or '').strip():
+            fail("Error: --plain-tested is required for 'add': say in plain words, for someone outside "
+                 "the research, what the experiment will test.")
         try:
-            new_id = add_node(dag, args.parent, args.hypothesis, args.target or 0.0, args.metric)
+            new_id = add_node(dag, args.parent, args.hypothesis, args.target or 0.0, args.metric,
+                              plain_tested=args.plain_tested)
         except ValueError as e:
             fail(f"Error: {e}")
         return f"Added new node: {new_id}", new_id
@@ -334,9 +363,28 @@ def apply_action(dag, args):
     if args.action == 'update':
         if not args.node_id or not args.status:
             fail("Error: --node-id and --status are required for 'update' action.")
-        if update_node_status(dag, args.node_id, args.status, args.performance):
-            return f"Updated node: {args.node_id}", None
-        fail(f"Error: Node {args.node_id} not found.")
+        node = find_node(dag, args.node_id)
+        if node is None:
+            fail(f"Error: Node {args.node_id} not found.")
+        merge_plain(node, args.plain_tested, args.plain_result, args.plain_meaning)
+        if args.status in RESULT_STATUSES:
+            missing = missing_plain(node, PLAIN_KEYS)
+            if missing:
+                fail(f"Error: '{args.status}' records a result, so {args.node_id} needs its plain summary: "
+                     + ", ".join(f"--plain-{k}" for k in missing)
+                     + ". Say in plain words what was tested, what the result was, and what it means.")
+        update_node_status(dag, args.node_id, args.status, args.performance)
+        return f"Updated node: {args.node_id}", None
+
+    if args.action == 'explain':
+        if not args.node_id or not any((args.plain_tested, args.plain_result, args.plain_meaning)):
+            fail("Error: --node-id and at least one of --plain-tested, --plain-result and --plain-meaning "
+                 "are required for 'explain' action.")
+        node = find_node(dag, args.node_id)
+        if node is None:
+            fail(f"Error: Node {args.node_id} not found.")
+        merge_plain(node, args.plain_tested, args.plain_result, args.plain_meaning)
+        return f"Explained {args.node_id}", None
 
     if args.action == 'relink':
         if not args.node_id or not args.parent:
@@ -426,7 +474,8 @@ def main():
     parser.add_argument("--dag", default=None,
                         help="Path to hypothesis-dag.yaml (default: dag_path from research.yaml, or "
                              "hypothesis-dag.yaml where there is no research.yaml)")
-    parser.add_argument("--action", choices=['add', 'update', 'adopt', 'relink', 'set', 'append', 'note'], required=True)
+    parser.add_argument("--action", choices=['add', 'update', 'adopt', 'relink', 'set', 'append', 'note', 'explain'],
+                        required=True)
     parser.add_argument("--no-store", action="store_true",
                         help="Edit the YAML file directly even when research.yaml names a DAG store")
     
@@ -437,9 +486,14 @@ def main():
     parser.add_argument("--metric", help="The evaluation metric (must align with DAG primary metric)")
     
     # Update Node arguments
-    parser.add_argument("--node-id", help="Node ID to change for 'update', 'adopt', 'relink', 'set', 'append' and 'note'")
+    parser.add_argument("--node-id", help="Node ID to change for 'update', 'adopt', 'relink', 'set', 'append', 'note' and 'explain'")
     parser.add_argument("--status", choices=['pending', 'framed', 'in_progress', 'backtested', 'holdout_passed', 'forward_testing', 'validated', 'contested', 'ineffective', 'retired', 'discarded'], help="New status for 'update' action")
     parser.add_argument("--performance", type=float, help="Actual performance for 'update' action")
+
+    # The plain-language summary, for someone outside the research (references/node-schema.md)
+    parser.add_argument("--plain-tested", help="In plain words, what the experiment tests; required for 'add'")
+    parser.add_argument("--plain-result", help="In plain words, what the result was; required with a result status")
+    parser.add_argument("--plain-meaning", help="In plain words, what the result means; required with a result status")
 
     # Adoption arguments — the second axis (is it live?), see docs/adoption-and-drift.md
     parser.add_argument("--adoption", choices=ADOPTION_STATES, help="Adoption state for 'adopt' action")
