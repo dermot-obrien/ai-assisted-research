@@ -829,7 +829,9 @@ class TestVolatile(VaultTestCase):
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertIn("Verdict: identical", p.stdout)
         self.assertIn("volatile, left out of the verdict: 3 output(s)", p.stdout)
-        retest = self.vault("list", "--node", "H-001", "--long").stdout.splitlines()[-1].split()[0]
+        # The run and its replay can share a second, so the listing's order says nothing: pick by kind.
+        retest = next(line.split()[0] for line in self.vault("list", "--node", "H-001", "--long").stdout.splitlines()
+                      if line.split()[1:2] == ["retest"])
         comparison = self.manifest(retest)["comparison"]
         self.assertEqual(sorted(comparison["volatile"]["changed"]), ["out/metrics.json", "out/results.json", "out/timing.log"])
         self.assertTrue(comparison["metrics"]["fit_ms"]["volatile"])
