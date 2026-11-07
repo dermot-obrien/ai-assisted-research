@@ -68,7 +68,7 @@ from typing import Any, Callable, Iterable
 
 FORMAT = "experiment-vault/2"
 FORMATS = ("experiment-vault/1", "experiment-vault/2")
-TOOL_VERSION = "1.6.0"
+TOOL_VERSION = "1.7.0"
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 CAPSULE_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{12}$")
@@ -221,6 +221,14 @@ class Settings:
         # Whether to push each capsule's vault/<commit> tag to origin. The bundles hold the commits either
         # way; a host whose credential cannot push tags (some cloud agent platforms) sets this false.
         self.push_tags = bool(vault.get("push_tags", True))
+        # An external dataset catalogue the vault reads versions from and writes capsule references to
+        # (references/catalogue.md). Off unless vault.catalogue names an adapter.
+        cat = vault.get("catalogue")
+        self.catalogue = cat if isinstance(cat, dict) and cat.get("adapter") else None
+        # Which inputs a run may copy in with --data: any, or (catalogue) only files the experiment produced.
+        self.inputs = str(vault.get("inputs", "any"))
+        if self.inputs not in ("any", "catalogue"):
+            raise VaultError(f"vault.inputs is {self.inputs!r}; use any or catalogue")
         self.dag_path = (self.root / cfg["dag_path"]) if self.root and cfg.get("dag_path") else None
         # Files the research tools rewrite; a change to them does not make the code dirty.
         self.managed = {(self.root / cfg[k]).resolve() for k in ("dag_path", "node_index_path")
@@ -1321,6 +1329,10 @@ def cmd_preflight(settings: Settings, args, observed: bool) -> int:
                 notes.append(f"dataset {d['dataset']} {d['version']} at {d['mount']}"
                              + (f", window {w['window']} ({w['class']})" if w else ", no window"))
             notes.append(f"evidence class: {evidence_of(found, args.exploratory)['class']}")
+        if getattr(args, "from_catalogue", None):
+            for d in prepare_catalogue(settings, args.from_catalogue, root, cwd, dry=True, problems=problems):
+                notes.append(f"dataset {d['reference']} from catalogue {d['catalogue']} at {d['mount']}, no window")
+        check(lambda: check_inputs(settings, args))
         if backend is not None:
             cls = evidence_of(found if args.dataset else [], args.exploratory)["class"]
             try:
@@ -1383,6 +1395,7 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
                                      work, blobs, settings.managed, **pin))
             if rel is not None:
                 code[-1]["path"] = rel
+        check_inputs(settings, args)
         data = walk_files(args.data or [], cwd, root, blobs, "data")
         # Checked before any holdout is claimed, so a run refused for its runtime spends no look.
         runtime = runtime_for_run(backend, node_snapshot(settings, node).get("snapshot"), args,
@@ -1391,6 +1404,7 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
         datasets = prepare_datasets(settings, backend, args.dataset or [], root, cwd, node,
                                     lineage(node_snapshot(settings, node).get("snapshot")), args.override_holdout,
                                     dry=False)
+        datasets += prepare_catalogue(settings, args.from_catalogue or [], root, cwd, dry=False)
         evidence = evidence_of(datasets, args.exploratory)
         if runtime and runtime["match"] and runtime["tolerance"] != {"rtol": args.rtol, "atol": args.atol} \
                 and (args.rtol is not None or args.atol is not None):
@@ -1417,7 +1431,8 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
             run.update({"started_at": iso(started), "duration_s": secs, "exit_code": code_rc,
                         "stdout": blob_entry(out_p, blobs), "stderr": blob_entry(err_p, blobs)})
             for d in datasets:
-                damage = cache_damage(root / d["mount"], load_version(backend, d["dataset"], d["version"])[0])
+                damage = (catalogue_damage(settings, d, root / d["mount"]) if d.get("catalogue") else
+                          cache_damage(root / d["mount"], load_version(backend, d["dataset"], d["version"])[0]))
                 if damage:
                     raise VaultError(f"the run changed dataset {d['dataset']} {d['version']} at {d['mount']} "
                                      f"({', '.join(damage[:5])}); datasets are read-only, so nothing was recorded. "
@@ -1445,6 +1460,8 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
             run["metrics_path"] = Path(os.path.abspath(cwd / args.metrics)).relative_to(root).as_posix()
         manifest = build_manifest(settings, args, node, "retest" if prior else "run", code, data,
                                   environment, run, outputs, metrics, datasets, evidence, runtime)
+        if data and getattr(args, "produced_data", False):
+            manifest["data_origin"] = "produced"
         if prior:
             tol = manifest["tolerance"]
             manifest["retest_of"] = f"{node}/{prior_id}"
@@ -1453,6 +1470,7 @@ def cmd_run(settings: Settings, args, observed: bool) -> int:
                                              retest_reader(backend, prior, root))
         ref = write_capsule(backend, settings.project, node, manifest, blobs, files)
         record_uses(backend, settings.project, node, ref["id"], manifest)
+        pin_catalogue(settings, manifest, ref)
     if datasets:
         print(f"  evidence: {evidence['class']}; data: "
               + ", ".join(f"{d['dataset']} {d['version']}" + (f" ({d['window']['window']})" if d.get('window') else "")
@@ -1489,7 +1507,7 @@ def place(src: Path, dest: Path, mode: int | None = None) -> None:
         os.chmod(dest, mode)
 
 
-def restore(backend: Backend, manifest: dict, dest: Path) -> Path:
+def restore(backend: Backend, manifest: dict, dest: Path, settings: Settings | None = None) -> Path:
     """Materialise the capsule under dest. Returns the run directory."""
     if dest.exists() and any(dest.iterdir()):
         raise VaultError(f"{dest} is not empty")
@@ -1521,6 +1539,15 @@ def restore(backend: Backend, manifest: dict, dest: Path) -> Path:
     for d in manifest.get("data", []):
         place(cache / d["sha256"], main / d["path"])
     for d in manifest.get("datasets", []):
+        if d.get("catalogue"):
+            # The exact version the capsule read, by number and digest; never latest (references/catalogue.md).
+            if settings is None:
+                raise VaultError(f"capsule reads {d['reference']} from a catalogue; restore it with research.yaml's "
+                                 f"vault.catalogue configured")
+            _, adapter = open_catalogue(settings)
+            catalogue_resolve(adapter, d["reference"], want=d)
+            link_folder(Path(adapter.materialize(d["reference"])), main / d["mount"])
+            continue
         record, digest = load_version(backend, d["dataset"], d["version"])
         if digest != d["sha256"]:
             raise VaultError(f"dataset {d['dataset']} {d['version']} in the vault is not the version the capsule "
@@ -1646,7 +1673,7 @@ def cmd_replay(settings: Settings, args) -> int:
         while dest.exists() and any(dest.iterdir()):
             dest = (Path.cwd() / ".vault-replay" / f"{cid}-{n}").resolve()
             n += 1
-    run_dir = restore(backend, manifest, dest)
+    run_dir = restore(backend, manifest, dest, settings)
     print(f"Restored {node}/{cid} into {dest}")
     recorded_py = (manifest.get("environment", {}).get("python") or {})
     base_python = args.python or sys.executable
@@ -1736,6 +1763,7 @@ def cmd_replay(settings: Settings, args) -> int:
                 retest["upgrade"] = upgrade
             ref = write_capsule(backend, settings.project, node, retest, blobs)
             record_uses(backend, settings.project, node, ref["id"], retest)
+            pin_catalogue(settings, retest, ref)
             if not args.no_link:
                 link_to_dag(settings, node, ref)
     return {"identical": 0, "reproduced": 0, "drifted": 3}.get(comparison["verdict"], 1)
@@ -2537,6 +2565,136 @@ def prepare_datasets(settings: Settings, backend: Backend, specs: list[str], roo
     return out
 
 
+# ---------------------------------------------------------------- an external dataset catalogue
+
+_CATALOGUES: dict[str, Any] = {}
+
+
+def open_catalogue(settings: Settings) -> tuple[str, Any]:
+    """The adapter vault.catalogue names, `module:Class`, built once with no arguments (references/catalogue.md)."""
+    cfg = settings.catalogue
+    if not cfg:
+        raise VaultError("no catalogue configured: add vault.catalogue (name, adapter) to research.yaml; "
+                         "see references/catalogue.md")
+    name = str(cfg.get("name", "catalogue"))
+    if name not in _CATALOGUES:
+        spec = str(cfg["adapter"])
+        module, sep, attr = spec.partition(":")
+        if not sep:
+            raise VaultError(f"vault.catalogue.adapter {spec!r}: write it as module:Class")
+        for extra in cfg.get("python_path") or []:
+            path = Path(extra) if os.path.isabs(extra) or not settings.root else settings.root / extra
+            if str(path) not in sys.path:
+                sys.path.insert(0, str(path))
+        try:
+            import importlib
+            _CATALOGUES[name] = getattr(importlib.import_module(module), attr)()
+        except Exception as e:  # noqa: BLE001 - any failure to load the adapter is the same error to the user
+            raise VaultError(f"catalogue adapter {spec} could not be loaded: {e}") from e
+    return name, _CATALOGUES[name]
+
+
+def full_reference(dataset: str, version: str, digest_hex: str) -> str:
+    return f"{dataset}@{version}#sha256:{digest_hex}"
+
+
+def catalogue_resolve(adapter: Any, ref: str, want: dict | None = None) -> dict:
+    """Resolve a reference to an exact version and its digest; with want, refuse anything but that version."""
+    try:
+        got = adapter.resolve(ref)
+    except Exception as e:  # noqa: BLE001 - the adapter's own refusal (a digest mismatch, a removed version)
+        raise VaultError(f"catalogue refused {ref}: {e}") from e
+    digest = str(got.get("digest", ""))
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest) or not re.fullmatch(r"v[0-9]{4,}", str(got.get("version"))):
+        raise VaultError(f"catalogue answered {ref} without an exact version and sha256 digest: {got}")
+    out = {"dataset": str(got["dataset"]), "version": str(got["version"]), "sha256": digest[7:]}
+    if want and (out["dataset"], out["version"], out["sha256"]) != (want["dataset"], want["version"], want["sha256"]):
+        raise VaultError(f"catalogue resolves {ref} to {out['dataset']} {out['version']} ({out['sha256'][:12]}), "
+                         f"not the {want['version']} ({want['sha256'][:12]}) the capsule recorded")
+    return out
+
+
+def parse_catalogue_arg(text: str) -> tuple[str, str]:
+    """mount=reference -> (mount, reference). The mount comes first: a reference may hold '=' and ':'."""
+    mount, sep, ref = text.partition("=")
+    if not sep or not mount or not ref:
+        raise VaultError(f"--from-catalogue {text!r}: write it as mount=reference, e.g. data/bars=bars@v0003")
+    return mount, ref
+
+
+def prepare_catalogue(settings: Settings, specs: list[str], root: Path, cwd: Path, dry: bool,
+                      problems: list[str] | None = None) -> list[dict]:
+    """Resolve each --from-catalogue to an exact version and digest, and mount the catalogue's folder for it."""
+    out = []
+    for spec in specs:
+        try:
+            mount_rel, ref = parse_catalogue_arg(spec)
+            name, adapter = open_catalogue(settings)
+            got = catalogue_resolve(adapter, ref)
+            mount = Path(os.path.abspath(cwd / mount_rel))
+            if not mount.is_relative_to(root):
+                raise VaultError(f"dataset mount {mount_rel} is outside {root}")
+            if run_cmd(["git", "check-ignore", "-q", str(mount)], cwd=root, check=False).returncode != 0:
+                raise VaultError(f"{mount.relative_to(root).as_posix()} is not git-ignored, so mounting {ref} there "
+                                 f"would make the repository dirty. Add it to .gitignore")
+            entry = {"catalogue": name, **got, "mount": mount.relative_to(root).as_posix(),
+                     "reference": full_reference(got["dataset"], got["version"], got["sha256"])}
+            if not dry:
+                target = Path(adapter.materialize(entry["reference"]))
+                if mount.exists() or mount.is_symlink():
+                    if not same_folder(mount, target):
+                        raise VaultError(f"{entry['mount']} already exists and is not {entry['reference']}; remove "
+                                         f"it (it is git-ignored) and run again")
+                else:
+                    link_folder(target, mount)
+            out.append(entry)
+        except VaultError as e:
+            if problems is None:
+                raise
+            problems.append(str(e))
+    return out
+
+
+def catalogue_damage(settings: Settings, d: dict, folder: Path) -> list[str]:
+    _, adapter = open_catalogue(settings)
+    return list(adapter.damage(d["reference"], str(folder)))
+
+
+def pin_catalogue(settings: Settings, manifest: dict, ref: dict) -> None:
+    """A capsule reference to every catalogue version the capsule read, so the catalogue keeps it (references/catalogue.md)."""
+    entries = [d for d in manifest.get("datasets", []) if d.get("catalogue")]
+    if not entries:
+        return
+    _, adapter = open_catalogue(settings)
+    node = manifest["node"]["id"] if isinstance(manifest.get("node"), dict) and "id" in manifest["node"] else ""
+    for d in entries:
+        try:
+            adapter.pin(d["reference"], ref["sha256"], f"capsule {manifest['project']}/{node}/{ref['id']} read it",
+                        {"project": manifest["project"], "node": node, "capsule": ref["id"], "uri": ref["uri"]})
+        except Exception as e:  # noqa: BLE001
+            raise VaultError(f"capsule {ref['id']} is kept, but the catalogue did not record that it reads "
+                             f"{d['reference']} ({e}); run `vault.py pin {node}/{ref['id']}` once it can") from e
+
+
+def cmd_pin(settings: Settings, args) -> int:
+    """Write the capsule's catalogue references again, for one whose pin failed. Pinning twice changes nothing."""
+    settings.need()
+    backend = open_backend(settings.uri)
+    node, cid, manifest, digest = resolve(backend, settings, args.capsule, args.node)
+    pin_catalogue(settings, manifest, {"id": cid, "sha256": digest, "uri": backend.url(capsule_key(settings.project, node, cid))})
+    n = len([d for d in manifest.get("datasets", []) if d.get("catalogue")])
+    print(f"{node}/{cid}: {n} catalogue reference(s) recorded")
+    return 0
+
+
+def check_inputs(settings: Settings, args) -> None:
+    """With vault.inputs: catalogue, --data holds only what the experiment produced, said with --produced-data."""
+    if settings.inputs == "catalogue" and getattr(args, "data", None) and not getattr(args, "produced_data", False):
+        raise VaultError("vault.inputs is catalogue: a dataset is read with --from-catalogue mount=reference, "
+                         "not copied in with --data. --data is for files this experiment produced itself; say so "
+                         "with --produced-data")
+
+
 def claim_holdout(backend: Backend, name: str, window: str, node: str, parent: str | None,
                   override: str | None, dry: bool) -> None:
     """A sealed holdout gives each node one look, and none to a sibling of a node that looked."""
@@ -2564,6 +2722,8 @@ def claim_holdout(backend: Backend, name: str, window: str, node: str, parent: s
 
 def record_uses(backend: Backend, project: str, node: str, cid: str, manifest: dict) -> None:
     for d in manifest.get("datasets", []):
+        if d.get("catalogue"):
+            continue  # kept by the catalogue's own reference (pin_catalogue)
         use = {"project": project, "node": node, "capsule": cid, "version": d["version"],
                "class": (d.get("window") or {}).get("class", "untracked"), "at": manifest["created_at"]}
         if d.get("window"):
@@ -2752,7 +2912,9 @@ def cmd_show(settings: Settings, args) -> int:
     print(f"  data: {len(m.get('data', []))} files, {human(sum(d['size'] for d in m.get('data', [])))}")
     for d in m.get("datasets", []):
         w = d.get("window")
-        print(f"  dataset {d['dataset']} {d['version']} at {d['mount']}" + (f", window {w['window']} ({w['class']})" if w else ""))
+        where = f" from catalogue {d['catalogue']} ({d['reference']})" if d.get("catalogue") else ""
+        print(f"  dataset {d['dataset']} {d['version']}{where} at {d['mount']}"
+              + (f", window {w['window']} ({w['class']})" if w else ""))
     if m.get("evidence"):
         print(f"  evidence: {m['evidence']['class']}")
     env = m.get("environment", {})
@@ -2800,6 +2962,15 @@ def cmd_verify(settings: Settings, args) -> int:
                 raise VaultError(f"{len(gone)} of {len(bundles)} code bundles missing: {', '.join(gone[:3])}")
             ds_hexes = set()
             for d in m.get("datasets", []):
+                if d.get("catalogue"):
+                    _, adapter = open_catalogue(settings)
+                    catalogue_resolve(adapter, d["reference"], want=d)
+                    if args.deep:
+                        folder = Path(adapter.materialize(d["reference"]))
+                        damage = list(adapter.damage(d["reference"], str(folder)))
+                        if damage:
+                            raise VaultError(f"{d['reference']} is damaged: {', '.join(damage[:5])}")
+                    continue
                 record, digest = load_version(backend, d["dataset"], d["version"])
                 if digest != d["sha256"]:
                     raise VaultError(f"dataset {d['dataset']} {d['version']} hashes to {digest[:12]}, "
@@ -2930,6 +3101,13 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--dataset", action="append",
                        help="A registered dataset the run reads, name@version:mount[:window], e.g. "
                             "stocks-eod@latest:data/eod:holdout-2023 (repeatable)")
+        p.add_argument("--from-catalogue", action="append", metavar="MOUNT=REFERENCE",
+                       help="A dataset version from the catalogue research.yaml names (vault.catalogue), mounted at "
+                            "MOUNT, e.g. data/bars=bars@v0003; resolved to its exact version and digest, recorded by "
+                            "reference, and kept by the catalogue for this capsule (repeatable)")
+        p.add_argument("--produced-data", action="store_true",
+                       help="The --data files were produced by this experiment itself, not taken from outside; "
+                            "needed for --data when vault.inputs is catalogue")
         p.add_argument("--exploratory", action="store_true",
                        help="Mark the test exploratory: it may use any data, and never validates a node")
         p.add_argument("--override-holdout", metavar="REASON",
@@ -2966,6 +3144,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--all", action="store_true")
     p.add_argument("--sha256", help="The manifest hash the DAG records, to check against")
     p.add_argument("--deep", action="store_true", help="Download and re-hash every blob")
+    p = sub.add_parser("pin", help="Record again, in the catalogue, that a capsule reads its catalogue versions")
+    p.add_argument("capsule")
+    p.add_argument("--node")
     p = sub.add_parser("restore", help="Materialise a capsule into a folder")
     p.add_argument("capsule")
     p.add_argument("--node")
@@ -3097,11 +3278,13 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_show(settings, args)
         if args.command_name == "verify":
             return cmd_verify(settings, args)
+        if args.command_name == "pin":
+            return cmd_pin(settings, args)
         if args.command_name == "restore":
             settings.need()
             backend = open_backend(settings.uri)
             node, cid, m, _ = resolve(backend, settings, args.capsule, args.node)
-            run_dir = restore(backend, m, Path(args.to).resolve())
+            run_dir = restore(backend, m, Path(args.to).resolve(), settings)
             print(f"Restored {node}/{cid}; the run directory is {run_dir}. replay.sh or replay.ps1 runs it by hand.")
             return 0
         if args.command_name == "replay":

@@ -4,6 +4,8 @@ A dataset that more than one test reads is registered in the vault once, as numb
 
 Backtesting is hypothesis testing on history. What makes a backtest weak evidence is that the history was there while the strategy was designed, so it can be fitted to it, knowingly or not. The vault cannot see intent, but it can record, and enforce, which data a test could have seen: data named for backtesting, a sealed holdout looked at once, or data that did not exist when the test was fixed.
 
+Where datasets live in an organisation's own catalogue, the vault reads them from there by reference instead ([catalogue](catalogue.md)).
+
 ## A dataset and its versions
 
 ```bash
