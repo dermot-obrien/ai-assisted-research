@@ -466,7 +466,7 @@
     },
     "datasets": {
       "type": "array",
-      "description": "Registered dataset versions the run read, by reference: the files stay in the dataset's version, stored once",
+      "description": "Dataset versions the run read, by reference: registered in the vault, or in an external catalogue. The files stay in the version, stored once",
       "items": {
         "type": "object",
         "required": [
@@ -487,7 +487,7 @@
           "sha256": {
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
-            "description": "Hash of the version record, checked on restore and verify"
+            "description": "Hash of the version record (a vault dataset) or of the catalogue's manifest (a catalogue version), checked on restore and verify"
           },
           "mount": {
             "type": "string",
@@ -535,6 +535,15 @@
               "minimum": 0
             },
             "description": "For a forward window: the byte in each file where the forward data starts"
+          },
+          "catalogue": {
+            "type": "string",
+            "description": "The catalogue the version came from (vault.catalogue.name); absent for a version registered in the vault"
+          },
+          "reference": {
+            "type": "string",
+            "pattern": "^.+@v[0-9]{4,}#sha256:[0-9a-f]{64}$",
+            "description": "For a catalogue version: the exact reference a restore, replay and verify resolve, name@version#sha256:<manifest digest>"
           }
         }
       }
@@ -644,6 +653,12 @@
           ]
         }
       }
+    },
+    "data_origin": {
+      "enum": [
+        "produced"
+      ],
+      "description": "Set when --produced-data said the data[] files were produced by this experiment itself"
     }
   }
 }

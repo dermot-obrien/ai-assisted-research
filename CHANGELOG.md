@@ -5,6 +5,16 @@ All notable changes to the Research Management System (RMS).
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.10.0
+
+### Added
+- `experiment-vault` 1.7.0: datasets read from an organisation's own catalogue ([catalogue](skills/experiment-vault/references/catalogue.md), G46 to G48).
+  - `run --from-catalogue <mount>=<reference>` resolves the reference to an exact version and digest, mounts the catalogue's folder for it, and records `catalogue`, `dataset`, `version`, `sha256` and `reference` (`name@vNNNN#sha256:<hex>`) instead of copying files.
+  - The catalogue is asked to keep each version for the capsule (`pin`, with the capsule's hash as the holder). `vault.py pin <capsule>` finishes a pin that failed.
+  - Replay, restore and verify resolve the exact recorded reference, never `latest`, and refuse a version whose digest changed, so a repeat reads exactly the files and bytes the run read.
+  - `vault.inputs: catalogue` refuses `--data` unless `--produced-data` says the experiment made those files.
+  - A catalogue is a small Python adapter named in `research.yaml` (`vault.catalogue`), with `resolve`, `materialize`, `damage` and `pin`. Nothing changes for a vault without one.
+
 ## 4.9.0
 
 ### Added

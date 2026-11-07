@@ -5,7 +5,7 @@ license: CC-BY-4.0 AND Apache-2.0. Instructions under CC BY 4.0, code under Apac
 compatibility: Python 3.10 or newer with PyYAML, and git. A gs:// vault needs the gcloud CLI, signed in with write access to the bucket, or a service account key in RESEARCH_VAULT_GCP_KEY (cloud sessions). Reads research.yaml when there is one (vault.uri, vault.project or dag_project, dag_path); without it, pass --vault and --project. Records each capsule on the DAG node through the research-dag skill when it is installed beside this one.
 metadata:
   author: dermot-obrien
-  version: "1.6.1"
+  version: "1.7.0"
   homepage: https://github.com/dermot-obrien/ai-assisted-research
   x-skill-requires: ""
 ---
@@ -34,6 +34,7 @@ Every capture and replay follows [references/protocol.md](references/protocol.md
 | Register data more than one test reads, add a new version, "new data arrived" | `vault.py dataset create`, `dataset add` | [references/datasets.md](references/datasets.md) |
 | Backtest, holdout, forward test, out-of-sample, "has this been looked at" | `vault.py dataset window`, `run --dataset <name>@<version>:<mount>:<window>`, `dataset uses` | [references/datasets.md](references/datasets.md) |
 | "the data changed", what rests on an old version | `vault.py dataset diff`, `dataset impact <name>@<version>` | [references/datasets.md](references/datasets.md) |
+| Read a dataset kept in an organisation's own catalogue or data lake, by reference, without copying it | `run --from-catalogue <mount>=<name>@<version>`, `vault.py pin <capsule>` | [references/catalogue.md](references/catalogue.md) |
 | The same result on any machine or agent platform, "pin the environment", determinism | `vault.py runtime create`, `runtime check`, `run` on a node with `runtime`, `parity` | [references/runtimes.md](references/runtimes.md) |
 | Storage classes, cost, archiving, pulling forward | `vault.py lifecycle` | [references/storage.md](references/storage.md) |
 
@@ -51,5 +52,5 @@ Every capture and replay follows [references/protocol.md](references/protocol.md
 | Folder | Holds |
 |---|---|
 | `bin/` | `vault.py`, and the post-install check |
-| `references/` | The protocol agents follow, the guarantees and the tests behind them, capturing, replaying, datasets and their windows, runtimes and deterministic experiments, the capsule format, and storage (buckets, cost, archive) |
+| `references/` | The protocol agents follow, the guarantees and the tests behind them, capturing, replaying, datasets and their windows, a dataset catalogue, runtimes and deterministic experiments, the capsule format, and storage (buckets, cost, archive) |
 | `schemas/` | The capsule manifest's JSON Schema |
